@@ -1,0 +1,8 @@
+# Copiar estos valores a `android/gradle.properties` o definirlos como variables de entorno
+# antes de generar un build para cada entorno.
+
+# Emulador / desarrollo local
+FACTURAPRO_API_BASE_URL_DEBUG=http://10.0.2.2:8001/api/
+
+# API publica / produccion
+FACTURAPRO_API_BASE_URL_RELEASE=https://api.example.com/api/

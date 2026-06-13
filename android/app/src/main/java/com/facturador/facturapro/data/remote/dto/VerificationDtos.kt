@@ -1,0 +1,48 @@
+package com.facturador.facturapro.data.remote.dto
+
+import com.facturador.facturapro.domain.model.InvoiceVerification
+import com.facturador.facturapro.domain.model.VerificationStatus
+import com.facturador.facturapro.domain.model.VerifiedInvoice
+import com.google.gson.annotations.SerializedName
+
+data class InvoiceVerificationResponseDto(
+    val status: String? = null,
+    val authentic: Boolean = false,
+    val invoice: VerifiedInvoiceDto? = null,
+)
+
+data class VerifiedInvoiceDto(
+    @SerializedName("invoice_number") val invoiceNumber: String? = null,
+    @SerializedName("document_type") val documentType: String? = null,
+    @SerializedName("seller_name") val sellerName: String? = null,
+    @SerializedName("seller_tax_id") val sellerTaxId: String? = null,
+    @SerializedName("client_name") val clientName: String? = null,
+    @SerializedName("client_tax_id") val clientTaxId: String? = null,
+    @SerializedName("invoice_date") val invoiceDate: String? = null,
+    @SerializedName("currency_code") val currencyCode: String? = null,
+    val total: String? = null,
+)
+
+fun InvoiceVerificationResponseDto.toDomain(): InvoiceVerification = InvoiceVerification(
+    status = when (status) {
+        "authentic" -> VerificationStatus.AUTHENTIC
+        "altered" -> VerificationStatus.ALTERED
+        "code_mismatch" -> VerificationStatus.CODE_MISMATCH
+        "not_found" -> VerificationStatus.NOT_FOUND
+        else -> VerificationStatus.UNKNOWN
+    },
+    authentic = authentic,
+    invoice = invoice?.let {
+        VerifiedInvoice(
+            invoiceNumber = it.invoiceNumber,
+            documentType = it.documentType,
+            sellerName = it.sellerName,
+            sellerTaxId = it.sellerTaxId,
+            clientName = it.clientName,
+            clientTaxId = it.clientTaxId,
+            invoiceDate = it.invoiceDate,
+            currencyCode = it.currencyCode,
+            total = it.total,
+        )
+    },
+)

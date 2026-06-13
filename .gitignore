@@ -1,0 +1,34 @@
+# ── Temporales y memoria local ──────────────────────────────
+tmp/
+.claude/
+
+# ── Backend Laravel ──────────────────────────────────────────
+backend/vendor/
+backend/node_modules/
+backend/.env
+backend/.env.backup
+backend/.env.production
+backend/storage/app/*
+!backend/storage/app/.gitignore
+backend/storage/pail/
+backend/storage/*.key
+backend/public/build/
+backend/public/hot/
+backend/public/storage/
+backend/.phpunit.cache
+backend/.phpunit.result.cache
+backend/auth.json
+backend/cal_fixed.png
+backend/cal_preview.png
+backend/cal_preview2.png
+backend/inv_preview.png
+
+# ── Android ───────────────────────────────────────────────────
+android/.gradle/
+android/app/build/
+android/build/
+android/local.properties
+android/captures/
+android/**/*.hprof
+android/.idea/
+android/.cxx/

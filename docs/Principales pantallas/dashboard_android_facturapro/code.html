@@ -1,0 +1,268 @@
+<!DOCTYPE html>
+
+<html lang="es"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>Facturación Pro - Inicio</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;900&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    "colors": {
+                        "primary": "#0037b0",
+                        "on-primary-fixed-variant": "#0039b5",
+                        "on-primary": "#ffffff",
+                        "surface": "#faf8ff",
+                        "inverse-surface": "#2e3039",
+                        "on-surface": "#1a1b23",
+                        "surface-container-lowest": "#ffffff",
+                        "on-tertiary-fixed": "#390c00",
+                        "surface-container-high": "#e8e7f3",
+                        "on-error-container": "#93000a",
+                        "primary-fixed-dim": "#b7c4ff",
+                        "outline-variant": "#c4c5d7",
+                        "on-secondary": "#ffffff",
+                        "tertiary": "#7f2500",
+                        "surface-container-low": "#f3f2fe",
+                        "surface-container-highest": "#e2e1ed",
+                        "on-background": "#1a1b23",
+                        "surface-bright": "#faf8ff",
+                        "tertiary-fixed": "#ffdbcf",
+                        "inverse-on-surface": "#f0f0fb",
+                        "surface-tint": "#2151da",
+                        "on-tertiary-fixed-variant": "#832700",
+                        "secondary": "#505f76",
+                        "primary-fixed": "#dce1ff",
+                        "on-error": "#ffffff",
+                        "background": "#faf8ff",
+                        "tertiary-fixed-dim": "#ffb59c",
+                        "inverse-primary": "#b7c4ff",
+                        "error": "#ba1a1a",
+                        "surface-variant": "#e2e1ed",
+                        "on-surface-variant": "#434655",
+                        "on-primary-fixed": "#001551",
+                        "secondary-container": "#d0e1fb",
+                        "error-container": "#ffdad6",
+                        "surface-container": "#ededf9",
+                        "primary-container": "#1d4ed8",
+                        "on-tertiary": "#ffffff",
+                        "outline": "#747686",
+                        "on-tertiary-container": "#ffc9b7",
+                        "secondary-fixed": "#d3e4fe",
+                        "on-secondary-fixed-variant": "#38485d",
+                        "on-secondary-container": "#54647a",
+                        "tertiary-container": "#a73400",
+                        "on-secondary-fixed": "#0b1c30",
+                        "on-primary-container": "#cad3ff",
+                        "surface-dim": "#d9d9e5",
+                        "secondary-fixed-dim": "#b7c8e1"
+                    },
+                    "borderRadius": {
+                        "DEFAULT": "0.125rem",
+                        "lg": "0.25rem",
+                        "xl": "0.5rem",
+                        "full": "0.75rem"
+                    },
+                    "spacing": {
+                        "stack_md": "16px",
+                        "gutter": "24px",
+                        "base_unit": "8px",
+                        "stack_sm": "8px",
+                        "stack_lg": "32px",
+                        "margin_mobile": "16px",
+                        "container_max_width": "1440px",
+                        "sidebar_width": "280px"
+                    },
+                    "fontFamily": {
+                        "headline-md": ["Inter"],
+                        "title-lg": ["Inter"],
+                        "display-lg": ["Inter"],
+                        "body-lg": ["Inter"],
+                        "display-lg-mobile": ["Inter"],
+                        "code-md": ["Inter"],
+                        "label-md": ["Inter"],
+                        "body-md": ["Inter"]
+                    },
+                    "fontSize": {
+                        "headline-md": ["24px", { "lineHeight": "32px", "letterSpacing": "-0.01em", "fontWeight": "600" }],
+                        "title-lg": ["20px", { "lineHeight": "28px", "fontWeight": "600" }],
+                        "display-lg": ["36px", { "lineHeight": "44px", "letterSpacing": "-0.02em", "fontWeight": "700" }],
+                        "body-lg": ["16px", { "lineHeight": "24px", "fontWeight": "400" }],
+                        "display-lg-mobile": ["30px", { "lineHeight": "38px", "letterSpacing": "-0.02em", "fontWeight": "700" }],
+                        "code-md": ["14px", { "lineHeight": "20px", "letterSpacing": "0.05em", "fontWeight": "500" }],
+                        "label-md": ["13px", { "lineHeight": "18px", "fontWeight": "500" }],
+                        "body-md": ["14px", { "lineHeight": "20px", "fontWeight": "400" }]
+                    }
+                }
+            }
+        }
+    </script>
+<style>
+        body { font-family: 'Inter', sans-serif; }
+    </style>
+<style>
+    body {
+      min-height: max(884px, 100dvh);
+    }
+  </style>
+  </head>
+<body class="bg-background text-on-background min-h-screen flex flex-col antialiased">
+<!-- TopAppBar -->
+<header class="bg-surface dark:bg-on-background docked full-width top-0 border-b border-outline-variant dark:border-outline flat no shadows flex justify-between items-center w-full px-margin_mobile h-16 fixed z-40">
+<button class="text-on-surface-variant dark:text-surface-variant hover:bg-surface-container-low dark:hover:bg-inverse-surface transition-colors duration-200 active:opacity-80 p-2 rounded-full flex items-center justify-center">
+<span class="material-symbols-outlined" data-icon="menu">menu</span>
+</button>
+<div class="font-headline-md text-headline-md-mobile font-bold text-primary dark:text-primary-fixed-dim">
+            Facturación Pro
+        </div>
+<button class="font-label-md text-label-md text-primary dark:text-primary-fixed-dim font-bold hover:bg-surface-container-low dark:hover:bg-inverse-surface transition-colors duration-200 active:opacity-80 px-3 py-2 rounded-lg">
+            NUEVA
+        </button>
+</header>
+<!-- Main Content Canvas -->
+<main class="flex-1 pt-20 pb-24 px-margin_mobile w-full max-w-container_max_width mx-auto">
+<!-- KPI Cards Grid -->
+<section class="grid grid-cols-2 gap-base_unit mb-stack_lg">
+<!-- Total Facturado (Full Width) -->
+<div class="col-span-2 bg-surface-container-lowest border border-outline-variant rounded-xl p-stack_md shadow-[0_4px_6px_-1px_rgb(0,0,0,0.05)]">
+<div class="flex items-center justify-between mb-2">
+<h3 class="font-label-md text-label-md text-on-surface-variant">Total Facturado</h3>
+<span class="material-symbols-outlined text-primary text-[20px]" data-icon="trending_up">trending_up</span>
+</div>
+<p class="font-display-lg-mobile text-display-lg-mobile text-on-surface">$24,500.00</p>
+<p class="font-label-md text-label-md text-secondary mt-1">+12% vs mes anterior</p>
+</div>
+<!-- Facturas Pendientes -->
+<div class="col-span-1 bg-surface-container-lowest border border-error-container rounded-xl p-stack_md shadow-[0_4px_6px_-1px_rgb(0,0,0,0.05)]">
+<div class="flex items-center justify-between mb-2">
+<h3 class="font-label-md text-label-md text-on-surface-variant">Pendientes</h3>
+<span class="material-symbols-outlined text-error text-[20px]" data-icon="warning">warning</span>
+</div>
+<p class="font-headline-md text-headline-md-mobile text-error">5</p>
+<p class="font-label-md text-label-md text-error mt-1">$3,200.00</p>
+</div>
+<!-- Clientes Nuevos -->
+<div class="col-span-1 bg-surface-container-lowest border border-outline-variant rounded-xl p-stack_md shadow-[0_4px_6px_-1px_rgb(0,0,0,0.05)]">
+<div class="flex items-center justify-between mb-2">
+<h3 class="font-label-md text-label-md text-on-surface-variant">Nuevos Clientes</h3>
+<span class="material-symbols-outlined text-primary text-[20px]" data-icon="person_add">person_add</span>
+</div>
+<p class="font-headline-md text-headline-md-mobile text-on-surface">12</p>
+<p class="font-label-md text-label-md text-secondary mt-1">Este mes</p>
+</div>
+</section>
+<!-- Gráfico Ventas Semanales -->
+<section class="bg-surface-container-lowest border border-outline-variant rounded-xl p-stack_md shadow-[0_4px_6px_-1px_rgb(0,0,0,0.05)] mb-stack_lg">
+<h2 class="font-title-lg text-title-lg text-on-surface mb-stack_md">Ventas Semanales</h2>
+<div class="flex items-end justify-between h-32 gap-2 mt-4">
+<div class="flex flex-col items-center flex-1">
+<div class="w-full bg-surface-container-highest rounded-t-sm h-12"></div>
+<span class="font-label-md text-label-md text-on-surface-variant mt-2">L</span>
+</div>
+<div class="flex flex-col items-center flex-1">
+<div class="w-full bg-primary rounded-t-sm h-24"></div>
+<span class="font-label-md text-label-md text-on-surface-variant mt-2">M</span>
+</div>
+<div class="flex flex-col items-center flex-1">
+<div class="w-full bg-surface-container-highest rounded-t-sm h-16"></div>
+<span class="font-label-md text-label-md text-on-surface-variant mt-2">X</span>
+</div>
+<div class="flex flex-col items-center flex-1">
+<div class="w-full bg-primary rounded-t-sm h-32"></div>
+<span class="font-label-md text-label-md text-on-surface-variant mt-2">J</span>
+</div>
+<div class="flex flex-col items-center flex-1">
+<div class="w-full bg-surface-container-highest rounded-t-sm h-20"></div>
+<span class="font-label-md text-label-md text-on-surface-variant mt-2">V</span>
+</div>
+</div>
+</section>
+<!-- Actividad Reciente -->
+<section class="mb-stack_lg">
+<div class="flex items-center justify-between mb-stack_sm">
+<h2 class="font-title-lg text-title-lg text-on-surface">Actividad Reciente</h2>
+<button class="font-label-md text-label-md text-primary hover:underline">Ver todo</button>
+</div>
+<div class="bg-surface-container-lowest border border-outline-variant rounded-xl shadow-[0_4px_6px_-1px_rgb(0,0,0,0.05)] overflow-hidden">
+<!-- Item 1 -->
+<div class="flex items-center justify-between p-stack_md border-b border-surface-variant hover:bg-surface-container-low transition-colors">
+<div class="flex items-center gap-3">
+<div class="w-10 h-10 rounded-full bg-surface-variant flex items-center justify-center text-on-surface-variant">
+<span class="material-symbols-outlined" data-icon="receipt_long">receipt_long</span>
+</div>
+<div>
+<p class="font-body-md text-body-md text-on-surface font-semibold">TechCorp S.A.</p>
+<p class="font-label-md text-label-md text-on-surface-variant">INV-2023-089 • Hoy</p>
+</div>
+</div>
+<div class="text-right">
+<p class="font-body-md text-body-md text-on-surface font-semibold">$1,500.00</p>
+<span class="inline-block px-2 py-0.5 rounded-full bg-primary-fixed text-on-primary-fixed font-label-md text-[10px] uppercase mt-1 tracking-wider">EMITIDA</span>
+</div>
+</div>
+<!-- Item 2 -->
+<div class="flex items-center justify-between p-stack_md border-b border-surface-variant hover:bg-surface-container-low transition-colors">
+<div class="flex items-center gap-3">
+<div class="w-10 h-10 rounded-full bg-error-container flex items-center justify-center text-on-error-container">
+<span class="material-symbols-outlined" data-icon="receipt_long">receipt_long</span>
+</div>
+<div>
+<p class="font-body-md text-body-md text-on-surface font-semibold">Diseño Visual LLC</p>
+<p class="font-label-md text-label-md text-on-surface-variant">INV-2023-088 • Ayer</p>
+</div>
+</div>
+<div class="text-right">
+<p class="font-body-md text-body-md text-on-surface font-semibold">$850.00</p>
+<span class="inline-block px-2 py-0.5 rounded-full bg-error-container text-on-error-container font-label-md text-[10px] uppercase mt-1 tracking-wider">VENCIDA</span>
+</div>
+</div>
+<!-- Item 3 -->
+<div class="flex items-center justify-between p-stack_md hover:bg-surface-container-low transition-colors">
+<div class="flex items-center gap-3">
+<div class="w-10 h-10 rounded-full bg-secondary-container flex items-center justify-center text-on-secondary-container">
+<span class="material-symbols-outlined" data-icon="receipt_long">receipt_long</span>
+</div>
+<div>
+<p class="font-body-md text-body-md text-on-surface font-semibold">Marketing Global</p>
+<p class="font-label-md text-label-md text-on-surface-variant">INV-2023-087 • 12 Oct</p>
+</div>
+</div>
+<div class="text-right">
+<p class="font-body-md text-body-md text-on-surface font-semibold">$3,200.00</p>
+<span class="inline-block px-2 py-0.5 rounded-full bg-surface-variant text-on-surface-variant font-label-md text-[10px] uppercase mt-1 tracking-wider">BORRADOR</span>
+</div>
+</div>
+</div>
+</section>
+</main>
+<!-- Floating Action Button (FAB) -->
+<button class="fixed bottom-24 right-4 z-40 bg-primary text-on-primary w-14 h-14 rounded-xl flex items-center justify-center shadow-lg hover:shadow-xl transition-shadow duration-200 active:scale-95">
+<span class="material-symbols-outlined" data-icon="add">add</span>
+</button>
+<!-- BottomNavBar -->
+<nav class="bg-surface dark:bg-on-background docked full-width bottom-0 rounded-t-xl border-t border-outline-variant dark:border-outline shadow-lg fixed bottom-0 left-0 w-full z-50 flex justify-around items-center px-2 py-3 md:hidden">
+<!-- Active Tab: Inicio -->
+<button class="flex flex-col items-center justify-center bg-secondary-container dark:bg-on-secondary-container text-on-secondary-container dark:text-secondary-fixed rounded-full px-4 py-1 scale-95 active:scale-90 transition-transform duration-150">
+<span class="material-symbols-outlined" data-icon="home" style="font-variation-settings: 'FILL' 1;">home</span>
+<span class="font-label-md text-label-md mt-1">Inicio</span>
+</button>
+<!-- Inactive Tabs -->
+<button class="flex flex-col items-center justify-center text-on-surface-variant dark:text-surface-variant px-4 py-1 scale-95 active:scale-90 transition-transform duration-150 hover:bg-surface-container-high dark:hover:bg-inverse-surface rounded-full">
+<span class="material-symbols-outlined" data-icon="description">description</span>
+<span class="font-label-md text-label-md mt-1">Facturas</span>
+</button>
+<button class="flex flex-col items-center justify-center text-on-surface-variant dark:text-surface-variant px-4 py-1 scale-95 active:scale-90 transition-transform duration-150 hover:bg-surface-container-high dark:hover:bg-inverse-surface rounded-full">
+<span class="material-symbols-outlined" data-icon="payments">payments</span>
+<span class="font-label-md text-label-md mt-1">Clientes</span>
+</button>
+<button class="flex flex-col items-center justify-center text-on-surface-variant dark:text-surface-variant px-4 py-1 scale-95 active:scale-90 transition-transform duration-150 hover:bg-surface-container-high dark:hover:bg-inverse-surface rounded-full">
+<span class="material-symbols-outlined" data-icon="settings">settings</span>
+<span class="font-label-md text-label-md mt-1">Ajustes</span>
+</button>
+</nav>
+</body></html>

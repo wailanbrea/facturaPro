@@ -1,0 +1,87 @@
+package com.facturador.facturapro.domain.model
+
+data class InvoiceSummary(
+    val id: Long,
+    val invoiceNumber: String?,
+    val documentType: String,
+    val invoiceDate: String,
+    val dueDate: String?,
+    val clientName: String,
+    val currencySymbol: String,
+    val total: String,
+    val balanceDue: String,
+    val status: String,
+    val pdfPath: String?,
+)
+
+data class InvoiceDetail(
+    val id: Long,
+    val invoiceNumber: String?,
+    val documentType: String,
+    val invoiceDate: String,
+    val dueDate: String?,
+    val clientId: Long,
+    val clientName: String,
+    val clientTaxId: String?,
+    val clientAddress: String?,
+    val currencyId: Long,
+    val currencyCode: String,
+    val currencySymbol: String,
+    val paymentTermId: Long,
+    val fiscalProfileId: Long?,
+    val bankAccountId: Long?,
+    val warrantyId: Long?,
+    val warrantyText: String?,
+    val legalText: String?,
+    val conformityText: String?,
+    val observations: String?,
+    val subtotal: String,
+    val taxTotal: String,
+    val total: String,
+    val amountReceived: String,
+    val balanceDue: String,
+    val status: String,
+    val preparedBy: String?,
+    val receivedBy: String?,
+    val pdfPath: String?,
+    val items: List<InvoiceLine>,
+)
+
+data class InvoiceLine(
+    val id: Long,
+    val description: String,
+    val quantity: String,
+    val unitCost: String,
+    val taxId: Long,
+    val taxName: String?,
+    val taxRate: String,
+    val taxAmount: String,
+    val lineSubtotal: String,
+    val lineTotal: String,
+)
+
+data class InvoiceDraft(
+    val documentType: String,
+    val invoiceDate: String,
+    val paymentTermId: Long,
+    val clientId: Long,
+    val currencyId: Long,
+    val fiscalProfileId: Long?,
+    val bankAccountId: Long?,
+    val warrantyId: Long?,
+    val warrantyText: String?,
+    val legalText: String?,
+    val conformityText: String?,
+    val observations: String?,
+    val amountReceived: String?,
+    val preparedBy: String?,
+    val receivedBy: String?,
+    val items: List<InvoiceDraftItem>,
+)
+
+data class InvoiceDraftItem(
+    val description: String,
+    val quantity: String,
+    val unitCost: String,
+    val taxId: Long,
+)

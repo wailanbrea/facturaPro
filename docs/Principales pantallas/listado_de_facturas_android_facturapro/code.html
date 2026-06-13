@@ -1,0 +1,240 @@
+<!DOCTYPE html>
+
+<html class="light" lang="es"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>Listado de Facturas</title>
+<!-- Material Symbols -->
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<!-- Google Fonts (Inter) -->
+<link href="https://fonts.googleapis.com" rel="preconnect"/>
+<link crossorigin="" href="https://fonts.gstatic.com" rel="preconnect"/>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;900&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<script id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    "colors": {
+                        "primary": "#0037b0",
+                        "on-primary-fixed-variant": "#0039b5",
+                        "on-primary": "#ffffff",
+                        "surface": "#faf8ff",
+                        "inverse-surface": "#2e3039",
+                        "on-surface": "#1a1b23",
+                        "surface-container-lowest": "#ffffff",
+                        "on-tertiary-fixed": "#390c00",
+                        "surface-container-high": "#e8e7f3",
+                        "on-error-container": "#93000a",
+                        "primary-fixed-dim": "#b7c4ff",
+                        "outline-variant": "#c4c5d7",
+                        "on-secondary": "#ffffff",
+                        "tertiary": "#7f2500",
+                        "surface-container-low": "#f3f2fe",
+                        "surface-container-highest": "#e2e1ed",
+                        "on-background": "#1a1b23",
+                        "surface-bright": "#faf8ff",
+                        "tertiary-fixed": "#ffdbcf",
+                        "inverse-on-surface": "#f0f0fb",
+                        "surface-tint": "#2151da",
+                        "on-tertiary-fixed-variant": "#832700",
+                        "secondary": "#505f76",
+                        "primary-fixed": "#dce1ff",
+                        "on-error": "#ffffff",
+                        "background": "#faf8ff",
+                        "tertiary-fixed-dim": "#ffb59c",
+                        "inverse-primary": "#b7c4ff",
+                        "error": "#ba1a1a",
+                        "surface-variant": "#e2e1ed",
+                        "on-surface-variant": "#434655",
+                        "on-primary-fixed": "#001551",
+                        "secondary-container": "#d0e1fb",
+                        "error-container": "#ffdad6",
+                        "surface-container": "#ededf9",
+                        "primary-container": "#1d4ed8",
+                        "on-tertiary": "#ffffff",
+                        "outline": "#747686",
+                        "on-tertiary-container": "#ffc9b7",
+                        "secondary-fixed": "#d3e4fe",
+                        "on-secondary-fixed-variant": "#38485d",
+                        "on-secondary-container": "#54647a",
+                        "tertiary-container": "#a73400",
+                        "on-secondary-fixed": "#0b1c30",
+                        "on-primary-container": "#cad3ff",
+                        "surface-dim": "#d9d9e5",
+                        "secondary-fixed-dim": "#b7c8e1"
+                    },
+                    "borderRadius": {
+                        "DEFAULT": "0.125rem",
+                        "lg": "0.25rem",
+                        "xl": "0.5rem",
+                        "full": "0.75rem"
+                    },
+                    "spacing": {
+                        "stack_md": "16px",
+                        "gutter": "24px",
+                        "base_unit": "8px",
+                        "stack_sm": "8px",
+                        "stack_lg": "32px",
+                        "margin_mobile": "16px",
+                        "container_max_width": "1440px",
+                        "sidebar_width": "280px"
+                    },
+                    "fontFamily": {
+                        "headline-md": ["Inter"],
+                        "title-lg": ["Inter"],
+                        "display-lg": ["Inter"],
+                        "body-lg": ["Inter"],
+                        "display-lg-mobile": ["Inter"],
+                        "code-md": ["Inter"],
+                        "label-md": ["Inter"],
+                        "body-md": ["Inter"]
+                    },
+                    "fontSize": {
+                        "headline-md": ["24px", {"lineHeight": "32px", "letterSpacing": "-0.01em", "fontWeight": "600"}],
+                        "title-lg": ["20px", {"lineHeight": "28px", "fontWeight": "600"}],
+                        "display-lg": ["36px", {"lineHeight": "44px", "letterSpacing": "-0.02em", "fontWeight": "700"}],
+                        "body-lg": ["16px", {"lineHeight": "24px", "fontWeight": "400"}],
+                        "display-lg-mobile": ["30px", {"lineHeight": "38px", "letterSpacing": "-0.02em", "fontWeight": "700"}],
+                        "code-md": ["14px", {"lineHeight": "20px", "letterSpacing": "0.05em", "fontWeight": "500"}],
+                        "label-md": ["13px", {"lineHeight": "18px", "fontWeight": "500"}],
+                        "body-md": ["14px", {"lineHeight": "20px", "fontWeight": "400"}]
+                    }
+                }
+            }
+        }
+    </script>
+<style>
+        .hide-scrollbar::-webkit-scrollbar {
+            display: none;
+        }
+        .hide-scrollbar {
+            -ms-overflow-style: none;
+            scrollbar-width: none;
+        }
+    </style>
+<style>
+    body {
+      min-height: max(884px, 100dvh);
+    }
+  </style>
+  </head>
+<body class="bg-background min-h-screen flex flex-col md:hidden">
+<!-- TopAppBar -->
+<header class="bg-surface dark:bg-on-background border-b border-outline-variant dark:border-outline flex justify-between items-center w-full px-margin_mobile h-16 sticky top-0 z-40">
+<button class="text-on-surface-variant dark:text-surface-variant transition-colors duration-200 active:opacity-80 p-2 -ml-2 rounded-full hover:bg-surface-container-low dark:hover:bg-inverse-surface">
+<span class="material-symbols-outlined" data-icon="menu">menu</span>
+</button>
+<h1 class="font-headline-md text-headline-md-mobile font-bold text-primary dark:text-primary-fixed-dim tracking-tight">Facturación Pro</h1>
+<button class="text-primary dark:text-primary-fixed-dim font-bold transition-colors duration-200 active:opacity-80 font-label-md text-label-md px-3 py-1.5 rounded-full hover:bg-surface-container-low dark:hover:bg-inverse-surface">NUEVA</button>
+</header>
+<!-- Main Content -->
+<main class="flex-1 px-margin_mobile py-stack_md flex flex-col gap-stack_md pb-24">
+<!-- Search Bar -->
+<div class="relative w-full">
+<span class="material-symbols-outlined absolute left-4 top-1/2 -translate-y-1/2 text-outline" data-icon="search">search</span>
+<input class="w-full bg-surface-container-lowest border border-outline-variant rounded-full py-3 pl-12 pr-4 font-body-md text-body-md text-on-surface placeholder:text-outline focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary shadow-sm transition-shadow" placeholder="Buscar por cliente o número..." type="text"/>
+</div>
+<!-- Quick Filters -->
+<div class="flex gap-2 overflow-x-auto pb-1 -mx-margin_mobile px-margin_mobile hide-scrollbar">
+<button class="bg-primary-container text-on-primary-container font-label-md text-label-md px-5 py-2 rounded-full whitespace-nowrap shadow-sm border border-transparent transition-transform active:scale-95">Todas</button>
+<button class="bg-surface border border-outline-variant text-on-surface-variant hover:bg-surface-container-low font-label-md text-label-md px-5 py-2 rounded-full whitespace-nowrap transition-transform active:scale-95">Pagadas</button>
+<button class="bg-surface border border-outline-variant text-on-surface-variant hover:bg-surface-container-low font-label-md text-label-md px-5 py-2 rounded-full whitespace-nowrap transition-transform active:scale-95">Pendientes</button>
+<button class="bg-surface border border-outline-variant text-on-surface-variant hover:bg-surface-container-low font-label-md text-label-md px-5 py-2 rounded-full whitespace-nowrap transition-transform active:scale-95">Borradores</button>
+</div>
+<!-- Invoice List -->
+<div class="flex flex-col gap-3 mt-2">
+<!-- Card 1: Pagada -->
+<div class="bg-surface-container-lowest border border-outline-variant rounded-[12px] p-4 shadow-[0_4px_6px_-1px_rgb(0,0,0,0.05)] flex flex-col gap-2 relative transition-all active:scale-[0.98]">
+<div class="flex justify-between items-start">
+<div>
+<span class="font-code-md text-code-md text-secondary">FAC-000042</span>
+<h3 class="font-title-lg text-title-lg text-on-surface mt-1 tracking-tight">Acme Corporation</h3>
+</div>
+<div class="bg-secondary-container text-on-secondary-container px-2.5 py-1 rounded-full font-label-md text-[11px] font-bold tracking-wide uppercase flex items-center gap-1">
+<span class="w-1.5 h-1.5 rounded-full bg-on-secondary-container"></span>
+                        PAGADA
+                    </div>
+</div>
+<div class="flex justify-between items-end mt-3 border-t border-outline-variant/30 pt-3">
+<div class="flex flex-col">
+<span class="font-label-md text-label-md text-on-surface-variant mb-0.5">Monto Total</span>
+<span class="font-headline-md text-headline-md-mobile text-on-surface">$3,450.00 <span class="font-body-md text-body-md text-outline">USD</span></span>
+</div>
+<button class="text-outline hover:text-primary transition-colors p-2 -mr-2 -mb-2 rounded-full hover:bg-surface-container-low">
+<span class="material-symbols-outlined" data-icon="picture_as_pdf">picture_as_pdf</span>
+</button>
+</div>
+</div>
+<!-- Card 2: Pendiente -->
+<div class="bg-surface-container-lowest border border-outline-variant rounded-[12px] p-4 shadow-[0_4px_6px_-1px_rgb(0,0,0,0.05)] flex flex-col gap-2 relative transition-all active:scale-[0.98]">
+<div class="flex justify-between items-start">
+<div>
+<span class="font-code-md text-code-md text-secondary">FAC-000043</span>
+<h3 class="font-title-lg text-title-lg text-on-surface mt-1 tracking-tight">Global Logistics SA</h3>
+</div>
+<div class="bg-error-container text-on-error-container px-2.5 py-1 rounded-full font-label-md text-[11px] font-bold tracking-wide uppercase flex items-center gap-1">
+<span class="w-1.5 h-1.5 rounded-full bg-error"></span>
+                        VENCIDA
+                    </div>
+</div>
+<div class="flex justify-between items-end mt-3 border-t border-outline-variant/30 pt-3">
+<div class="flex flex-col">
+<span class="font-label-md text-label-md text-on-surface-variant mb-0.5">Monto Total</span>
+<span class="font-headline-md text-headline-md-mobile text-on-surface">$1,280.50 <span class="font-body-md text-body-md text-outline">USD</span></span>
+</div>
+<button class="text-outline hover:text-primary transition-colors p-2 -mr-2 -mb-2 rounded-full hover:bg-surface-container-low">
+<span class="material-symbols-outlined" data-icon="picture_as_pdf">picture_as_pdf</span>
+</button>
+</div>
+</div>
+<!-- Card 3: Borrador -->
+<div class="bg-surface-container-lowest border border-outline-variant rounded-[12px] p-4 shadow-[0_4px_6px_-1px_rgb(0,0,0,0.05)] flex flex-col gap-2 relative transition-all active:scale-[0.98] opacity-75">
+<div class="flex justify-between items-start">
+<div>
+<span class="font-code-md text-code-md text-outline">Borrador</span>
+<h3 class="font-title-lg text-title-lg text-on-surface mt-1 tracking-tight">Tech Startups LLC</h3>
+</div>
+<div class="bg-surface-variant text-on-surface-variant px-2.5 py-1 rounded-full font-label-md text-[11px] font-bold tracking-wide uppercase flex items-center gap-1">
+<span class="w-1.5 h-1.5 rounded-full bg-outline"></span>
+                        BORRADOR
+                    </div>
+</div>
+<div class="flex justify-between items-end mt-3 border-t border-outline-variant/30 pt-3">
+<div class="flex flex-col">
+<span class="font-label-md text-label-md text-on-surface-variant mb-0.5">Monto Estimado</span>
+<span class="font-headline-md text-headline-md-mobile text-on-surface-variant">$850.00 <span class="font-body-md text-body-md text-outline">USD</span></span>
+</div>
+<button class="text-outline hover:text-primary transition-colors p-2 -mr-2 -mb-2 rounded-full hover:bg-surface-container-low">
+<span class="material-symbols-outlined" data-icon="edit">edit</span>
+</button>
+</div>
+</div>
+</div>
+</main>
+<!-- BottomNavBar -->
+<nav class="bg-surface dark:bg-on-background border-t border-outline-variant dark:border-outline shadow-lg fixed bottom-0 left-0 w-full z-50 flex justify-around items-center px-2 py-3 rounded-t-xl">
+<!-- Inicio -->
+<button class="flex flex-col items-center justify-center text-on-surface-variant dark:text-surface-variant px-4 py-1 hover:bg-surface-container-high dark:hover:bg-inverse-surface scale-95 active:scale-90 transition-transform duration-150 rounded-lg">
+<span class="material-symbols-outlined" data-icon="home">home</span>
+<span class="font-label-md text-label-md mt-1">Inicio</span>
+</button>
+<!-- Facturas (Active) -->
+<button class="flex flex-col items-center justify-center bg-secondary-container dark:bg-on-secondary-container text-on-secondary-container dark:text-secondary-fixed rounded-full px-5 py-1.5 hover:bg-surface-container-high dark:hover:bg-inverse-surface scale-95 active:scale-90 transition-transform duration-150">
+<span class="material-symbols-outlined" data-icon="description" data-weight="fill" style="font-variation-settings: 'FILL' 1;">description</span>
+<span class="font-label-md text-label-md mt-1 font-bold">Facturas</span>
+</button>
+<!-- Clientes -->
+<button class="flex flex-col items-center justify-center text-on-surface-variant dark:text-surface-variant px-4 py-1 hover:bg-surface-container-high dark:hover:bg-inverse-surface scale-95 active:scale-90 transition-transform duration-150 rounded-lg">
+<span class="material-symbols-outlined" data-icon="payments">payments</span>
+<span class="font-label-md text-label-md mt-1">Clientes</span>
+</button>
+<!-- Ajustes -->
+<button class="flex flex-col items-center justify-center text-on-surface-variant dark:text-surface-variant px-4 py-1 hover:bg-surface-container-high dark:hover:bg-inverse-surface scale-95 active:scale-90 transition-transform duration-150 rounded-lg">
+<span class="material-symbols-outlined" data-icon="settings">settings</span>
+<span class="font-label-md text-label-md mt-1">Ajustes</span>
+</button>
+</nav>
+</body></html>

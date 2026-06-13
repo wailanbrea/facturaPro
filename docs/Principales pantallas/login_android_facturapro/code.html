@@ -1,0 +1,179 @@
+<!DOCTYPE html>
+
+<html lang="es"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>FacturaPro - Iniciar Sesión</title>
+<!-- Material Symbols -->
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<!-- Tailwind CSS -->
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<!-- Theme Configuration -->
+<script id="tailwind-config">
+      tailwind.config = {
+        darkMode: "class",
+        theme: {
+          extend: {
+            "colors": {
+                    "primary": "#0037b0",
+                    "on-primary-fixed-variant": "#0039b5",
+                    "on-primary": "#ffffff",
+                    "surface": "#faf8ff",
+                    "inverse-surface": "#2e3039",
+                    "on-surface": "#1a1b23",
+                    "surface-container-lowest": "#ffffff",
+                    "on-tertiary-fixed": "#390c00",
+                    "surface-container-high": "#e8e7f3",
+                    "on-error-container": "#93000a",
+                    "primary-fixed-dim": "#b7c4ff",
+                    "outline-variant": "#c4c5d7",
+                    "on-secondary": "#ffffff",
+                    "tertiary": "#7f2500",
+                    "surface-container-low": "#f3f2fe",
+                    "surface-container-highest": "#e2e1ed",
+                    "on-background": "#1a1b23",
+                    "surface-bright": "#faf8ff",
+                    "tertiary-fixed": "#ffdbcf",
+                    "inverse-on-surface": "#f0f0fb",
+                    "surface-tint": "#2151da",
+                    "on-tertiary-fixed-variant": "#832700",
+                    "secondary": "#505f76",
+                    "primary-fixed": "#dce1ff",
+                    "on-error": "#ffffff",
+                    "background": "#faf8ff",
+                    "tertiary-fixed-dim": "#ffb59c",
+                    "inverse-primary": "#b7c4ff",
+                    "error": "#ba1a1a",
+                    "surface-variant": "#e2e1ed",
+                    "on-surface-variant": "#434655",
+                    "on-primary-fixed": "#001551",
+                    "secondary-container": "#d0e1fb",
+                    "error-container": "#ffdad6",
+                    "surface-container": "#ededf9",
+                    "primary-container": "#1d4ed8",
+                    "on-tertiary": "#ffffff",
+                    "outline": "#747686",
+                    "on-tertiary-container": "#ffc9b7",
+                    "secondary-fixed": "#d3e4fe",
+                    "on-secondary-fixed-variant": "#38485d",
+                    "on-secondary-container": "#54647a",
+                    "tertiary-container": "#a73400",
+                    "on-secondary-fixed": "#0b1c30",
+                    "on-primary-container": "#cad3ff",
+                    "surface-dim": "#d9d9e5",
+                    "secondary-fixed-dim": "#b7c8e1"
+            },
+            "borderRadius": {
+                    "DEFAULT": "0.125rem",
+                    "lg": "0.25rem",
+                    "xl": "0.5rem",
+                    "full": "0.75rem"
+            },
+            "spacing": {
+                    "stack_md": "16px",
+                    "gutter": "24px",
+                    "base_unit": "8px",
+                    "stack_sm": "8px",
+                    "stack_lg": "32px",
+                    "margin_mobile": "16px",
+                    "container_max_width": "1440px",
+                    "sidebar_width": "280px"
+            },
+            "fontFamily": {
+                    "headline-md": ["Inter"],
+                    "title-lg": ["Inter"],
+                    "display-lg": ["Inter"],
+                    "body-lg": ["Inter"],
+                    "display-lg-mobile": ["Inter"],
+                    "code-md": ["Inter"],
+                    "label-md": ["Inter"],
+                    "body-md": ["Inter"]
+            },
+            "fontSize": {
+                    "headline-md": ["24px", {"lineHeight": "32px", "letterSpacing": "-0.01em", "fontWeight": "600"}],
+                    "title-lg": ["20px", {"lineHeight": "28px", "fontWeight": "600"}],
+                    "display-lg": ["36px", {"lineHeight": "44px", "letterSpacing": "-0.02em", "fontWeight": "700"}],
+                    "body-lg": ["16px", {"lineHeight": "24px", "fontWeight": "400"}],
+                    "display-lg-mobile": ["30px", {"lineHeight": "38px", "letterSpacing": "-0.02em", "fontWeight": "700"}],
+                    "code-md": ["14px", {"lineHeight": "20px", "letterSpacing": "0.05em", "fontWeight": "500"}],
+                    "label-md": ["13px", {"lineHeight": "18px", "fontWeight": "500"}],
+                    "body-md": ["14px", {"lineHeight": "20px", "fontWeight": "400"}]
+            }
+          }
+        }
+      }
+    </script>
+<style>
+        /* Optional custom Google Font import if Tailwind config doesn't auto-load */
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
+        
+        body {
+            font-family: 'Inter', sans-serif;
+        }
+    </style>
+<style>
+    body {
+      min-height: max(884px, 100dvh);
+    }
+  </style>
+  </head>
+<body class="bg-surface text-on-background min-h-screen flex items-center justify-center antialiased selection:bg-primary-container selection:text-on-primary-container p-margin_mobile">
+<!-- Main Container -->
+<main class="w-full max-w-sm flex flex-col items-center">
+<!-- Logo / Brand Header -->
+<div class="flex flex-col items-center mb-stack_lg">
+<div class="w-16 h-16 bg-primary-container rounded-full flex items-center justify-center mb-stack_sm shadow-sm">
+<span class="material-symbols-outlined text-on-primary-container" style="font-size: 32px; font-variation-settings: 'FILL' 1;">receipt_long</span>
+</div>
+<h1 class="font-display-lg-mobile text-display-lg-mobile text-primary">FacturaPro</h1>
+<p class="font-body-md text-body-md text-on-surface-variant mt-1 text-center">Gestión financiera eficiente</p>
+</div>
+<!-- Login Form -->
+<form class="w-full flex flex-col gap-stack_md" onsubmit="event.preventDefault();">
+<!-- Email Field -->
+<div class="relative w-full group">
+<span class="material-symbols-outlined absolute left-4 top-1/2 -translate-y-1/2 text-on-surface-variant group-focus-within:text-primary transition-colors">mail</span>
+<input class="w-full bg-surface-container-lowest border border-outline-variant rounded-xl pl-12 pr-4 py-3.5 font-body-lg text-body-lg text-on-surface placeholder:text-outline focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary transition-all shadow-sm" id="email" placeholder="Correo Electrónico" required="" type="email"/>
+</div>
+<!-- Password Field -->
+<div class="relative w-full group">
+<span class="material-symbols-outlined absolute left-4 top-1/2 -translate-y-1/2 text-on-surface-variant group-focus-within:text-primary transition-colors">lock</span>
+<input class="w-full bg-surface-container-lowest border border-outline-variant rounded-xl pl-12 pr-12 py-3.5 font-body-lg text-body-lg text-on-surface placeholder:text-outline focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary transition-all shadow-sm" id="password" placeholder="Contraseña" required="" type="password"/>
+<button class="absolute right-4 top-1/2 -translate-y-1/2 text-on-surface-variant hover:text-on-surface transition-colors focus:outline-none rounded-full p-1 focus:ring-2 focus:ring-primary-container" onclick="togglePassword()" type="button">
+<span class="material-symbols-outlined" id="visibility-icon">visibility_off</span>
+</button>
+</div>
+<!-- Forgot Password Link -->
+<div class="w-full flex justify-end">
+<a class="font-label-md text-label-md text-primary font-medium hover:text-on-primary-fixed-variant transition-colors hover:underline underline-offset-2" href="#">
+                    ¿Olvidaste tu contraseña?
+                </a>
+</div>
+<!-- Submit Button -->
+<button class="w-full mt-4 bg-primary text-on-primary font-title-lg text-title-lg py-3.5 rounded-full hover:bg-on-primary-fixed-variant active:scale-[0.98] transition-all shadow-md flex justify-center items-center gap-2" type="submit">
+                Iniciar Sesión
+            </button>
+</form>
+<!-- Footer / Sign Up Link -->
+<div class="mt-stack_lg font-body-md text-body-md text-on-surface-variant">
+            ¿No tienes cuenta? 
+            <a class="text-primary font-medium hover:text-on-primary-fixed-variant transition-colors hover:underline underline-offset-2" href="#">Regístrate</a>
+</div>
+</main>
+<!-- Simple interaction script -->
+<script>
+        function togglePassword() {
+            const passwordInput = document.getElementById('password');
+            const visibilityIcon = document.getElementById('visibility-icon');
+            
+            if (passwordInput.type === 'password') {
+                passwordInput.type = 'text';
+                visibilityIcon.textContent = 'visibility';
+            } else {
+                passwordInput.type = 'password';
+                visibilityIcon.textContent = 'visibility_off';
+            }
+        }
+    </script>
+</body></html>

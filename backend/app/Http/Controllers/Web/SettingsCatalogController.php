@@ -1,0 +1,379 @@
+<?php
+
+namespace App\Http\Controllers\Web;
+
+use App\Http\Controllers\Controller;
+use App\Models\BankAccount;
+use App\Models\Currency;
+use App\Models\FiscalProfile;
+use App\Models\InvoiceNumberSetting;
+use App\Models\LegalText;
+use App\Models\PaymentTerm;
+use App\Models\Tax;
+use App\Models\User;
+use App\Models\Warranty;
+use Illuminate\Database\Eloquent\Model;
+use Illuminate\Http\RedirectResponse;
+use Illuminate\Http\Request;
+use Illuminate\Validation\Rule;
+use Illuminate\View\View;
+
+class SettingsCatalogController extends Controller
+{
+    public function index(string $catalog): View
+    {
+        $config = $this->config($catalog);
+        $query = $config['model']::query();
+
+        if ($config['model'] === BankAccount::class) {
+            $query->with('currency');
+        }
+
+        $records = $query->latest('id')->paginate(15);
+
+        return view('settings.catalog-index', compact('catalog', 'config', 'records'));
+    }
+
+    public function create(string $catalog): View
+    {
+        $config = $this->config($catalog);
+
+        return view('settings.catalog-form', [
+            'catalog' => $catalog,
+            'config' => $config,
+            'record' => new $config['model'](),
+            'action' => route('web.settings.catalog.store', $catalog),
+            'method' => 'POST',
+            'currencies' => Currency::query()->where('is_active', true)->orderBy('code')->get(),
+        ]);
+    }
+
+    public function store(Request $request, string $catalog): RedirectResponse
+    {
+        $config = $this->config($catalog);
+
+        $data = $this->validated($request, $catalog);
+        $this->clearOtherDefaults($config['model'], $data);
+        $config['model']::query()->create($data);
+
+        return redirect()->route('web.settings.catalog.index', $catalog)->with('status', 'Configuracion creada.');
+    }
+
+    public function edit(string $catalog, int $id): View
+    {
+        $config = $this->config($catalog);
+        $record = $this->findRecord($config['model'], $id);
+
+        return view('settings.catalog-form', [
+            'catalog' => $catalog,
+            'config' => $config,
+            'record' => $record,
+            'action' => route('web.settings.catalog.update', [$catalog, $record->id]),
+            'method' => 'PUT',
+            'currencies' => Currency::query()->where('is_active', true)->orderBy('code')->get(),
+        ]);
+    }
+
+    public function update(Request $request, string $catalog, int $id): RedirectResponse
+    {
+        $config = $this->config($catalog);
+        $record = $this->findRecord($config['model'], $id);
+        $data = $this->validated($request, $catalog, $record);
+
+        $this->clearOtherDefaults($config['model'], $data, $record);
+        $record->update($data);
+
+        return redirect()->route('web.settings.catalog.index', $catalog)->with('status', 'Configuracion actualizada.');
+    }
+
+    public function destroy(string $catalog, int $id): RedirectResponse
+    {
+        $config = $this->config($catalog);
+
+        $record = $this->findRecord($config['model'], $id);
+
+        if ($catalog === 'invoice-number') {
+            $record->delete();
+        } else {
+            $record->update(['is_active' => false, 'is_default' => false]);
+        }
+
+        return back()->with('status', 'Configuracion desactivada.');
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    private function config(string $catalog): array
+    {
+        $configs = [
+            'currencies' => [
+                'title' => 'Monedas',
+                'model' => Currency::class,
+                'fields' => [
+                    'name' => ['label' => 'Nombre', 'type' => 'text'],
+                    'code' => ['label' => 'Codigo ISO', 'type' => 'text'],
+                    'symbol' => ['label' => 'Simbolo', 'type' => 'text'],
+                    'decimal_separator' => ['label' => 'Separador decimal', 'type' => 'text'],
+                    'thousand_separator' => ['label' => 'Separador miles', 'type' => 'text'],
+                    'decimal_places' => ['label' => 'Decimales', 'type' => 'number'],
+                    'symbol_position' => ['label' => 'Posicion simbolo', 'type' => 'select', 'options' => ['before' => 'Antes', 'after' => 'Despues']],
+                    'is_default' => ['label' => 'Predeterminada', 'type' => 'checkbox'],
+                    'is_active' => ['label' => 'Activa', 'type' => 'checkbox'],
+                ],
+            ],
+            'taxes' => [
+                'title' => 'Impuestos',
+                'model' => Tax::class,
+                'fields' => [
+                    'name' => ['label' => 'Nombre', 'type' => 'text'],
+                    'rate' => ['label' => 'Tasa %', 'type' => 'number', 'step' => '0.0001'],
+                    'is_default' => ['label' => 'Predeterminado', 'type' => 'checkbox'],
+                    'is_active' => ['label' => 'Activo', 'type' => 'checkbox'],
+                ],
+            ],
+            'payment-terms' => [
+                'title' => 'Terminos de pago',
+                'model' => PaymentTerm::class,
+                'fields' => [
+                    'name' => ['label' => 'Nombre', 'type' => 'text'],
+                    'days' => ['label' => 'Dias', 'type' => 'number'],
+                    'description' => ['label' => 'Descripcion', 'type' => 'textarea'],
+                    'is_default' => ['label' => 'Predeterminado', 'type' => 'checkbox'],
+                    'is_active' => ['label' => 'Activo', 'type' => 'checkbox'],
+                ],
+            ],
+            'warranties' => [
+                'title' => 'Garantias',
+                'model' => Warranty::class,
+                'fields' => [
+                    'title' => ['label' => 'Titulo', 'type' => 'text'],
+                    'description' => ['label' => 'Descripcion', 'type' => 'textarea'],
+                    'duration_months' => ['label' => 'Meses', 'type' => 'number'],
+                    'full_text' => ['label' => 'Texto completo', 'type' => 'textarea'],
+                    'is_default' => ['label' => 'Predeterminada', 'type' => 'checkbox'],
+                    'is_active' => ['label' => 'Activa', 'type' => 'checkbox'],
+                ],
+            ],
+            'bank-accounts' => [
+                'title' => 'Cuentas bancarias',
+                'model' => BankAccount::class,
+                'fields' => [
+                    'label' => ['label' => 'Etiqueta', 'type' => 'text'],
+                    'account_type' => ['label' => 'Tipo', 'type' => 'select', 'options' => ['official' => 'Oficial', 'unofficial' => 'No oficial']],
+                    'fiscal_profile_id' => [
+                        'label' => 'Perfil fiscal',
+                        'type' => 'select',
+                        'options' => fn () => FiscalProfile::query()->orderBy('name')->pluck('name', 'id')->prepend('Sin perfil', '')->all(),
+                    ],
+                    'account_holder' => ['label' => 'Titular', 'type' => 'text'],
+                    'bank_name' => ['label' => 'Banco', 'type' => 'text'],
+                    'account_number' => ['label' => 'Numero de cuenta', 'type' => 'text'],
+                    'iban' => ['label' => 'IBAN', 'type' => 'text'],
+                    'swift' => ['label' => 'SWIFT', 'type' => 'text'],
+                    'currency_id' => ['label' => 'Moneda', 'type' => 'currency'],
+                    'is_default' => ['label' => 'Predeterminada', 'type' => 'checkbox'],
+                    'is_active' => ['label' => 'Activa', 'type' => 'checkbox'],
+                ],
+            ],
+            'fiscal-profiles' => [
+                'title' => 'Perfiles fiscales',
+                'model' => FiscalProfile::class,
+                'fields' => [
+                    'name' => ['label' => 'Nombre', 'type' => 'text'],
+                    'tax_id' => ['label' => 'Identificacion fiscal', 'type' => 'text'],
+                    'address' => ['label' => 'Direccion', 'type' => 'text'],
+                    'city' => ['label' => 'Ciudad', 'type' => 'text'],
+                    'phone' => ['label' => 'Telefono', 'type' => 'text'],
+                    'email' => ['label' => 'Email', 'type' => 'email'],
+                    'logo_path' => ['label' => 'Ruta logo', 'type' => 'text'],
+                    'is_default' => ['label' => 'Predeterminado', 'type' => 'checkbox'],
+                    'is_active' => ['label' => 'Activo', 'type' => 'checkbox'],
+                ],
+            ],
+            'legal-texts' => [
+                'title' => 'Textos legales',
+                'model' => LegalText::class,
+                'fields' => [
+                    'name' => ['label' => 'Nombre', 'type' => 'text'],
+                    'legal_footer' => ['label' => 'Pie legal', 'type' => 'textarea'],
+                    'warranty_text' => ['label' => 'Texto garantia', 'type' => 'textarea'],
+                    'conformity_text' => ['label' => 'Texto conformidad', 'type' => 'textarea'],
+                    'client_copy_text' => ['label' => 'Copia cliente', 'type' => 'textarea'],
+                    'seller_copy_text' => ['label' => 'Copia vendedor', 'type' => 'textarea'],
+                    'is_default' => ['label' => 'Predeterminado', 'type' => 'checkbox'],
+                    'is_active' => ['label' => 'Activo', 'type' => 'checkbox'],
+                ],
+            ],
+            'invoice-number' => [
+                'title' => 'Numeracion',
+                'model' => InvoiceNumberSetting::class,
+                'fields' => [
+                    'fiscal_profile_id' => [
+                        'label' => 'Perfil fiscal (empresa)',
+                        'type' => 'select',
+                        'options' => fn () => \App\Models\FiscalProfile::query()->orderBy('name')->pluck('name', 'id')->prepend('Global (sin perfil)', '')->all(),
+                    ],
+                    'user_id' => [
+                        'label' => 'Usuario que factura',
+                        'type' => 'select',
+                        'options' => fn () => User::query()->orderBy('name')->pluck('name', 'id')->prepend('Plantilla de empresa (sin usuario)', '')->all(),
+                    ],
+                    'document_type' => [
+                        'label' => 'Tipo de documento',
+                        'type' => 'select',
+                        'options' => ['invoice' => 'Factura', 'quotation' => 'Presupuesto'],
+                    ],
+                    'prefix' => ['label' => 'Prefijo', 'type' => 'text'],
+                    'next_number' => ['label' => 'Proximo numero', 'type' => 'number'],
+                    'number_length' => ['label' => 'Longitud', 'type' => 'number'],
+                    'serie' => ['label' => 'Serie', 'type' => 'text'],
+                    'reset_yearly' => ['label' => 'Reiniciar anual', 'type' => 'checkbox'],
+                    'reset_monthly' => ['label' => 'Reiniciar mensual', 'type' => 'checkbox'],
+                    'allow_manual_number' => ['label' => 'Permitir numero manual', 'type' => 'checkbox'],
+                    'current_year' => ['label' => 'Ano actual', 'type' => 'number'],
+                    'current_month' => ['label' => 'Mes actual', 'type' => 'number'],
+                ],
+            ],
+        ];
+
+        abort_unless(array_key_exists($catalog, $configs), 404);
+
+        return $configs[$catalog];
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    private function validated(Request $request, string $catalog, ?Model $record = null): array
+    {
+        $rules = match ($catalog) {
+            'currencies' => [
+                'name' => ['required', 'string', 'max:255'],
+                'code' => ['required', 'string', 'size:3', Rule::unique('currencies', 'code')->ignore($record?->id)],
+                'symbol' => ['required', 'string', 'max:8'],
+                'decimal_separator' => ['required', 'string', 'max:4'],
+                'thousand_separator' => ['required', 'string', 'max:4'],
+                'decimal_places' => ['required', 'integer', 'min:0', 'max:4'],
+                'symbol_position' => ['required', Rule::in(['before', 'after'])],
+                'is_default' => ['sometimes', 'boolean'],
+                'is_active' => ['sometimes', 'boolean'],
+            ],
+            'taxes' => [
+                'name' => ['required', 'string', 'max:255'],
+                'rate' => ['required', 'numeric', 'min:0', 'max:100'],
+                'is_default' => ['sometimes', 'boolean'],
+                'is_active' => ['sometimes', 'boolean'],
+            ],
+            'payment-terms' => [
+                'name' => ['required', 'string', 'max:255'],
+                'days' => ['required', 'integer', 'min:0', 'max:3650'],
+                'description' => ['nullable', 'string'],
+                'is_default' => ['sometimes', 'boolean'],
+                'is_active' => ['sometimes', 'boolean'],
+            ],
+            'warranties' => [
+                'title' => ['required', 'string', 'max:255'],
+                'description' => ['nullable', 'string'],
+                'duration_months' => ['nullable', 'integer', 'min:0', 'max:600'],
+                'full_text' => ['required', 'string'],
+                'is_default' => ['sometimes', 'boolean'],
+                'is_active' => ['sometimes', 'boolean'],
+            ],
+            'bank-accounts' => [
+                'label' => ['required', 'string', 'max:255'],
+                'account_type' => ['required', Rule::in(['official', 'unofficial'])],
+                'fiscal_profile_id' => ['nullable', 'exists:fiscal_profiles,id'],
+                'account_holder' => ['required', 'string', 'max:255'],
+                'bank_name' => ['required', 'string', 'max:255'],
+                'account_number' => ['nullable', 'string', 'max:255'],
+                'iban' => ['nullable', 'string', 'max:255'],
+                'swift' => ['nullable', 'string', 'max:255'],
+                'currency_id' => ['nullable', 'exists:currencies,id'],
+                'is_default' => ['sometimes', 'boolean'],
+                'is_active' => ['sometimes', 'boolean'],
+            ],
+            'fiscal-profiles' => [
+                'name' => ['required', 'string', 'max:255'],
+                'tax_id' => ['nullable', 'string', 'max:255'],
+                'address' => ['nullable', 'string', 'max:255'],
+                'city' => ['nullable', 'string', 'max:255'],
+                'phone' => ['nullable', 'string', 'max:255'],
+                'email' => ['nullable', 'email', 'max:255'],
+                'logo_path' => ['nullable', 'string', 'max:255'],
+                'is_default' => ['sometimes', 'boolean'],
+                'is_active' => ['sometimes', 'boolean'],
+            ],
+            'legal-texts' => [
+                'name' => ['required', 'string', 'max:255'],
+                'legal_footer' => ['nullable', 'string'],
+                'warranty_text' => ['nullable', 'string'],
+                'conformity_text' => ['nullable', 'string'],
+                'client_copy_text' => ['nullable', 'string'],
+                'seller_copy_text' => ['nullable', 'string'],
+                'is_default' => ['sometimes', 'boolean'],
+                'is_active' => ['sometimes', 'boolean'],
+            ],
+            'invoice-number' => [
+                'fiscal_profile_id' => ['nullable', 'exists:fiscal_profiles,id'],
+                'user_id' => ['nullable', 'exists:users,id'],
+                'document_type' => [
+                    'required',
+                    Rule::in(['invoice', 'quotation']),
+                    Rule::unique('invoice_number_settings', 'document_type')
+                        ->where(fn ($q) => $q
+                            ->where('fiscal_profile_id', $request->input('fiscal_profile_id') ?: null)
+                            ->where('user_id', $request->input('user_id') ?: null))
+                        ->ignore($record?->id),
+                ],
+                'prefix' => ['required', 'string', 'max:255'],
+                'next_number' => ['required', 'integer', 'min:1'],
+                'number_length' => ['required', 'integer', 'min:1', 'max:12'],
+                'serie' => ['nullable', 'string', 'max:255'],
+                'reset_yearly' => ['sometimes', 'boolean'],
+                'reset_monthly' => ['sometimes', 'boolean'],
+                'allow_manual_number' => ['sometimes', 'boolean'],
+                'current_year' => ['nullable', 'integer', 'min:2000', 'max:2100'],
+                'current_month' => ['nullable', 'integer', 'min:1', 'max:12'],
+            ],
+            default => abort(404),
+        };
+
+        $data = $request->validate($rules);
+        $fields = $this->config($catalog)['fields'];
+
+        foreach ($fields as $name => $field) {
+            if ($field['type'] === 'checkbox') {
+                $data[$name] = $request->boolean($name);
+            }
+        }
+
+        if (array_key_exists('code', $data)) {
+            $data['code'] = strtoupper((string) $data['code']);
+        }
+
+        return collect($data)
+            ->map(fn ($value) => $value === '' ? null : $value)
+            ->all();
+    }
+
+    private function findRecord(string $model, int $id): Model
+    {
+        return $model::query()->findOrFail($id);
+    }
+
+    private function clearOtherDefaults(string $model, array $data, ?Model $record = null): void
+    {
+        if (! array_key_exists('is_default', $data) || ! $data['is_default']) {
+            return;
+        }
+
+        $query = $model::query();
+
+        if ($record?->exists) {
+            $query->whereKeyNot($record->id);
+        }
+
+        $query->update(['is_default' => false]);
+    }
+}

@@ -1,0 +1,673 @@
+Actúa como arquitecto senior full stack, desarrollador Laravel, Android Kotlin Jetpack Compose, especialista en sistemas de facturación, generación de PDF profesional y diseño de aplicaciones escalables.
+
+Vamos a desarrollar un sistema web y móvil para generar facturas usando como base una plantilla Excel oficial llamada:
+
+Factura P L - Oficial.xlsx
+
+Antes de programar cualquier cosa, debes analizar la plantilla de factura y entender todos sus campos, distribución, fórmulas, secciones, textos legales y comportamiento esperado.
+
+La aplicación debe permitir crear facturas desde web y desde móvil Android. Las facturas deben poder verse con el mismo formato visual de la plantilla original y deben poder guardarse como PDF manteniendo el mismo diseño.
+
+No debes desarrollar todo de golpe. Debes trabajar paso a paso siguiendo un archivo guía llamado TODO.md.
+
+Tu primera tarea será crear el archivo TODO.md con todas las fases del proyecto, checklist técnico, orden de desarrollo, estado de cada módulo y criterios de aceptación. Luego deberás seguir ese TODO estrictamente.
+
+No debes saltar fases.  
+No debes asumir reglas críticas sin dejarlas documentadas.  
+No debes duplicar lógica entre web y móvil.  
+No debes generar el PDF desde Android.  
+El PDF debe generarse desde el backend usando una plantilla HTML/CSS centralizada.
+
+Stack principal:
+
+Backend: Laravel 11 o 12
+Base de datos: MySQL
+Frontend web: Laravel Blade + Livewire, o Vue si se justifica
+App móvil: Android Kotlin + Jetpack Compose
+API móvil: REST API con Laravel Sanctum
+PDF: HTML + CSS + Browsershot/Puppeteer preferiblemente
+Almacenamiento PDF: storage/app/public/invoices
+Servidor objetivo: Windows VPS con Apache/XAMPP o entorno compatible
+
+Arquitectura obligatoria:
+
+Web / Android
+    ↓
+Laravel API / Backend
+    ↓
+Servicio de cálculo de factura
+    ↓
+Servicio de generación de número
+    ↓
+Plantilla HTML/CSS única
+    ↓
+Generación de PDF
+    ↓
+Almacenamiento del PDF
+    ↓
+Vista / descarga / compartir
+
+La plantilla HTML/CSS de factura debe usarse tanto para la vista previa web como para generar el PDF final.
+
+El diseño debe parecerse al formato original de Excel, respetando:
+- Encabezado
+- Título FACTURA
+- Número de factura
+- Fecha
+- Cliente
+- Dirección
+- Vencimiento
+- Término de pago
+- Tabla de productos/servicios
+- Totales
+- Importe recibido
+- Garantía
+- Observaciones
+- Cuentas bancarias
+- Firmas
+- Texto legal
+- Original cliente / copia vendedor
+- Bordes
+- Espaciado
+- Distribución general
+
+Campos de factura:
+
+Encabezado:
+- FACTURA NO.
+- FECHA DE FACTURA o FECHA DE COTIZACIÓN configurable
+- FACTURAR A
+- DIRECCIÓN
+- VENCIMIENTO
+- TÉRMINO DE PAGO
+
+Datos fiscales/emisor:
+- Nombre fiscal
+- CIF / RNC / NIF / Tax ID
+- Dirección
+- Ciudad
+- Teléfono
+- Email
+- Logo
+- Texto superior opcional
+
+Tabla de productos o servicios:
+- DESCRIPCIÓN
+- CANTIDAD
+- COSTO UNITARIO
+- IMPUESTO / IVA
+- PRECIO UNITARIO
+- IMPORTE
+
+Cálculos obligatorios:
+
+base_linea = cantidad * costo_unitario
+
+Si los precios NO incluyen impuesto:
+    impuesto_linea = base_linea * porcentaje_impuesto
+    precio_unitario = costo_unitario + (costo_unitario * porcentaje_impuesto)
+    importe = base_linea + impuesto_linea
+
+Si los precios SÍ incluyen impuesto:
+    base_linea = importe / (1 + porcentaje_impuesto)
+    impuesto_linea = importe - base_linea
+
+Totales:
+subtotal = suma(base_linea)
+impuesto_total = suma(impuesto_linea)
+total = subtotal + impuesto_total
+balance_pendiente = total - importe_recibido
+
+Regla crítica:
+El backend siempre debe recalcular subtotal, impuesto_total, total, balance_pendiente y estado. No confiar nunca en los totales enviados desde web o Android.
+
+El sistema debe soportar monedas configurables desde panel.
+
+Monedas mínimas iniciales:
+- Euro: EUR, €
+- Dollar / Dólar: USD, US$
+- Peso Dominicano: DOP, RD$
+
+Cada moneda debe tener:
+- Nombre
+- Código ISO
+- Símbolo
+- Separador decimal
+- Separador de miles
+- Cantidad de decimales
+- Posición del símbolo: antes o después
+- Activa / Inactiva
+- Moneda por defecto
+
+Cada factura debe guardar copia de:
+- currency_code
+- currency_symbol
+- currency_decimal_separator
+- currency_thousand_separator
+- currency_decimal_places
+- currency_symbol_position
+
+Esto evita que facturas viejas cambien si luego se modifica la configuración global.
+
+El sistema debe soportar impuestos configurables.
+
+Impuestos iniciales:
+- IVA 21%
+- ITBIS 18%
+- Tax 7%
+- Exento 0%
+
+Cada impuesto debe tener:
+- Nombre
+- Porcentaje
+- Activo / Inactivo
+- Predeterminado
+
+Cada línea de factura puede usar un impuesto diferente.
+
+Configuraciones globales de impuesto:
+- Mostrar impuestos
+- Ocultar impuestos
+- Factura exenta
+- Precios incluyen impuestos
+- Precios no incluyen impuestos
+
+Términos de pago configurables:
+
+Iniciales:
+- AL CONTADO = 0 días
+- CRÉDITO 15 DÍAS = 15 días
+- CRÉDITO 30 DÍAS = 30 días
+
+Cada término debe tener:
+- Nombre
+- Días de vencimiento
+- Descripción
+- Activo / Inactivo
+
+Al seleccionar término de pago, calcular vencimiento automáticamente desde la fecha de factura.
+
+Garantías configurables:
+
+Iniciales:
+- GARANTÍA DE 6 MESES EN PIEZAS Y SERVICIOS DEL FABRICANTE
+- GARANTÍA DE 1 AÑO EN PIEZAS Y SERVICIOS DEL FABRICANTE
+- GARANTÍA DE 3 AÑOS EN PIEZAS Y SERVICIOS DEL FABRICANTE
+
+Cada garantía debe tener:
+- Título
+- Descripción
+- Duración en meses
+- Texto completo
+- Activa / Inactiva
+- Predeterminada
+
+La garantía debe poder seleccionarse y también editarse manualmente antes de guardar la factura.
+
+Cuentas bancarias configurables:
+
+Cada cuenta debe tener:
+- Nombre visible
+- Titular
+- Banco
+- Número de cuenta
+- IBAN
+- Swift/BIC opcional
+- Moneda
+- Activa / Inactiva
+- Predeterminada
+
+No usar nombres informales o riesgosos como “pirata”. Usar nombres profesionales:
+- Principal
+- Secundaria
+- Personal
+- Empresa
+- Alternativa
+
+Textos legales configurables:
+
+Texto inicial:
+“La firma, aceptación digital o pago del servicio confirma la conformidad del trabajo realizado.
+La garantía cubre exclusivamente la reparación realizada y las piezas sustituidas, excluyendo averías derivadas de manipulación externa, mal uso o desgaste natural.”
+
+Debe permitir configurar:
+- Texto legal inferior
+- Texto de garantía
+- Texto de conformidad
+- Texto para cliente
+- Texto para copia vendedor
+
+Firmas:
+
+La factura debe tener:
+- RECIBIDO POR
+- PREPARADO POR
+- CONFORMIDAD DEL CLIENTE
+
+Debe soportar:
+- Nombre escrito
+- Firma digital opcional
+- Fecha de aceptación
+
+La firma digital puede guardarse como imagen en storage.
+
+Numeración de facturas configurable:
+
+Debe permitir:
+- Prefijo
+- Número inicial
+- Longitud con ceros
+- Reinicio anual opcional
+- Reinicio mensual opcional
+- Serie
+- Permitir número manual o no
+
+Ejemplos:
+- FAC-000001
+- A-2026-000001
+- INV-000001
+
+Debe garantizar que no existan números duplicados.
+
+Estados de factura:
+
+- BORRADOR
+- EMITIDA
+- PAGADA
+- PARCIALMENTE PAGADA
+- ANULADA
+- VENCIDA
+
+Reglas:
+- Si importe_recibido = 0 y factura está emitida → EMITIDA
+- Si importe_recibido > 0 y < total → PARCIALMENTE PAGADA
+- Si importe_recibido >= total → PAGADA
+- Si fecha_vencimiento < hoy y balance_pendiente > 0 → VENCIDA
+- Si se anula manualmente → ANULADA
+
+Reglas de edición:
+- BORRADOR: editable completo
+- EMITIDA: editable solo con permiso especial
+- PAGADA: no modificar montos, solo notas internas
+- ANULADA: no modificar
+
+Módulos web obligatorios:
+- Login
+- Dashboard
+- Listado de facturas
+- Crear factura
+- Editar factura
+- Vista previa de factura
+- Detalle de factura
+- Descargar PDF
+- Clientes
+- Configuración general
+- Configuración de monedas
+- Configuración de impuestos
+- Configuración fiscal / emisores
+- Cuentas bancarias
+- Garantías
+- Términos de pago
+- Textos legales
+- Numeración de facturas
+- Usuarios y roles
+- Reportes básicos
+
+Módulos Android obligatorios:
+- LoginScreen
+- InvoiceListScreen
+- CreateInvoiceScreen
+- EditInvoiceScreen
+- InvoicePreviewScreen
+- InvoiceDetailScreen
+- ClientListScreen
+- ClientFormScreen
+- BasicSettingsScreen
+
+Android debe usar:
+- Kotlin
+- Jetpack Compose
+- MVVM
+- Repository Pattern
+- Retrofit
+- OkHttp
+- Kotlin Coroutines
+- StateFlow
+- Navigation Compose
+- DataStore para token/configuración básica
+
+Android puede calcular visualmente para preview, pero el backend debe recalcular todo al guardar.
+
+Base de datos recomendada:
+
+Tablas:
+- users
+- clients
+- invoices
+- invoice_items
+- currencies
+- taxes
+- payment_terms
+- warranties
+- bank_accounts
+- fiscal_profiles
+- invoice_number_settings
+- legal_texts
+- invoice_payments
+- settings
+- roles
+- permissions
+- activity_logs
+
+Tabla currencies:
+- id
+- name
+- code
+- symbol
+- decimal_separator
+- thousand_separator
+- decimal_places
+- symbol_position
+- is_default
+- is_active
+- timestamps
+
+Tabla taxes:
+- id
+- name
+- rate
+- is_default
+- is_active
+- timestamps
+
+Tabla clients:
+- id
+- name
+- tax_id
+- address
+- city
+- phone
+- email
+- notes
+- timestamps
+
+Tabla invoices:
+- id
+- invoice_number
+- invoice_date
+- due_date
+- payment_term_id
+- client_id
+- client_name
+- client_tax_id
+- client_address
+- currency_id
+- currency_code
+- currency_symbol
+- currency_decimal_separator
+- currency_thousand_separator
+- currency_decimal_places
+- currency_symbol_position
+- fiscal_profile_id
+- seller_name
+- seller_tax_id
+- seller_address
+- seller_city
+- bank_account_id
+- warranty_id
+- warranty_text
+- legal_text
+- observations
+- amount_received
+- subtotal
+- tax_total
+- total
+- balance_due
+- status
+- prepared_by
+- received_by
+- customer_signature_path
+- pdf_path
+- created_by
+- updated_by
+- timestamps
+
+Tabla invoice_items:
+- id
+- invoice_id
+- description
+- quantity
+- unit_cost
+- tax_id
+- tax_name
+- tax_rate
+- tax_amount
+- unit_price
+- line_subtotal
+- line_total
+- timestamps
+
+Tabla bank_accounts:
+- id
+- label
+- account_holder
+- bank_name
+- account_number
+- iban
+- swift
+- currency_id
+- is_default
+- is_active
+- timestamps
+
+Tabla fiscal_profiles:
+- id
+- name
+- tax_id
+- address
+- city
+- phone
+- email
+- logo_path
+- is_default
+- is_active
+- timestamps
+
+Tabla invoice_number_settings:
+- id
+- prefix
+- next_number
+- number_length
+- serie
+- reset_yearly
+- reset_monthly
+- allow_manual_number
+- timestamps
+
+Endpoints API mínimos:
+
+Autenticación:
+- POST /api/login
+- POST /api/logout
+- GET /api/me
+
+Facturas:
+- GET /api/invoices
+- POST /api/invoices
+- GET /api/invoices/{id}
+- PUT /api/invoices/{id}
+- DELETE /api/invoices/{id}
+- POST /api/invoices/{id}/issue
+- POST /api/invoices/{id}/cancel
+- POST /api/invoices/{id}/generate-pdf
+- GET /api/invoices/{id}/download-pdf
+- POST /api/invoices/{id}/mark-paid
+
+Clientes:
+- GET /api/clients
+- POST /api/clients
+- GET /api/clients/{id}
+- PUT /api/clients/{id}
+- DELETE /api/clients/{id}
+
+Configuración:
+- GET /api/settings/bootstrap
+- GET /api/currencies
+- GET /api/taxes
+- GET /api/payment-terms
+- GET /api/warranties
+- GET /api/bank-accounts
+- GET /api/fiscal-profiles
+
+El endpoint /api/settings/bootstrap debe devolver:
+- monedas
+- impuestos
+- términos de pago
+- garantías
+- cuentas bancarias
+- perfiles fiscales
+- textos legales
+- configuración de numeración
+- configuración global
+
+Generación PDF:
+
+Crear:
+resources/views/pdf/invoice.blade.php
+
+Debe usarse para:
+- Vista previa web
+- Generación PDF
+
+Preferir Browsershot/Puppeteer.
+
+Config PDF:
+- Tamaño A4
+- Orientación vertical
+- Márgenes ajustados
+- Fuente Arial o similar
+- CSS fiel al Excel
+
+Guardar PDF en:
+storage/app/public/invoices/{invoice_number}.pdf
+
+Guardar ruta en:
+invoices.pdf_path
+
+Validaciones obligatorias:
+- Cliente obligatorio
+- Fecha obligatoria
+- Moneda obligatoria
+- Término de pago obligatorio
+- Al menos una línea de factura
+- Cantidad mayor que 0
+- Costo unitario mayor o igual que 0
+- Impuesto válido
+- Número de factura único
+- Cuenta bancaria válida si se muestra
+- Perfil fiscal válido
+
+Seguridad:
+- Login seguro
+- Laravel Sanctum para móvil
+- Roles y permisos
+- Validación de requests
+- Protección contra edición de facturas anuladas
+- Protección contra duplicidad de número de factura
+- Logs de generación de PDF
+- Logs de emisión/anulación
+- No confiar en totales enviados desde frontend
+
+Roles iniciales:
+- ADMIN
+- VENDEDOR
+- TECNICO
+- LECTURA
+
+Permisos:
+- crear_factura
+- editar_factura
+- emitir_factura
+- anular_factura
+- ver_factura
+- descargar_pdf
+- configurar_sistema
+- gestionar_usuarios
+- ver_reportes
+
+Seeds iniciales:
+
+Monedas:
+- Euro / EUR / €
+- Dollar / USD / US$
+- Peso Dominicano / DOP / RD$
+
+Impuestos:
+- IVA 21%
+- ITBIS 18%
+- Tax 7%
+- Exento 0%
+
+Términos:
+- AL CONTADO
+- CRÉDITO 15 DÍAS
+- CRÉDITO 30 DÍAS
+
+Garantías:
+- GARANTÍA DE 6 MESES EN PIEZAS Y SERVICIOS DEL FABRICANTE
+- GARANTÍA DE 1 AÑO EN PIEZAS Y SERVICIOS DEL FABRICANTE
+- GARANTÍA DE 3 AÑOS EN PIEZAS Y SERVICIOS DEL FABRICANTE
+
+Flujo recomendado de factura:
+1. Crear factura como BORRADOR
+2. Llenar cliente, fecha, moneda, término, productos, garantía y observaciones
+3. Calcular preview
+4. Guardar borrador
+5. Ver vista previa con formato de factura
+6. Emitir factura
+7. Generar PDF
+8. Descargar o compartir
+
+Criterios de aceptación:
+- Se puede crear una factura desde web
+- Se puede crear una factura desde Android
+- La moneda puede ser Euro, Dollar o Pesos
+- La moneda se configura desde panel
+- El impuesto se configura desde panel
+- El término de pago calcula vencimiento
+- La garantía se selecciona desde catálogo
+- La cuenta bancaria se selecciona desde catálogo
+- La factura calcula correctamente subtotal, impuesto y total
+- Los totales se recalculan en backend
+- El PDF conserva el formato de la plantilla
+- El PDF se guarda en servidor
+- El PDF se descarga desde web
+- El PDF se comparte desde Android
+- No se duplican números de factura
+- La configuración se cambia sin tocar código
+
+Instrucción crítica de trabajo:
+
+Debes trabajar siempre siguiendo el archivo TODO.md.
+
+Antes de iniciar cada fase:
+1. Leer TODO.md
+2. Identificar la siguiente tarea pendiente
+3. Ejecutarla
+4. Probarla
+5. Marcarla como completada
+6. Escribir notas técnicas si aplica
+7. No avanzar a otra fase si la actual no cumple los criterios
+
+Si encuentras un error:
+1. Documentarlo en TODO.md
+2. Crear una subtarea de corrección
+3. Resolverlo
+4. Probarlo
+5. Marcarlo como resuelto
+
+Nunca elimines tareas del TODO.md. Si una tarea ya no aplica, márcala como:
+[NO APLICA] y explica por qué.
+
+Tu primera respuesta debe crear el archivo TODO.md completo.
+Después debes empezar por la FASE 0: análisis de plantilla y arquitectura.

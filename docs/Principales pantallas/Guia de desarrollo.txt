@@ -1,0 +1,832 @@
+# TODO.md — Sistema Web y Móvil Generador de Facturas
+
+## Estado general del proyecto
+
+- Proyecto: Sistema generador de facturas web y móvil
+- Plantilla base: Factura P L - Oficial.xlsx
+- Backend: Laravel
+- Base de datos: MySQL
+- Web: Laravel Blade + Livewire o Vue
+- Móvil: Android Kotlin + Jetpack Compose
+- PDF: HTML/CSS + Browsershot/Puppeteer
+- Estado actual: En planificación
+
+---
+
+# Reglas de trabajo
+
+## Regla 1 — No saltar fases
+
+No se debe avanzar a una fase posterior hasta que la fase actual esté terminada, probada y marcada como completada.
+
+## Regla 2 — Backend como fuente de verdad
+
+El backend debe recalcular siempre:
+
+- subtotal
+- impuesto_total
+- total
+- balance_pendiente
+- estado
+
+No confiar en totales enviados desde web o móvil.
+
+## Regla 3 — Plantilla única de factura
+
+La misma plantilla HTML/CSS debe usarse para:
+
+- Vista previa web
+- Generación PDF
+
+## Regla 4 — Android no genera PDF
+
+Android consume la API y solicita al backend generar o descargar el PDF.
+
+## Regla 5 — Configuración dinámica
+
+No quemar en código:
+
+- moneda
+- impuesto
+- garantía
+- cuenta bancaria
+- texto legal
+- datos fiscales
+- numeración
+
+Todo debe venir desde base de datos/configuración.
+
+## Regla 6 — Documentar errores
+
+Todo error encontrado debe documentarse en este TODO antes de resolverlo.
+
+---
+
+# FASE 0 — Análisis inicial
+
+## Objetivo
+
+Entender la plantilla Excel, campos, distribución y reglas de negocio antes de programar.
+
+## Tareas
+
+- [ ] Revisar archivo `Factura P L - Oficial.xlsx`
+- [ ] Identificar hojas del archivo
+- [ ] Identificar campos visibles de la factura
+- [ ] Identificar campos calculados
+- [ ] Identificar fórmulas existentes
+- [ ] Identificar textos legales
+- [ ] Identificar garantías disponibles
+- [ ] Identificar términos de pago
+- [ ] Identificar cuentas bancarias
+- [ ] Identificar datos fiscales/emisores
+- [ ] Documentar estructura visual de la factura
+- [ ] Definir qué campos serán editables
+- [ ] Definir qué campos serán configurables
+- [ ] Definir qué campos serán calculados
+- [ ] Confirmar tamaño del PDF: A4 vertical
+- [ ] Confirmar que la vista previa debe ser igual al PDF
+
+## Criterios de aceptación
+
+- [ ] Existe documento técnico con todos los campos
+- [ ] Existe mapa de secciones de la factura
+- [ ] Existe lista de campos editables/configurables/calculados
+- [ ] Existe decisión técnica para generación PDF
+
+---
+
+# FASE 1 — Arquitectura base Laravel
+
+## Objetivo
+
+Crear estructura base del backend.
+
+## Tareas
+
+- [ ] Crear proyecto Laravel
+- [ ] Configurar `.env`
+- [ ] Configurar conexión MySQL
+- [ ] Configurar zona horaria
+- [ ] Configurar idioma/base locale
+- [ ] Instalar Laravel Sanctum
+- [ ] Configurar autenticación API
+- [ ] Crear estructura de carpetas para Services
+- [ ] Crear estructura de carpetas para DTOs si aplica
+- [ ] Crear estructura para Form Requests
+- [ ] Crear estructura para API Resources
+- [ ] Crear rutas API base
+- [ ] Crear ruta `/api/health`
+- [ ] Probar conexión backend
+
+## Criterios de aceptación
+
+- [ ] Laravel corre correctamente
+- [ ] `/api/health` responde OK
+- [ ] Base de datos conecta correctamente
+- [ ] Sanctum instalado y configurado
+
+---
+
+# FASE 2 — Base de datos y migraciones
+
+## Objetivo
+
+Crear la estructura de datos principal.
+
+## Migraciones
+
+- [ ] users
+- [ ] clients
+- [ ] currencies
+- [ ] taxes
+- [ ] payment_terms
+- [ ] warranties
+- [ ] bank_accounts
+- [ ] fiscal_profiles
+- [ ] legal_texts
+- [ ] invoice_number_settings
+- [ ] invoices
+- [ ] invoice_items
+- [ ] invoice_payments
+- [ ] roles
+- [ ] permissions
+- [ ] activity_logs
+- [ ] settings
+
+## Campos críticos en invoices
+
+- [ ] invoice_number
+- [ ] invoice_date
+- [ ] due_date
+- [ ] payment_term_id
+- [ ] client_id
+- [ ] client_name
+- [ ] client_tax_id
+- [ ] client_address
+- [ ] currency_id
+- [ ] currency_code
+- [ ] currency_symbol
+- [ ] currency_decimal_separator
+- [ ] currency_thousand_separator
+- [ ] currency_decimal_places
+- [ ] currency_symbol_position
+- [ ] fiscal_profile_id
+- [ ] seller_name
+- [ ] seller_tax_id
+- [ ] seller_address
+- [ ] seller_city
+- [ ] bank_account_id
+- [ ] warranty_id
+- [ ] warranty_text
+- [ ] legal_text
+- [ ] observations
+- [ ] amount_received
+- [ ] subtotal
+- [ ] tax_total
+- [ ] total
+- [ ] balance_due
+- [ ] status
+- [ ] prepared_by
+- [ ] received_by
+- [ ] customer_signature_path
+- [ ] pdf_path
+- [ ] created_by
+- [ ] updated_by
+
+## Criterios de aceptación
+
+- [ ] Todas las migraciones corren sin error
+- [ ] Las llaves foráneas funcionan
+- [ ] Los campos monetarios usan decimal correcto
+- [ ] Hay índices para búsquedas frecuentes
+
+---
+
+# FASE 3 — Modelos Eloquent y relaciones
+
+## Objetivo
+
+Crear modelos y relaciones.
+
+## Modelos
+
+- [ ] User
+- [ ] Client
+- [ ] Currency
+- [ ] Tax
+- [ ] PaymentTerm
+- [ ] Warranty
+- [ ] BankAccount
+- [ ] FiscalProfile
+- [ ] LegalText
+- [ ] InvoiceNumberSetting
+- [ ] Invoice
+- [ ] InvoiceItem
+- [ ] InvoicePayment
+- [ ] Setting
+
+## Relaciones
+
+- [ ] Invoice belongsTo Client
+- [ ] Invoice belongsTo Currency
+- [ ] Invoice belongsTo PaymentTerm
+- [ ] Invoice belongsTo FiscalProfile
+- [ ] Invoice belongsTo BankAccount
+- [ ] Invoice belongsTo Warranty
+- [ ] Invoice hasMany InvoiceItems
+- [ ] Invoice hasMany InvoicePayments
+- [ ] InvoiceItem belongsTo Invoice
+- [ ] InvoiceItem belongsTo Tax
+
+## Criterios de aceptación
+
+- [ ] Relaciones probadas en Tinker
+- [ ] Factura puede cargar sus líneas
+- [ ] Factura puede cargar configuración asociada
+
+---
+
+# FASE 4 — Seeds iniciales
+
+## Objetivo
+
+Crear datos mínimos para operar el sistema.
+
+## Seeds
+
+- [ ] Usuario admin inicial
+- [ ] Monedas: EUR, USD, DOP
+- [ ] Impuestos: IVA 21%, ITBIS 18%, Tax 7%, Exento 0%
+- [ ] Términos: AL CONTADO, CRÉDITO 15 DÍAS, CRÉDITO 30 DÍAS
+- [ ] Garantías iniciales
+- [ ] Cuenta bancaria de prueba
+- [ ] Perfil fiscal de prueba
+- [ ] Texto legal inicial
+- [ ] Configuración de numeración
+- [ ] Roles iniciales
+- [ ] Permisos iniciales
+
+## Criterios de aceptación
+
+- [ ] `php artisan db:seed` funciona
+- [ ] Existe usuario admin
+- [ ] Existe moneda por defecto
+- [ ] Existe impuesto por defecto
+- [ ] Existe numeración inicial
+
+---
+
+# FASE 5 — Servicios de dominio
+
+## Objetivo
+
+Centralizar lógica crítica.
+
+## Servicios
+
+- [ ] InvoiceCalculationService
+- [ ] InvoiceNumberService
+- [ ] InvoiceStatusService
+- [ ] InvoicePdfService
+- [ ] CurrencyFormatterService
+- [ ] SettingsBootstrapService
+- [ ] ActivityLogService
+
+## InvoiceCalculationService
+
+Debe calcular:
+
+- [ ] base_linea
+- [ ] impuesto_linea
+- [ ] precio_unitario
+- [ ] importe
+- [ ] subtotal
+- [ ] tax_total
+- [ ] total
+- [ ] balance_due
+
+Debe soportar:
+
+- [ ] precios incluyen impuestos
+- [ ] precios no incluyen impuestos
+- [ ] líneas exentas
+- [ ] impuestos diferentes por línea
+
+## InvoiceNumberService
+
+Debe soportar:
+
+- [ ] prefijo
+- [ ] serie
+- [ ] longitud con ceros
+- [ ] reinicio anual
+- [ ] reinicio mensual
+- [ ] validación de duplicados
+- [ ] transacciones para evitar colisiones
+
+## Criterios de aceptación
+
+- [ ] Los cálculos son correctos
+- [ ] La numeración no duplica facturas
+- [ ] Los estados se asignan correctamente
+- [ ] Hay pruebas unitarias básicas
+
+---
+
+# FASE 6 — API REST
+
+## Objetivo
+
+Crear endpoints para web y móvil.
+
+## Autenticación
+
+- [ ] POST /api/login
+- [ ] POST /api/logout
+- [ ] GET /api/me
+
+## Facturas
+
+- [ ] GET /api/invoices
+- [ ] POST /api/invoices
+- [ ] GET /api/invoices/{id}
+- [ ] PUT /api/invoices/{id}
+- [ ] DELETE /api/invoices/{id}
+- [ ] POST /api/invoices/{id}/issue
+- [ ] POST /api/invoices/{id}/cancel
+- [ ] POST /api/invoices/{id}/generate-pdf
+- [ ] GET /api/invoices/{id}/download-pdf
+- [ ] POST /api/invoices/{id}/mark-paid
+
+## Clientes
+
+- [ ] GET /api/clients
+- [ ] POST /api/clients
+- [ ] GET /api/clients/{id}
+- [ ] PUT /api/clients/{id}
+- [ ] DELETE /api/clients/{id}
+
+## Configuración
+
+- [ ] GET /api/settings/bootstrap
+- [ ] GET /api/currencies
+- [ ] GET /api/taxes
+- [ ] GET /api/payment-terms
+- [ ] GET /api/warranties
+- [ ] GET /api/bank-accounts
+- [ ] GET /api/fiscal-profiles
+
+## Criterios de aceptación
+
+- [ ] API protegida con Sanctum donde aplique
+- [ ] Login devuelve token
+- [ ] Bootstrap devuelve configuración completa
+- [ ] Crear factura recalcula totales en backend
+- [ ] Editar factura respeta reglas de estado
+- [ ] Emitir factura genera número final si aplica
+
+---
+
+# FASE 7 — Panel web de configuración
+
+## Objetivo
+
+Crear panel para configurar todo sin tocar código.
+
+## Pantallas
+
+- [ ] Configuración general
+- [ ] Monedas
+- [ ] Impuestos
+- [ ] Términos de pago
+- [ ] Garantías
+- [ ] Cuentas bancarias
+- [ ] Perfiles fiscales
+- [ ] Textos legales
+- [ ] Numeración de facturas
+- [ ] Usuarios y roles
+
+## Criterios de aceptación
+
+- [ ] Se puede crear, editar y desactivar moneda
+- [ ] Se puede definir moneda por defecto
+- [ ] Se puede crear, editar y desactivar impuesto
+- [ ] Se puede definir impuesto por defecto
+- [ ] Se puede configurar numeración
+- [ ] Se puede configurar texto legal
+- [ ] Se puede configurar cuenta bancaria
+
+---
+
+# FASE 8 — Módulo web de clientes
+
+## Objetivo
+
+Gestionar clientes.
+
+## Tareas
+
+- [ ] Listado de clientes
+- [ ] Crear cliente
+- [ ] Editar cliente
+- [ ] Eliminar/desactivar cliente
+- [ ] Buscar cliente
+- [ ] Seleccionar cliente desde factura
+
+## Criterios de aceptación
+
+- [ ] Cliente se crea correctamente
+- [ ] Cliente puede seleccionarse al crear factura
+- [ ] Factura guarda snapshot del cliente
+
+---
+
+# FASE 9 — Módulo web de facturas
+
+## Objetivo
+
+Crear y gestionar facturas desde web.
+
+## Pantallas
+
+- [ ] Listado de facturas
+- [ ] Crear factura
+- [ ] Editar factura
+- [ ] Detalle de factura
+- [ ] Vista previa
+- [ ] Descargar PDF
+
+## Crear factura
+
+Debe incluir:
+
+- [ ] Cliente
+- [ ] Dirección
+- [ ] Fecha
+- [ ] Vencimiento
+- [ ] Término de pago
+- [ ] Moneda
+- [ ] Perfil fiscal
+- [ ] Cuenta bancaria
+- [ ] Garantía
+- [ ] Observaciones
+- [ ] Líneas dinámicas
+- [ ] Importe recibido
+- [ ] Totales visibles
+
+## Criterios de aceptación
+
+- [ ] Se puede crear factura borrador
+- [ ] Se pueden agregar múltiples líneas
+- [ ] Se calculan totales visualmente
+- [ ] Backend recalcula al guardar
+- [ ] Se puede emitir factura
+- [ ] Se puede anular factura
+- [ ] Se puede marcar como pagada
+
+---
+
+# FASE 10 — Plantilla HTML/CSS de factura
+
+## Objetivo
+
+Replicar visualmente la plantilla Excel.
+
+## Archivo
+
+- [ ] Crear `resources/views/pdf/invoice.blade.php`
+
+## Secciones
+
+- [ ] Encabezado
+- [ ] Datos del cliente
+- [ ] Datos de factura
+- [ ] Tabla de líneas
+- [ ] Totales
+- [ ] Importe recibido
+- [ ] Garantía
+- [ ] Observaciones
+- [ ] Cuentas bancarias
+- [ ] Firmas
+- [ ] Texto legal
+- [ ] Original cliente / copia vendedor
+
+## Criterios de aceptación
+
+- [ ] La factura se parece al Excel original
+- [ ] Renderiza correctamente en navegador
+- [ ] Renderiza correctamente con datos reales
+- [ ] Soporta diferentes monedas
+- [ ] Soporta diferentes cantidades de líneas
+- [ ] No se rompe visualmente con textos largos
+
+---
+
+# FASE 11 — Generación PDF
+
+## Objetivo
+
+Generar PDF con el mismo formato.
+
+## Tareas
+
+- [ ] Instalar Browsershot/Puppeteer o alternativa
+- [ ] Crear InvoicePdfService
+- [ ] Generar PDF desde HTML
+- [ ] Guardar PDF en storage
+- [ ] Guardar ruta en invoice.pdf_path
+- [ ] Crear endpoint generate-pdf
+- [ ] Crear endpoint download-pdf
+- [ ] Probar en Windows/Apache si aplica
+
+## Criterios de aceptación
+
+- [ ] PDF se genera sin error
+- [ ] PDF conserva formato
+- [ ] PDF se guarda en servidor
+- [ ] PDF puede descargarse
+- [ ] PDF puede regenerarse si hay permiso
+
+---
+
+# FASE 12 — Roles y permisos
+
+## Objetivo
+
+Proteger operaciones críticas.
+
+## Tareas
+
+- [ ] Crear roles
+- [ ] Crear permisos
+- [ ] Asignar permisos a roles
+- [ ] Proteger rutas web
+- [ ] Proteger endpoints API
+- [ ] Restringir edición según estado
+- [ ] Restringir configuración a ADMIN
+
+## Criterios de aceptación
+
+- [ ] Usuario sin permiso no configura sistema
+- [ ] Usuario sin permiso no anula factura
+- [ ] Usuario lectura solo visualiza
+- [ ] API responde 403 cuando corresponde
+
+---
+
+# FASE 13 — Android base
+
+## Objetivo
+
+Crear app Android conectada al backend.
+
+## Arquitectura
+
+- [ ] MVVM
+- [ ] Repository Pattern
+- [ ] Retrofit
+- [ ] OkHttp
+- [ ] Coroutines
+- [ ] StateFlow
+- [ ] Navigation Compose
+- [ ] DataStore
+
+## Paquetes
+
+- [ ] core.network
+- [ ] core.utils
+- [ ] data.remote
+- [ ] data.model
+- [ ] data.repository
+- [ ] domain.model
+- [ ] domain.usecase
+- [ ] presentation.auth
+- [ ] presentation.invoices
+- [ ] presentation.clients
+- [ ] presentation.settings
+
+## Criterios de aceptación
+
+- [ ] App compila
+- [ ] Login funciona
+- [ ] Token se guarda en DataStore
+- [ ] Retrofit agrega token automáticamente
+- [ ] Se puede consumir `/api/settings/bootstrap`
+
+---
+
+# FASE 14 — Android facturas
+
+## Objetivo
+
+Crear flujo móvil de facturación.
+
+## Pantallas
+
+- [ ] LoginScreen
+- [ ] InvoiceListScreen
+- [ ] CreateInvoiceScreen
+- [ ] EditInvoiceScreen
+- [ ] InvoicePreviewScreen
+- [ ] InvoiceDetailScreen
+- [ ] ClientListScreen
+- [ ] ClientFormScreen
+- [ ] BasicSettingsScreen
+
+## Funciones
+
+- [ ] Listar facturas
+- [ ] Crear factura
+- [ ] Editar borrador
+- [ ] Agregar líneas
+- [ ] Seleccionar moneda
+- [ ] Seleccionar impuesto
+- [ ] Seleccionar término de pago
+- [ ] Seleccionar garantía
+- [ ] Seleccionar cuenta bancaria
+- [ ] Ver preview
+- [ ] Solicitar PDF
+- [ ] Descargar PDF
+- [ ] Compartir PDF
+
+## Criterios de aceptación
+
+- [ ] Se crea factura desde Android
+- [ ] Se visualizan totales
+- [ ] Backend recalcula al guardar
+- [ ] Se puede descargar PDF
+- [ ] Se puede compartir PDF
+
+---
+
+# FASE 15 — Reportes básicos
+
+## Objetivo
+
+Crear reportes administrativos.
+
+## Reportes
+
+- [ ] Total facturado por fecha
+- [ ] Total cobrado
+- [ ] Total pendiente
+- [ ] Facturas vencidas
+- [ ] Facturas por estado
+- [ ] Facturas por cliente
+- [ ] Facturas por moneda
+
+## Criterios de aceptación
+
+- [ ] Reportes filtran por fecha
+- [ ] Reportes filtran por moneda
+- [ ] Totales son consistentes con facturas
+
+---
+
+# FASE 16 — Pruebas
+
+## Objetivo
+
+Validar funcionamiento completo.
+
+## Pruebas backend
+
+- [ ] Crear factura con EUR
+- [ ] Crear factura con USD
+- [ ] Crear factura con DOP
+- [ ] Crear factura con impuesto 21%
+- [ ] Crear factura con impuesto 18%
+- [ ] Crear factura exenta
+- [ ] Crear factura con varias líneas
+- [ ] Crear factura con pago parcial
+- [ ] Crear factura pagada
+- [ ] Crear factura vencida
+- [ ] Anular factura
+- [ ] Generar PDF
+- [ ] Descargar PDF
+
+## Pruebas Android
+
+- [ ] Login
+- [ ] Bootstrap settings
+- [ ] Listar facturas
+- [ ] Crear factura
+- [ ] Editar borrador
+- [ ] Solicitar PDF
+- [ ] Compartir PDF
+
+## Criterios de aceptación
+
+- [ ] No hay errores críticos
+- [ ] Los cálculos son correctos
+- [ ] El PDF se ve correcto
+- [ ] Android y web usan misma lógica backend
+
+---
+
+# FASE 17 — Preparación para producción
+
+## Objetivo
+
+Dejar el sistema listo para desplegar.
+
+## Tareas
+
+- [ ] Configurar `.env.production`
+- [ ] Configurar storage link
+- [ ] Configurar permisos de carpetas
+- [ ] Configurar cola si aplica
+- [ ] Configurar logs
+- [ ] Configurar backup de base de datos
+- [ ] Configurar dominio/subdominio
+- [ ] Configurar Apache VirtualHost
+- [ ] Probar generación PDF en servidor
+- [ ] Probar descarga PDF pública/protegida
+
+## Criterios de aceptación
+
+- [ ] Sistema corre en servidor
+- [ ] Login funciona en producción
+- [ ] PDF se genera en producción
+- [ ] Android conecta con API pública
+- [ ] No hay rutas expuestas indebidamente
+
+---
+
+# Registro de errores
+
+## Formato
+
+Cada error debe registrarse así:
+
+```text
+Fecha:
+Módulo:
+Error:
+Causa:
+Solución:
+Estado:
+
+Fecha: 2026-05-22
+Modulo: Backend / Android / PDF
+Error: Estados visibles en ingles, moneda principal en DOP, datos demo insuficientes y Chrome headless fallando con "Missing headless user data directory".
+Causa: Los codigos internos de estado se imprimian directo en UI, el seeder marcaba DOP/ITBIS como predeterminados, no habia facturas demo completas y Chrome se ejecutaba sin perfil temporal aislado.
+Solucion: Se agrego traduccion de estados a espanol en web/API/Android manteniendo codigos internos estables; EUR e IVA 21% quedaron como predeterminados; se sembraron 4 facturas demo completas en EUR; Chrome PDF ahora usa --user-data-dir temporal y flags headless robustos.
+Estado: Validado con php artisan test, db:seed, generacion real de FAC-DEMO-0001.pdf y build/lint/test Android.
+
+Fecha: 2026-05-22
+Modulo: Android / API Facturas
+Error: El flujo de crear factura no permitia visualizar el borrador antes de guardarlo.
+Causa: La vista previa existente dependia de una factura ya persistida y solo aceptaba invoice_id.
+Solucion: Se agrego POST /api/invoices/preview para renderizar la plantilla oficial con los datos del formulario sin insertar registros; Android ahora tiene boton Vista previa en crear/editar factura y muestra el HTML oficial antes de guardar.
+Estado: Validado con php artisan test, prueba especifica de no persistencia y build/lint/test Android.
+
+Fecha: 2026-05-23
+Modulo: Android / API Facturas
+Error: En el detalle de facturas, un borrador solo podia previsualizarse como BORRADOR y no como la factura que se emitiria.
+Causa: Android consumia la vista previa persistida existente, que renderiza el estado actual de la factura.
+Solucion: Se agrego GET /api/invoices/{invoice}/issue-preview para renderizar una factura en formato de emision sin persistir cambios ni consumir numeracion; Android usa este endpoint cuando la factura seleccionada esta en borrador.
+Estado: Validado con php artisan test, test especifico de no persistencia/contador, y gradle testDebugUnitTest/assembleDebug/lintDebug.
+
+Fecha: 2026-05-23
+Modulo: Android / Facturas PDF
+Error: Despues de emitir una factura habia que generar el PDF manualmente antes de poder compartirlo; no existia accion directa para imprimir o enviar por WhatsApp.
+Causa: El estado solo emitia un evento generico de compartir PDF y la UI no modelaba acciones de salida del documento.
+Solucion: Se agregaron acciones de PDF tipadas (compartir, WhatsApp, imprimir); Android puede emitir, generar PDF, descargarlo y ejecutar la accion solicitada en un solo flujo. La impresion usa PrintManager y WhatsApp usa un intent explicito a WhatsApp/WhatsApp Business.
+Estado: Validado con gradle testDebugUnitTest/assembleDebug/lintDebug.
+
+Fecha: 2026-05-23
+Modulo: Android / Configuracion / Impresora
+Error: No existia una configuracion persistente de impresora ni permisos Bluetooth para listar impresoras vinculadas.
+Causa: La pantalla de ajustes no tenia ViewModel local ni repositorio de preferencias para guardar dispositivos.
+Solucion: Se agregaron permisos Bluetooth en AndroidManifest, repositorio Bluetooth, DataStore local para la impresora seleccionada, ViewModel de ajustes y UI para buscar, guardar o quitar una impresora vinculada. La seleccion persiste entre sesiones.
+Estado: Validado con gradle testDebugUnitTest/assembleDebug/lintDebug.
+
+Fecha: 2026-05-23
+Modulo: Android / Reportes
+Error: La pantalla de reportes no seguia el nuevo diseno movil solicitado y tenia una jerarquia visual menos clara.
+Causa: El Compose anterior estaba organizado como secciones genericas y no como dashboard compacto de KPIs, estados, monedas y movimientos relevantes.
+Solucion: Se redisenio ReportsScreen en Compose con header compacto, filtros de fecha/moneda, KPIs 2x3, resumen por estado, distribucion por moneda y facturas relevantes usando datos reales del modelo actual.
+Estado: Validado con gradle testDebugUnitTest/assembleDebug/lintDebug.
+
+Fecha: 2026-05-23
+Modulo: Android / Reportes
+Error: La pantalla de reportes mantenia filtro y distribucion por monedas aunque la app usara solo la moneda configurada.
+Causa: El diseno anterior contemplaba multi-moneda como opcion operativa visible.
+Solucion: Se elimino el selector de moneda y la distribucion por moneda; la pantalla conserva solo una etiqueta informativa de la moneda configurada y todos los importes salen de los datos reales del endpoint.
+Estado: Validado con gradle testDebugUnitTest/assembleDebug/lintDebug.
+
+Fecha: 2026-05-23
+Modulo: Android / Dashboard
+Error: Las filas de actividad reciente no abrian la factura seleccionada y el grafico semanal mostraba barras simuladas cuando no habia facturas.
+Causa: Dashboard no exponia callback por factura y Workspace no tenia una solicitud para abrir factura existente desde otra seccion.
+Solucion: Se agrego callback onOpenInvoice; Workspace navega a Facturas con el ID seleccionado; si la factura esta en borrador abre edicion para completarla y si esta emitida/pagada abre detalle. Tambien se quitaron barras mock del grafico semanal vacio.
+Estado: Validado con gradle testDebugUnitTest/assembleDebug/lintDebug.
+
+Fecha: 2026-05-25
+Modulo: Backend / Web / Android / PDF
+Error: El Excel oficial contemplaba cotizacion, cuentas Oficial/No oficial y texto editable de conformidad, pero el sistema solo modelaba factura generica y el PDF generaba copia duplicada.
+Causa: El contrato de datos no incluia document_type, bank_accounts.account_type ni snapshot de conformity_text; la plantilla PDF iteraba ORIGINAL/COPIA.
+Solucion: Se agrego migracion para document_type invoice/quotation, conformity_text y account_type; se actualizo API, web, seeders oficiales, DTOs Android y formulario movil; el PDF ahora renderiza una sola pagina y cambia titulo/fecha segun Factura o Cotizacion. Se mantiene IVA editable por linea y fiscal_profiles como Datos de venta.
+Estado: Validado con php artisan test y gradle testDebugUnitTest/assembleDebug/lintDebug.
