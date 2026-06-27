@@ -90,6 +90,7 @@
         <div class="flex items-center gap-2 mb-4">
             <i data-lucide="trending-up" class="w-4 h-4 text-primary"></i>
             <h3 style="margin:0;font-size:15px">Totales consolidados</h3>
+            <span class="text-[12px] text-on-surface-variant">Moneda seleccionada: {{ $totals->currency_code }}</span>
             <span class="ml-auto text-[12px] font-semibold bg-primary-soft-2 text-primary px-2.5 py-0.5 rounded-full">{{ $totals->currency_code }}</span>
         </div>
         <div class="grid grid-cols-3 gap-4">
@@ -131,7 +132,7 @@
     <section class="card" style="padding:0;overflow:hidden">
         <div class="flex items-center gap-2 px-5 py-4 border-b border-outline-variant/50">
             <i data-lucide="coins" class="w-4 h-4 text-primary"></i>
-            <h3 style="margin:0;font-size:15px">Por moneda</h3>
+            <h3 style="margin:0;font-size:15px">Totales agrupados por moneda</h3>
         </div>
         <div style="overflow-x:auto">
             <table class="table" style="border:0;border-radius:0;box-shadow:none">

@@ -8,11 +8,11 @@
 
 @section('content')
 <form method="GET" class="actions" style="margin-bottom:16px">
-    <input name="search" value="{{ request('search') }}" placeholder="Buscar por nombre, email o tax id" style="min-width:320px;border:1px solid var(--line);border-radius:5px;padding:10px">
+    <input name="search" value="{{ request('search') }}" placeholder="Buscar por nombre, correo o RNC" style="min-width:320px;border:1px solid var(--line);border-radius:5px;padding:10px">
     <button class="btn" type="submit">Buscar</button>
 </form>
 <table class="table">
-    <thead><tr><th>Nombre</th><th>Tax ID</th><th>Email</th><th>Telefono</th><th>Estado</th><th></th></tr></thead>
+    <thead><tr><th>Nombre</th><th>RNC / ID Fiscal</th><th>Correo</th><th>Teléfono</th><th>Estado</th><th></th></tr></thead>
     <tbody>
     @forelse($clients as $client)
         <tr>

@@ -16,7 +16,7 @@
             <thead class="bg-surface-low">
                 <tr class="text-left text-[11.5px] uppercase tracking-wider text-on-surface-variant">
                     <th class="px-5 py-3 font-semibold">Usuario</th>
-                    <th class="px-5 py-3 font-semibold">Email</th>
+                    <th class="px-5 py-3 font-semibold">Correo</th>
                     <th class="px-5 py-3 font-semibold">Roles</th>
                     <th class="px-5 py-3 font-semibold text-right">Acciones</th>
                 </tr>

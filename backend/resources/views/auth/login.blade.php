@@ -1,6 +1,6 @@
 @extends('layouts.app')
 
-@section('title', 'Login')
+@section('title', 'Iniciar sesión')
 
 @section('head')
 <style>
@@ -29,9 +29,9 @@
             <h2 style="margin-top:0">Acceso</h2>
             @if($errors->any())<div class="alert error">{{ $errors->first() }}</div>@endif
             <div class="form">
-                <div class="field"><label>Email</label><input name="email" type="email" value="{{ old('email') }}" required autofocus></div>
+                <div class="field"><label>Correo electrónico</label><input name="email" type="email" value="{{ old('email') }}" required autofocus></div>
                 <div class="field">
-                    <label for="password">Password</label>
+                    <label for="password">Contraseña</label>
                     <div class="pw-wrap">
                         <input id="password" name="password" type="password" required>
                         <button type="button" class="pw-toggle" data-target="password"

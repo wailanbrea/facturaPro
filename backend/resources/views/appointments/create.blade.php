@@ -87,7 +87,7 @@
                     <div class="contact-row fields" style="margin-bottom:10px">
                         <div class="field"><label>Nombre</label><input name="contacts[{{ $i }}][name]" value="{{ $contact['name'] ?? '' }}"></div>
                         <div class="field"><label>Teléfono</label><input name="contacts[{{ $i }}][phone]" value="{{ $contact['phone'] ?? '' }}"></div>
-                        <div class="field"><label>Email</label><input name="contacts[{{ $i }}][email]" type="email" value="{{ $contact['email'] ?? '' }}"></div>
+                        <div class="field"><label>Correo</label><input name="contacts[{{ $i }}][email]" type="email" value="{{ $contact['email'] ?? '' }}"></div>
                         <div class="field" style="display:flex;align-items:flex-end"><button type="button" class="btn danger" onclick="this.closest('.contact-row').remove()">Quitar</button></div>
                     </div>
                     @endforeach
@@ -117,7 +117,7 @@ function addContact() {
     <div class="contact-row fields" style="margin-bottom:10px">
         <div class="field"><label>Nombre</label><input name="contacts[${contactIdx}][name]"></div>
         <div class="field"><label>Teléfono</label><input name="contacts[${contactIdx}][phone]"></div>
-        <div class="field"><label>Email</label><input name="contacts[${contactIdx}][email]" type="email"></div>
+        <div class="field"><label>Correo</label><input name="contacts[${contactIdx}][email]" type="email"></div>
         <div class="field" style="display:flex;align-items:flex-end"><button type="button" class="btn danger" onclick="this.closest('.contact-row').remove()">Quitar</button></div>
     </div>`);
     contactIdx++;

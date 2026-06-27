@@ -53,6 +53,7 @@ class DatabaseSeeder extends Seeder
             ['name' => 'Configurar informes', 'slug' => 'configurar_informes'],
             ['name' => 'Ver calendario', 'slug' => 'ver_calendario'],
             ['name' => 'Gestionar citas', 'slug' => 'gestionar_citas'],
+            ['name' => 'Ver auditoria', 'slug' => 'ver_auditoria'],
         ])->mapWithKeys(fn (array $permission): array => [
             $permission['slug'] => Permission::query()->updateOrCreate(
                 ['slug' => $permission['slug']],

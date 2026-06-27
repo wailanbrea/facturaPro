@@ -12,6 +12,8 @@ use App\Http\Controllers\Web\SettingsController;
 use App\Http\Controllers\Web\SettingsCatalogController;
 use App\Http\Controllers\Web\TechnicalReportController;
 use App\Http\Controllers\Web\TechnicalReportPdfController;
+use App\Http\Controllers\Web\AuditLogController;
+use App\Http\Controllers\Web\RoleController;
 use App\Http\Controllers\Web\UserController;
 use Illuminate\Support\Facades\Route;
 
@@ -97,6 +99,12 @@ Route::middleware('auth')->group(function (): void {
         ->except(['show', 'destroy'])
         ->middleware('permission:gestionar_usuarios')
         ->names('web.users');
+
+    Route::middleware('permission:gestionar_usuarios')->group(function (): void {
+        Route::get('/roles', [RoleController::class, 'index'])->name('web.roles.index');
+        Route::get('/roles/{role}/edit', [RoleController::class, 'edit'])->name('web.roles.edit');
+        Route::put('/roles/{role}', [RoleController::class, 'update'])->name('web.roles.update');
+    });
     Route::get('/financial-reports', FinancialReportController::class)->middleware('permission:ver_reportes')->name('web.reports.index');
 
     Route::middleware('permission:ver_calendario')->group(function (): void {
@@ -109,4 +117,8 @@ Route::middleware('auth')->group(function (): void {
         Route::patch('/appointments/{appointment}/status', [AppointmentController::class, 'updateStatus'])->middleware('permission:gestionar_citas')->name('web.appointments.status');
         Route::delete('/appointments/{appointment}', [AppointmentController::class, 'destroy'])->middleware('permission:gestionar_citas')->name('web.appointments.destroy');
     });
+
+    Route::get('/auditoria', [AuditLogController::class, 'index'])
+        ->middleware('permission:ver_auditoria')
+        ->name('web.audit.index');
 });

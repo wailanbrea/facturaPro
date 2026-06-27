@@ -113,28 +113,32 @@
             </div>
             <div>
                 <p class="font-bold text-[17px] leading-5 text-primary">FacturaPro</p>
-                <p class="text-[12px] text-on-surface-variant">Enterprise Billing</p>
+                <p class="text-[12px] text-on-surface-variant">Facturación</p>
             </div>
         </div>
 
         <nav class="flex-1 px-3 space-y-1 overflow-y-auto">
             @php
                 $nav = [
-                    ['route' => 'web.dashboard', 'label' => 'Dashboard', 'icon' => 'layout-dashboard'],
-                    ['route' => 'web.invoices.index', 'label' => 'Facturas', 'icon' => 'file-text', 'match' => 'web.invoices.*'],
-                    ['route' => 'web.invoices.verify', 'label' => 'Verificar documento', 'icon' => 'shield-check', 'match' => 'web.invoices.verify'],
-                    ['route' => 'web.technical-reports.index', 'label' => 'Informes', 'icon' => 'clipboard-list', 'match' => 'web.technical-reports.*'],
-                    ['route' => 'web.clients.index', 'label' => 'Clientes', 'icon' => 'users', 'match' => 'web.clients.*'],
-                    ['route' => 'web.appointments.index', 'label' => 'Calendario', 'icon' => 'calendar-days', 'match' => 'web.appointments.*'],
-                    ['route' => 'web.reports.index', 'label' => 'Reportes', 'icon' => 'bar-chart-3', 'match' => 'web.reports.*'],
-                    ['route' => 'web.users.index', 'label' => 'Usuarios', 'icon' => 'user-cog', 'match' => 'web.users.*'],
-                    ['route' => 'web.settings.index', 'label' => 'Configuración', 'icon' => 'settings', 'match' => 'web.settings.*'],
+                    ['route' => 'web.dashboard', 'label' => 'Dashboard', 'icon' => 'layout-dashboard', 'permission' => 'ver_factura'],
+                    ['route' => 'web.invoices.index', 'label' => 'Facturas', 'icon' => 'file-text', 'match' => 'web.invoices.*', 'permission' => 'ver_factura'],
+                    ['route' => 'web.invoices.verify', 'label' => 'Verificar documento', 'icon' => 'shield-check', 'match' => 'web.invoices.verify', 'permission' => 'ver_factura'],
+                    ['route' => 'web.technical-reports.index', 'label' => 'Informes', 'icon' => 'clipboard-list', 'match' => 'web.technical-reports.*', 'permission' => 'ver_informes'],
+                    ['route' => 'web.clients.index', 'label' => 'Clientes', 'icon' => 'users', 'match' => 'web.clients.*', 'permission' => 'gestionar_clientes'],
+                    ['route' => 'web.appointments.index', 'label' => 'Calendario', 'icon' => 'calendar-days', 'match' => 'web.appointments.*', 'permission' => 'ver_calendario'],
+                    ['route' => 'web.reports.index', 'label' => 'Reportes', 'icon' => 'bar-chart-3', 'match' => 'web.reports.*', 'permission' => 'ver_reportes'],
+                    ['route' => 'web.users.index', 'label' => 'Usuarios', 'icon' => 'user-cog', 'match' => 'web.users.*', 'permission' => 'gestionar_usuarios'],
+                    ['route' => 'web.roles.index', 'label' => 'Roles', 'icon' => 'shield-half', 'match' => 'web.roles.*', 'permission' => 'gestionar_usuarios'],
+                    ['route' => 'web.settings.index', 'label' => 'Configuración', 'icon' => 'settings', 'match' => 'web.settings.*', 'permission' => 'configurar_sistema'],
+                    ['route' => 'web.audit.index', 'label' => 'Auditoría', 'icon' => 'shield-check', 'match' => 'web.audit.*', 'permission' => 'ver_auditoria'],
                 ];
             @endphp
             @foreach($nav as $item)
                 @php
                     $match = $item['match'] ?? $item['route'];
                     $active = request()->routeIs($match);
+                    $requiredPerm = $item['permission'] ?? null;
+                    if ($requiredPerm && !auth()->user()?->hasPermission($requiredPerm)) continue;
                 @endphp
                 <a href="{{ route($item['route']) }}"
                    class="group flex items-center gap-3 px-3 py-2.5 rounded-lg text-[14px] font-medium transition-colors
@@ -206,6 +210,8 @@
                     @php
                         $match = $item['match'] ?? $item['route'];
                         $active = request()->routeIs($match);
+                        $requiredPerm = $item['permission'] ?? null;
+                        if ($requiredPerm && !auth()->user()?->hasPermission($requiredPerm)) continue;
                     @endphp
                     <a href="{{ route($item['route']) }}"
                        class="flex items-center gap-3 px-3 py-2.5 rounded-lg text-[14px] font-medium
