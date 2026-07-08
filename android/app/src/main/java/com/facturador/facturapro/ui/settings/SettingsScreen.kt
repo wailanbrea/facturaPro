@@ -20,10 +20,12 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.outlined.Logout
 import androidx.compose.material.icons.outlined.BarChart
 import androidx.compose.material.icons.outlined.ChevronRight
+import androidx.compose.material.icons.outlined.Cloud
 import androidx.compose.material.icons.outlined.Print
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
@@ -32,6 +34,7 @@ import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
+import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -40,6 +43,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.core.content.ContextCompat
 import com.facturador.facturapro.domain.model.BootstrapCatalogs
@@ -56,6 +60,9 @@ fun SettingsScreen(
     onLoadPrinters: () -> Unit = {},
     onSavePrinter: (PrinterDevice) -> Unit = {},
     onClearPrinter: () -> Unit = {},
+    onServerUrlChanged: (String) -> Unit = {},
+    onSaveServerUrl: () -> Unit = {},
+    onResetServerUrl: () -> Unit = {},
     onBluetoothPermissionsDenied: () -> Unit = {},
     onLogout: () -> Unit = {},
     modifier: Modifier = Modifier,
@@ -117,6 +124,15 @@ fun SettingsScreen(
                 title = "Reportes",
                 subtitle = "Métricas y análisis del período",
                 onClick = onOpenReports,
+            )
+        }
+
+        item {
+            ServerSettingsCard(
+                state = settingsState,
+                onServerUrlChanged = onServerUrlChanged,
+                onSaveServerUrl = onSaveServerUrl,
+                onResetServerUrl = onResetServerUrl,
             )
         }
 
@@ -199,6 +215,102 @@ fun SettingsScreen(
                         modifier = Modifier.weight(1f),
                     )
                 }
+            }
+        }
+    }
+}
+
+@Composable
+private fun ServerSettingsCard(
+    state: SettingsUiState,
+    onServerUrlChanged: (String) -> Unit,
+    onSaveServerUrl: () -> Unit,
+    onResetServerUrl: () -> Unit,
+) {
+    Card(
+        shape = RoundedCornerShape(8.dp),
+        colors = CardDefaults.cardColors(
+            containerColor = MaterialTheme.colorScheme.surfaceContainer,
+        ),
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(16.dp),
+            verticalArrangement = Arrangement.spacedBy(12.dp),
+        ) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Icon(
+                    imageVector = Icons.Outlined.Cloud,
+                    contentDescription = null,
+                    tint = MaterialTheme.colorScheme.primary,
+                    modifier = Modifier.size(22.dp),
+                )
+                Spacer(Modifier.size(12.dp))
+                Column(modifier = Modifier.weight(1f)) {
+                    Text(
+                        text = "Servidor",
+                        style = MaterialTheme.typography.titleMedium,
+                        fontWeight = FontWeight.SemiBold,
+                        color = MaterialTheme.colorScheme.onSurface,
+                    )
+                    Text(
+                        text = state.currentApiBaseUrl.ifBlank { "Sin servidor configurado" },
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                }
+            }
+
+            OutlinedTextField(
+                value = state.serverUrlInput,
+                onValueChange = onServerUrlChanged,
+                modifier = Modifier.fillMaxWidth(),
+                label = { Text("URL de API") },
+                placeholder = { Text("facturapro.bsolutions.dev") },
+                singleLine = true,
+                enabled = !state.isSavingServerUrl,
+                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Uri),
+            )
+
+            Text(
+                text = "Predeterminado: https://facturapro.bsolutions.dev/api/",
+                style = MaterialTheme.typography.labelMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+
+            Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                Button(
+                    onClick = onSaveServerUrl,
+                    enabled = !state.isSavingServerUrl && state.serverUrlInput.isNotBlank(),
+                    modifier = Modifier.weight(1f),
+                ) {
+                    if (state.isSavingServerUrl) {
+                        CircularProgressIndicator(
+                            modifier = Modifier.size(18.dp),
+                            strokeWidth = 2.dp,
+                            color = MaterialTheme.colorScheme.onPrimary,
+                        )
+                    } else {
+                        Text("Guardar")
+                    }
+                }
+
+                OutlinedButton(
+                    onClick = onResetServerUrl,
+                    enabled = !state.isSavingServerUrl,
+                    modifier = Modifier.weight(1f),
+                ) {
+                    Text("Restaurar")
+                }
+            }
+
+            state.serverMessage?.let { message ->
+                Text(
+                    text = message,
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
             }
         }
     }

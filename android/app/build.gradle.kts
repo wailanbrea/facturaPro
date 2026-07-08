@@ -7,6 +7,8 @@ fun apiBaseUrl(
     .orElse(defaultValue)
     .get()
 
+val defaultProductionApiBaseUrl = "https://facturapro.bsolutions.dev/api/"
+
 plugins {
     alias(libs.plugins.android.application)
     alias(libs.plugins.kotlin.compose)
@@ -37,7 +39,7 @@ android {
             buildConfigField(
                 "String",
                 "API_BASE_URL",
-                "\"${apiBaseUrl("FACTURAPRO_API_BASE_URL_DEBUG", "FACTURAPRO_API_BASE_URL_DEBUG", "http://10.0.2.2:8001/api/")}\"",
+                "\"${apiBaseUrl("FACTURAPRO_API_BASE_URL_DEBUG", "FACTURAPRO_API_BASE_URL_DEBUG", defaultProductionApiBaseUrl)}\"",
             )
         }
         release {
@@ -45,12 +47,13 @@ android {
             buildConfigField(
                 "String",
                 "API_BASE_URL",
-                "\"${apiBaseUrl("FACTURAPRO_API_BASE_URL_RELEASE", "FACTURAPRO_API_BASE_URL_RELEASE", "https://api.example.com/api/")}\"",
+                "\"${apiBaseUrl("FACTURAPRO_API_BASE_URL_RELEASE", "FACTURAPRO_API_BASE_URL_RELEASE", defaultProductionApiBaseUrl)}\"",
             )
             proguardFiles(
                 getDefaultProguardFile("proguard-android-optimize.txt"),
                 "proguard-rules.pro"
             )
+            signingConfig = signingConfigs.getByName("debug")
         }
     }
     compileOptions {

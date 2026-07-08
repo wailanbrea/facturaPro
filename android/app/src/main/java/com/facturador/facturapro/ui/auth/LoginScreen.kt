@@ -21,6 +21,7 @@ import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.outlined.ReceiptLong
+import androidx.compose.material.icons.outlined.Cloud
 import androidx.compose.material.icons.outlined.Lock
 import androidx.compose.material.icons.outlined.MailOutline
 import androidx.compose.material.icons.outlined.Visibility
@@ -32,6 +33,7 @@ import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextField
@@ -59,6 +61,9 @@ fun LoginScreen(
     state: LoginUiState,
     onEmailChanged: (String) -> Unit,
     onPasswordChanged: (String) -> Unit,
+    onServerUrlChanged: (String) -> Unit,
+    onSaveServerUrl: () -> Unit,
+    onResetServerUrl: () -> Unit,
     onLogin: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
@@ -167,6 +172,17 @@ fun LoginScreen(
                     )
                 }
 
+                ServerLoginSettings(
+                    currentApiBaseUrl = state.currentApiBaseUrl,
+                    serverUrlInput = state.serverUrlInput,
+                    serverMessage = state.serverMessage,
+                    isSavingServerUrl = state.isSavingServerUrl,
+                    enabled = !state.isLoading,
+                    onServerUrlChanged = onServerUrlChanged,
+                    onSaveServerUrl = onSaveServerUrl,
+                    onResetServerUrl = onResetServerUrl,
+                )
+
                 if (state.errorMessage != null && !state.isAuthenticated) {
                     Surface(
                         color = MaterialTheme.colorScheme.errorContainer,
@@ -225,6 +241,92 @@ fun LoginScreen(
             }
 
             Spacer(Modifier.height(48.dp))
+        }
+    }
+}
+
+@Composable
+private fun ServerLoginSettings(
+    currentApiBaseUrl: String,
+    serverUrlInput: String,
+    serverMessage: String?,
+    isSavingServerUrl: Boolean,
+    enabled: Boolean,
+    onServerUrlChanged: (String) -> Unit,
+    onSaveServerUrl: () -> Unit,
+    onResetServerUrl: () -> Unit,
+) {
+    Surface(
+        modifier = Modifier.fillMaxWidth(),
+        color = MaterialTheme.colorScheme.surfaceContainerLowest,
+        shape = RoundedCornerShape(14.dp),
+        border = BorderStroke(
+            width = 1.dp,
+            color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.7f),
+        ),
+    ) {
+        Column(
+            modifier = Modifier.padding(14.dp),
+            verticalArrangement = Arrangement.spacedBy(10.dp),
+        ) {
+            Text(
+                text = "Servidor actual",
+                style = MaterialTheme.typography.labelMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                fontWeight = FontWeight.SemiBold,
+            )
+            Text(
+                text = currentApiBaseUrl.ifBlank { "No configurado" },
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+
+            LoginField(
+                value = serverUrlInput,
+                onChange = onServerUrlChanged,
+                placeholder = "facturapro.bsolutions.dev",
+                leadingIcon = Icons.Outlined.Cloud,
+                keyboardOptions = KeyboardOptions(
+                    keyboardType = KeyboardType.Uri,
+                    imeAction = ImeAction.Done,
+                ),
+                enabled = enabled && !isSavingServerUrl,
+            )
+
+            Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                Button(
+                    onClick = onSaveServerUrl,
+                    enabled = enabled && !isSavingServerUrl && serverUrlInput.isNotBlank(),
+                    modifier = Modifier.weight(1f),
+                    shape = RoundedCornerShape(12.dp),
+                ) {
+                    if (isSavingServerUrl) {
+                        CircularProgressIndicator(
+                            modifier = Modifier.size(18.dp),
+                            strokeWidth = 2.dp,
+                            color = MaterialTheme.colorScheme.onPrimary,
+                        )
+                    } else {
+                        Text("Guardar servidor")
+                    }
+                }
+                OutlinedButton(
+                    onClick = onResetServerUrl,
+                    enabled = enabled && !isSavingServerUrl,
+                    modifier = Modifier.weight(1f),
+                    shape = RoundedCornerShape(12.dp),
+                ) {
+                    Text("Restaurar")
+                }
+            }
+
+            serverMessage?.let { message ->
+                Text(
+                    text = message,
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
         }
     }
 }

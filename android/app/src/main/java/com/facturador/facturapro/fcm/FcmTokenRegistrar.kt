@@ -3,6 +3,7 @@ package com.facturador.facturapro.fcm
 import android.content.Context
 import androidx.datastore.preferences.core.stringPreferencesKey
 import androidx.datastore.preferences.preferencesDataStore
+import com.facturador.facturapro.data.local.ServerConfigStore
 import com.facturador.facturapro.data.local.SessionStore
 import com.facturador.facturapro.data.remote.ApiClientFactory
 import com.google.firebase.messaging.FirebaseMessaging
@@ -30,8 +31,12 @@ object FcmTokenRegistrar {
 
     suspend fun register(context: Context, token: String) {
         val sessionStore = SessionStore(context)
+        val serverConfigStore = ServerConfigStore(context)
         val session = sessionStore.session.firstOrNull() ?: return
-        val api = ApiClientFactory.create(sessionStore)
+        val api = ApiClientFactory.create(
+            sessionStore = sessionStore,
+            serverConfigStore = serverConfigStore,
+        )
 
         try {
             api.registerDeviceToken(

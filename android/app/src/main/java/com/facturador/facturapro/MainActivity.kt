@@ -40,6 +40,7 @@ fun FacturaProApp(container: AppContainer) {
         factory = LoginViewModel.factory(
             authRepository = container.authRepository,
             settingsRepository = container.settingsRepository,
+            serverConfigStore = container.serverConfigStore,
         ),
     )
     val state by viewModel.uiState.collectAsStateWithLifecycle()
@@ -61,6 +62,9 @@ fun FacturaProApp(container: AppContainer) {
                 state = state,
                 onEmailChanged = viewModel::onEmailChanged,
                 onPasswordChanged = viewModel::onPasswordChanged,
+                onServerUrlChanged = viewModel::onServerUrlChanged,
+                onSaveServerUrl = viewModel::saveServerUrl,
+                onResetServerUrl = viewModel::resetServerUrl,
                 onLogin = viewModel::login,
             )
         }

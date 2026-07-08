@@ -88,7 +88,10 @@ fun WorkspaceScreen(
         factory = TechnicalReportsViewModel.factory(container.technicalReportRepository),
     )
     val settingsViewModel: SettingsViewModel = viewModel(
-        factory = SettingsViewModel.factory(container.printerRepository),
+        factory = SettingsViewModel.factory(
+            printerRepository = container.printerRepository,
+            serverConfigStore = container.serverConfigStore,
+        ),
     )
     val verificationViewModel: VerificationViewModel = viewModel(
         factory = VerificationViewModel.factory(container.invoiceRepository),
@@ -283,6 +286,9 @@ fun WorkspaceScreen(
                     onLoadPrinters = settingsViewModel::loadBluetoothPrinters,
                     onSavePrinter = settingsViewModel::savePrinter,
                     onClearPrinter = settingsViewModel::clearPrinter,
+                    onServerUrlChanged = settingsViewModel::onServerUrlChanged,
+                    onSaveServerUrl = settingsViewModel::saveServerUrl,
+                    onResetServerUrl = settingsViewModel::resetServerUrl,
                     onBluetoothPermissionsDenied = settingsViewModel::onBluetoothPermissionsDenied,
                     onLogout = onLogout,
                 )
