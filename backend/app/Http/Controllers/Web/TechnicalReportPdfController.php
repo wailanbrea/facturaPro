@@ -37,7 +37,7 @@ class TechnicalReportPdfController extends Controller
             'seller_tax_id' => $profile->tax_id,
             'seller_address' => $profile->address,
             'seller_city' => $profile->city,
-            'seller_logo_path' => $profile->logo_path,
+            'seller_logo_path' => ($data['logo_path'] ?? '') !== '' ? $data['logo_path'] : $profile->logo_path,
             'recipient_tax_id' => $data['recipient_tax_id'] ?? $client?->tax_id,
             'status' => $data['status'] ?? TechnicalReportService::DRAFT,
         ]);

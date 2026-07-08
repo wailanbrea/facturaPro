@@ -106,9 +106,31 @@
                     </select>
                 </div>
                 <div class="field" id="amount-received-field"><label>Importe recibido</label><input id="amount-received-input" name="amount_received" type="number" step="0.01" min="0" value="{{ old('amount_received', $invoice->amount_received ?? 0) }}"></div>
-                <div class="field span-2"><label>Texto de conformidad</label><textarea name="conformity_text">{{ old('conformity_text', $invoice->conformity_text) }}</textarea></div>
-                <div class="field span-2"><label>Texto legal</label><textarea name="legal_text">{{ old('legal_text', $invoice->legal_text) }}</textarea></div>
-                <div class="field span-2"><label>Observaciones</label><textarea name="observations">{{ old('observations', $invoice->observations) }}</textarea></div>
+                @php $lockedFields = $lockedFields ?? []; @endphp
+                <div class="field span-2">
+                    <label>Texto de conformidad
+                        @if(in_array('conformity_text', $lockedFields, true))
+                            <span class="text-on-surface-variant font-normal">🔒 Bloqueado por administración</span>
+                        @endif
+                    </label>
+                    <textarea name="conformity_text" @readonly(in_array('conformity_text', $lockedFields, true)) @if(in_array('conformity_text', $lockedFields, true)) style="background:#f3f2fe;cursor:not-allowed" @endif>{{ old('conformity_text', $invoice->conformity_text) }}</textarea>
+                </div>
+                <div class="field span-2">
+                    <label>Texto legal
+                        @if(in_array('legal_text', $lockedFields, true))
+                            <span class="text-on-surface-variant font-normal">🔒 Bloqueado por administración</span>
+                        @endif
+                    </label>
+                    <textarea name="legal_text" @readonly(in_array('legal_text', $lockedFields, true)) @if(in_array('legal_text', $lockedFields, true)) style="background:#f3f2fe;cursor:not-allowed" @endif>{{ old('legal_text', $invoice->legal_text) }}</textarea>
+                </div>
+                <div class="field span-2">
+                    <label>Observaciones
+                        @if(in_array('observations', $lockedFields, true))
+                            <span class="text-on-surface-variant font-normal">🔒 Bloqueado por administración</span>
+                        @endif
+                    </label>
+                    <textarea name="observations" @readonly(in_array('observations', $lockedFields, true)) @if(in_array('observations', $lockedFields, true)) style="background:#f3f2fe;cursor:not-allowed" @endif>{{ old('observations', $invoice->observations) }}</textarea>
+                </div>
             </div>
         </section>
         <aside class="card">

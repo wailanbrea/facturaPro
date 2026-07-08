@@ -27,12 +27,9 @@
         $isQuotation && $status === 'converted' => 'CONVERTIDO',
         $isQuotation && in_array($status, ['accepted', 'aceptado'], true) => 'ACEPTADO',
         $isQuotation => 'PRESUPUESTO',
-        in_array($status, ['paid', 'pagada'], true) => 'COBRADA',
+        in_array($status, ['paid', 'pagada'], true) => 'COBRAT',
         default => null,
     };
-    $emptyMoney = ($currency['symbol_position'] ?? 'before') === 'after'
-        ? '- '.($currency['symbol'] ?? 'EUR')
-        : ($currency['symbol'] ?? 'EUR').' -';
     $visibleItems = $invoice->items;
 
     // Authenticity block: only rendered once the invoice is sealed (issued).
@@ -168,6 +165,12 @@
         .client-table .client-label {
             width: 36mm;
         }
+        .client-table .client-city-label {
+            width: 22mm;
+        }
+        .client-table .client-city-value {
+            width: 42mm;
+        }
         .items {
             table-layout: fixed;
         }
@@ -188,9 +191,6 @@
         .items .tax { width: 11%; text-align: right; }
         .items .unit { width: 15%; text-align: right; }
         .items .total { width: 12%; text-align: right; }
-        .items .empty-desc {
-            color: #fff;
-        }
         .watermark {
             position: absolute;
             left: 64mm;
@@ -389,8 +389,7 @@
 
             <table class="seller-table">
                 <tr>
-                    <td class="blue label">EMISOR</td>
-                    <td class="bold wrap">{{ $invoice->seller_name ?: 'FacturaPro' }}</td>
+                    <td class="bold wrap center" colspan="2">{{ $invoice->seller_name ?: 'FacturaPro' }}</td>
                 </tr>
                 <tr>
                     <td class="blue label">CIF / RNC</td>
@@ -432,7 +431,7 @@
         <table class="client-table">
             <tr>
                 <td class="blue client-label">FACTURAR A:</td>
-                <td class="bold wrap">
+                <td class="bold wrap" colspan="3">
                     {{ $invoice->client_name }}
                     @if($invoice->client_tax_id)
                         <span class="small"> - {{ $invoice->client_tax_id }}</span>
@@ -442,6 +441,8 @@
             <tr>
                 <td class="blue client-label">DIRECCION:</td>
                 <td class="wrap">{{ $invoice->client_address ?: 'N/A' }}</td>
+                <td class="blue client-city-label">CIUDAD:</td>
+                <td class="wrap client-city-value">{{ $invoice->client_city ?: 'N/A' }}</td>
             </tr>
         </table>
 
@@ -471,12 +472,12 @@
             @endforeach
             @for($i = $visibleItems->count(); $i < 6; $i++)
                 <tr>
-                    <td class="desc empty-desc">-</td>
-                    <td class="qty">-</td>
-                    <td class="cost nowrap">{{ $emptyMoney }}</td>
-                    <td class="tax nowrap">{{ $emptyMoney }}</td>
-                    <td class="unit nowrap">{{ $emptyMoney }}</td>
-                    <td class="total nowrap">{{ $emptyMoney }}</td>
+                    <td class="desc">&nbsp;</td>
+                    <td class="qty">&nbsp;</td>
+                    <td class="cost">&nbsp;</td>
+                    <td class="tax">&nbsp;</td>
+                    <td class="unit">&nbsp;</td>
+                    <td class="total">&nbsp;</td>
                 </tr>
             @endfor
             </tbody>

@@ -45,6 +45,28 @@
                         @endforeach
                     </select>
                 </div>
+                <div class="field span-2">
+                    <label>Logo del informe <span class="text-on-surface-variant font-normal">(centrado en la parte superior del documento)</span></label>
+                    @php $selectedLogo = old('logo_path', $report->seller_logo_path ?? ''); @endphp
+                    @if(count($availableLogos ?? []) > 0)
+                    <div class="flex flex-wrap gap-3 mt-1">
+                        <label class="flex items-center gap-2 cursor-pointer border rounded-lg px-3 py-2 text-[13px] {{ $selectedLogo === '' ? 'border-primary bg-primary-soft-2' : 'border-outline-variant hover:bg-surface-low' }}" id="report-logo-default">
+                            <input type="radio" name="logo_path" value="" class="sr-only report-logo-radio" {{ $selectedLogo === '' ? 'checked' : '' }}>
+                            <span class="w-8 h-8 rounded bg-surface-mid flex items-center justify-center text-[9px] font-bold text-on-surface-variant">AUTO</span>
+                            <span>Logo de la empresa</span>
+                        </label>
+                        @foreach($availableLogos as $path => $filename)
+                        <label class="flex items-center gap-2 cursor-pointer border rounded-lg px-3 py-2 text-[13px] {{ $selectedLogo === $path ? 'border-primary bg-primary-soft-2' : 'border-outline-variant hover:bg-surface-low' }} report-logo-opt">
+                            <input type="radio" name="logo_path" value="{{ $path }}" class="sr-only report-logo-radio" {{ $selectedLogo === $path ? 'checked' : '' }}>
+                            <img src="{{ asset('storage/'.$path) }}" alt="{{ $filename }}" class="w-10 h-8 object-contain rounded">
+                            <span class="max-w-[140px] truncate">{{ $filename }}</span>
+                        </label>
+                        @endforeach
+                    </div>
+                    @else
+                    <p class="text-[13px] text-on-surface-variant mt-1">No hay logos cargados aún. Sube logos a <code>storage/app/public/logos/</code></p>
+                    @endif
+                </div>
             </div>
         </section>
 
@@ -100,16 +122,35 @@
     </section>
 
     <section class="card form">
-        <h3>Contenido tecnico</h3>
-        <div class="fields">
+        <div class="flex items-center justify-between">
+            <h3 style="margin:0">Contenido del informe</h3>
+            <button type="button" id="add-section-btn" class="btn" style="padding:6px 12px;font-size:12px">
+                <i data-lucide="plus" class="w-3.5 h-3.5"></i> Agregar sección
+            </button>
+        </div>
+        <p class="muted" style="font-size:12px;margin:8px 0 0">
+            Empieza con una sección (Título y Texto). Si necesitas más, pulsa "Agregar sección" (hasta 4).
+        </p>
+        @php
+            $sectionLabels = [1 => ['Título', 'Texto'], 2 => ['2do Título', '2do Texto'], 3 => ['3er Título', '3er Texto'], 4 => ['4to Título', '4to Texto']];
+        @endphp
+        <div class="fields" id="report-sections">
             @foreach([1, 2, 3, 4] as $section)
-                <div class="field span-2">
-                    <label>Titulo seccion {{ $section }}</label>
-                    <input name="section_{{ $section }}_title" value="{{ old('section_'.$section.'_title', $report->{'section_'.$section.'_title'}) }}" required>
-                </div>
-                <div class="field span-2">
-                    <label>Contenido seccion {{ $section }}</label>
-                    <textarea name="section_{{ $section }}_content" style="min-height:130px">{{ old('section_'.$section.'_content', $report->{'section_'.$section.'_content'}) }}</textarea>
+                @php
+                    $titleValue = old('section_'.$section.'_title', $report->{'section_'.$section.'_title'});
+                    $contentValue = old('section_'.$section.'_content', $report->{'section_'.$section.'_content'});
+                    $visible = $section === 1 || filled($titleValue) || filled($contentValue);
+                @endphp
+                <div class="field span-2 report-section" data-section="{{ $section }}" style="{{ $visible ? '' : 'display:none' }}">
+                    <div class="flex items-center justify-between mb-1">
+                        <label style="margin:0">{{ $sectionLabels[$section][0] }} @if($section === 1)<span class="text-error">*</span>@endif</label>
+                        @if($section > 1)
+                            <button type="button" class="btn danger remove-section-btn" data-section="{{ $section }}" style="padding:4px 10px;font-size:11px">Quitar</button>
+                        @endif
+                    </div>
+                    <input name="section_{{ $section }}_title" value="{{ $titleValue }}" @required($section === 1) placeholder="{{ $sectionLabels[$section][0] }}">
+                    <label style="margin-top:10px">{{ $sectionLabels[$section][1] }}</label>
+                    <textarea name="section_{{ $section }}_content" style="min-height:130px" placeholder="{{ $sectionLabels[$section][1] }}">{{ $contentValue }}</textarea>
                 </div>
             @endforeach
         </div>
@@ -148,15 +189,58 @@
         const recipientTax = document.querySelector('[data-recipient-tax]');
         const recipientAddress = document.querySelector('[data-recipient-address]');
 
-        if (!clientSelect) return;
+        if (clientSelect) {
+            clientSelect.addEventListener('change', () => {
+                const option = clientSelect.selectedOptions[0];
+                if (!option || !option.value) return;
 
-        clientSelect.addEventListener('change', () => {
-            const option = clientSelect.selectedOptions[0];
-            if (!option || !option.value) return;
+                recipientName.value = option.dataset.name || '';
+                recipientTax.value = option.dataset.tax || '';
+                recipientAddress.value = option.dataset.address || '';
+            });
+        }
 
-            recipientName.value = option.dataset.name || '';
-            recipientTax.value = option.dataset.tax || '';
-            recipientAddress.value = option.dataset.address || '';
+        // ── Secciones dinámicas (Título/Texto) ────────────────────────────────
+        const addBtn = document.getElementById('add-section-btn');
+        const sections = Array.from(document.querySelectorAll('.report-section'));
+
+        function refreshAddButton() {
+            const hidden = sections.some(s => s.style.display === 'none');
+            addBtn.style.display = hidden ? '' : 'none';
+        }
+
+        addBtn?.addEventListener('click', () => {
+            const next = sections.find(s => s.style.display === 'none');
+            if (!next) return;
+            next.style.display = '';
+            next.querySelector('input')?.focus();
+            refreshAddButton();
+        });
+
+        document.querySelectorAll('.remove-section-btn').forEach(btn => {
+            btn.addEventListener('click', () => {
+                const wrap = btn.closest('.report-section');
+                wrap.querySelector('input').value = '';
+                wrap.querySelector('textarea').value = '';
+                wrap.style.display = 'none';
+                refreshAddButton();
+            });
+        });
+
+        refreshAddButton();
+
+        // ── Selector de logo ──────────────────────────────────────────────────
+        document.querySelectorAll('.report-logo-radio').forEach(radio => {
+            radio.addEventListener('change', () => {
+                document.querySelectorAll('.report-logo-opt, #report-logo-default').forEach(el => {
+                    el.classList.remove('border-primary', 'bg-primary-soft-2');
+                    el.classList.add('border-outline-variant');
+                });
+                if (radio.checked) {
+                    radio.closest('label').classList.add('border-primary', 'bg-primary-soft-2');
+                    radio.closest('label').classList.remove('border-outline-variant');
+                }
+            });
         });
     });
 </script>

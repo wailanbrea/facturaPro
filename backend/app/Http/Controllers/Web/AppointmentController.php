@@ -50,9 +50,12 @@ class AppointmentController extends Controller
         $data = $request->validate([
             'title' => ['required', 'string', 'max:255'],
             'client_id' => ['nullable', 'exists:clients,id'],
+            'client_name' => ['nullable', 'string', 'max:255'],
             'start_at' => ['required', 'date'],
             'end_at' => ['required', 'date', 'after:start_at'],
             'location' => ['nullable', 'string', 'max:255'],
+            'location_lat' => ['nullable', 'numeric', 'between:-90,90'],
+            'location_lng' => ['nullable', 'numeric', 'between:-180,180'],
             'service_description' => ['nullable', 'string'],
             'observations' => ['nullable', 'string'],
             'contacts' => ['nullable', 'array'],
@@ -68,7 +71,7 @@ class AppointmentController extends Controller
 
         $appointment = Appointment::query()->create([
             ...$data,
-            'client_name' => $client?->name,
+            'client_name' => ($data['client_name'] ?? null) ?: $client?->name,
             'created_by' => auth()->id(),
             'status' => $data['status'] ?? Appointment::STATUS_PENDING,
         ]);
@@ -114,9 +117,12 @@ class AppointmentController extends Controller
         $data = $request->validate([
             'title' => ['required', 'string', 'max:255'],
             'client_id' => ['nullable', 'exists:clients,id'],
+            'client_name' => ['nullable', 'string', 'max:255'],
             'start_at' => ['required', 'date'],
             'end_at' => ['required', 'date', 'after:start_at'],
             'location' => ['nullable', 'string', 'max:255'],
+            'location_lat' => ['nullable', 'numeric', 'between:-90,90'],
+            'location_lng' => ['nullable', 'numeric', 'between:-180,180'],
             'service_description' => ['nullable', 'string'],
             'observations' => ['nullable', 'string'],
             'contacts' => ['nullable', 'array'],
@@ -134,7 +140,7 @@ class AppointmentController extends Controller
 
         $appointment->update([
             ...$data,
-            'client_name' => $client?->name ?? $appointment->client_name,
+            'client_name' => ($data['client_name'] ?? null) ?: ($client?->name ?? $appointment->client_name),
         ]);
 
         $this->activityLog->record(
@@ -222,7 +228,7 @@ class AppointmentController extends Controller
     private function calendarUserIds(): array
     {
         return \App\Models\User::query()
-            ->whereHas('roles', fn ($q) => $q->whereIn('slug', ['admin', 'vendedor', 'facturador', 'operador']))
+            ->whereHas('roles', fn ($q) => $q->whereIn('slug', ['admin', 'facturador', 'operador']))
             ->pluck('id')
             ->all();
     }

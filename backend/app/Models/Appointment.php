@@ -54,6 +54,8 @@ class Appointment extends Model
         'start_at',
         'end_at',
         'location',
+        'location_lat',
+        'location_lng',
         'contacts',
         'observations',
         'service_description',

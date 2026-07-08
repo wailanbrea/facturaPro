@@ -12,12 +12,13 @@
         }
     }
 
-    $sections = [
+    // Solo se imprimen las secciones con contenido; las vacías no dejan huecos.
+    $sections = collect([
         [$report->section_1_title, $report->section_1_content],
         [$report->section_2_title, $report->section_2_content],
         [$report->section_3_title, $report->section_3_content],
         [$report->section_4_title, $report->section_4_content],
-    ];
+    ])->filter(fn (array $section): bool => filled($section[0]) || filled($section[1]));
 @endphp
 <!DOCTYPE html>
 <html lang="es">

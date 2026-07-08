@@ -94,7 +94,7 @@ class InvoiceApiTest extends TestCase
     ): void {
         $invoice = $this->createInvoice([
             'currency_code' => $currencyCode,
-            'tax_name' => 'Exento 0%',
+            'tax_name' => 'Sin IVA 0%',
         ]);
 
         $invoice->assertCreated()
@@ -420,7 +420,7 @@ class InvoiceApiTest extends TestCase
             'iva_21' => ['IVA 21%', '42.0000', '242.0000'],
             'itbis_18' => ['ITBIS 18%', '36.0000', '236.0000'],
             'tax_7' => ['Tax 7%', '14.0000', '214.0000'],
-            'exento_0' => ['Exento 0%', '0.0000', '200.0000'],
+            'exento_0' => ['Sin IVA 0%', '0.0000', '200.0000'],
         ];
     }
 

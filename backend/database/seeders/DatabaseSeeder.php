@@ -66,25 +66,21 @@ class DatabaseSeeder extends Seeder
             ['name' => 'ADMIN', 'description' => 'Acceso total al sistema.', 'is_active' => true],
         );
 
-        $sellerRole = Role::query()->updateOrCreate(
-            ['slug' => 'vendedor'],
-            ['name' => 'VENDEDOR', 'description' => 'Gestiona clientes y facturas.', 'is_active' => true],
+        $facturadorRole = Role::query()->updateOrCreate(
+            ['slug' => 'facturador'],
+            ['name' => 'FACTURADOR', 'description' => 'Realiza facturaciones, presupuestos, informes y sus derivados.', 'is_active' => true],
         );
 
-        $technicianRole = Role::query()->updateOrCreate(
-            ['slug' => 'tecnico'],
-            ['name' => 'TECNICO', 'description' => 'Consulta facturas y datos de servicio.', 'is_active' => true],
+        $calendarRole = Role::query()->updateOrCreate(
+            ['slug' => 'operador'],
+            ['name' => 'CALENDARIO', 'description' => 'Solo acceso al calendario: ver, crear, editar y eliminar citas.', 'is_active' => true],
         );
 
-        $readerRole = Role::query()->updateOrCreate(
-            ['slug' => 'lectura'],
-            ['name' => 'LECTURA', 'description' => 'Acceso solo lectura.', 'is_active' => true],
-        );
+        // Roles heredados que ya no se usan: quedan desactivados.
+        Role::query()->whereIn('slug', ['vendedor', 'tecnico', 'lectura'])->update(['is_active' => false]);
 
         $adminRole->permissions()->sync($permissions->pluck('id'));
-        $sellerRole->permissions()->sync($permissions->only([
-            'ver_calendario',
-            'gestionar_citas',
+        $facturadorRole->permissions()->sync($permissions->only([
             'crear_factura',
             'editar_factura',
             'emitir_factura',
@@ -97,19 +93,13 @@ class DatabaseSeeder extends Seeder
             'crear_informes',
             'editar_informes',
             'descargar_informes',
+            'configurar_informes',
+            'ver_calendario',
+            'gestionar_citas',
         ])->pluck('id'));
-        $technicianRole->permissions()->sync($permissions->only([
-            'ver_factura',
-            'descargar_pdf',
-            'ver_informes',
-            'crear_informes',
-            'editar_informes',
-            'descargar_informes',
-        ])->pluck('id'));
-        $readerRole->permissions()->sync($permissions->only([
-            'ver_factura',
-            'ver_reportes',
-            'ver_informes',
+        $calendarRole->permissions()->sync($permissions->only([
+            'ver_calendario',
+            'gestionar_citas',
         ])->pluck('id'));
         $admin->roles()->syncWithoutDetaching([$adminRole->id]);
 
@@ -157,11 +147,14 @@ class DatabaseSeeder extends Seeder
 
         Currency::query()->where('code', '!=', $eur->code)->update(['is_default' => false]);
 
+        // Solo dos opciones de impuesto activas: con IVA y sin IVA.
+        // ITBIS y Tax quedan desactivados (se conservan por integridad historica).
+        Tax::query()->where('name', 'Exento 0%')->update(['name' => 'Sin IVA 0%']);
         collect([
             ['name' => 'IVA 21%', 'rate' => 21.0000, 'is_default' => true, 'is_active' => true],
-            ['name' => 'ITBIS 18%', 'rate' => 18.0000, 'is_default' => false, 'is_active' => true],
-            ['name' => 'Tax 7%', 'rate' => 7.0000, 'is_default' => false, 'is_active' => true],
-            ['name' => 'Exento 0%', 'rate' => 0.0000, 'is_default' => false, 'is_active' => true],
+            ['name' => 'Sin IVA 0%', 'rate' => 0.0000, 'is_default' => false, 'is_active' => true],
+            ['name' => 'ITBIS 18%', 'rate' => 18.0000, 'is_default' => false, 'is_active' => false],
+            ['name' => 'Tax 7%', 'rate' => 7.0000, 'is_default' => false, 'is_active' => false],
         ])->each(fn (array $tax): Tax => Tax::query()->updateOrCreate(['name' => $tax['name']], $tax));
         Tax::query()->where('name', '!=', 'IVA 21%')->update(['is_default' => false]);
         $iva = Tax::query()->where('name', 'IVA 21%')->firstOrFail();
@@ -316,6 +309,15 @@ class DatabaseSeeder extends Seeder
             ['group' => 'invoices', 'value' => ['id' => $account->id], 'description' => 'Cuenta bancaria predeterminada.'],
         );
 
+        Setting::query()->firstOrCreate(
+            ['key' => 'invoice.locked_fields'],
+            [
+                'group' => 'invoices',
+                'value' => ['fields' => ['conformity_text', 'legal_text']],
+                'description' => 'Campos del formulario de factura bloqueados para usuarios sin permiso de configuracion.',
+            ],
+        );
+
         if (! app()->environment('testing')) {
             $this->seedDemoInvoices($admin, $eur, $iva, $profile, $account, $legalText);
         }
@@ -460,7 +462,8 @@ class DatabaseSeeder extends Seeder
                     'client_id' => $client->id,
                     'client_name' => $client->name,
                     'client_tax_id' => $client->tax_id,
-                    'client_address' => trim($client->address.' '.$client->city),
+                    'client_address' => $client->address,
+                    'client_city' => $client->city,
                     'currency_id' => $currency->id,
                     'currency_code' => $currency->code,
                     'currency_symbol' => $currency->symbol,

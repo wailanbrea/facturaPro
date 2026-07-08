@@ -5,12 +5,12 @@ namespace App\Http\Controllers\Web;
 use App\Http\Controllers\Controller;
 use App\Models\BankAccount;
 use App\Models\Client;
-use Illuminate\Support\Facades\File;
 use App\Models\Currency;
 use App\Models\FiscalProfile;
 use App\Models\Invoice;
 use App\Models\LegalText;
 use App\Models\PaymentTerm;
+use App\Models\Setting;
 use App\Models\Tax;
 use App\Models\Warranty;
 use App\Services\ActivityLogService;
@@ -60,6 +60,7 @@ class InvoiceController extends Controller
         return view('invoices.create', [
             ...$this->catalogs(),
             'availableLogos' => $this->availableLogos(),
+            'lockedFields' => $this->lockedFieldsForUser(),
             'invoice' => new Invoice([
                 'document_type' => 'invoice',
                 'invoice_date' => now()->toDateString(),
@@ -81,34 +82,15 @@ class InvoiceController extends Controller
 
     public function store(Request $request): RedirectResponse
     {
-        $data = $request->validate([
-            'document_type' => ['required', Rule::in(['invoice', 'quotation'])],
-            'invoice_date' => ['required', 'date'],
-            'payment_term_id' => ['required', 'exists:payment_terms,id'],
-            'client_id' => ['required', 'exists:clients,id'],
-            'currency_id' => ['required', 'exists:currencies,id'],
-            'fiscal_profile_id' => ['required', 'exists:fiscal_profiles,id', Rule::in(auth()->user()->availableFiscalProfileIds())],
-            'logo_path' => ['nullable', 'string', 'max:255'],
-            'bank_account_id' => ['nullable', 'exists:bank_accounts,id'],
-            'warranty_id' => ['required', 'exists:warranties,id'],
-            'legal_text' => ['nullable', 'string'],
-            'conformity_text' => ['nullable', 'string'],
-            'observations' => ['nullable', 'string'],
-            'amount_received' => ['nullable', 'numeric', 'min:0'],
-            'prepared_by' => ['nullable', 'string', 'max:255'],
-            'received_by' => ['nullable', 'string', 'max:255'],
-            'items' => ['required', 'array', 'min:1'],
-            'items.*.description' => ['required', 'string'],
-            'items.*.quantity' => ['required', 'numeric', 'gt:0'],
-            'items.*.unit_cost' => ['required', 'numeric', 'min:0'],
-            'items.*.tax_id' => ['required', 'exists:taxes,id'],
-        ]);
+        $data = $this->validated($request);
 
         if ($this->quotationReceivesPayment($data)) {
             return back()
                 ->withErrors(['amount_received' => 'Los presupuestos no aceptan importes recibidos.'])
                 ->withInput();
         }
+
+        $data = $this->stripLockedFields($data);
 
         $invoice = DB::transaction(function () use ($data): Invoice {
             $documentType = $data['document_type'];
@@ -123,12 +105,13 @@ class InvoiceController extends Controller
             $invoice = Invoice::query()->create([
                 'document_type' => $documentType,
                 'invoice_date' => $invoiceDate->toDateString(),
-                'due_date' => $invoiceDate->addDays($term->days)->toDateString(),
+                'due_date' => $this->dueDateFor($documentType, $invoiceDate, $term),
                 'payment_term_id' => $term->id,
                 'client_id' => $client->id,
                 'client_name' => $client->name,
                 'client_tax_id' => $client->tax_id,
                 'client_address' => $client->address,
+                'client_city' => $client->city,
                 'currency_id' => $currency->id,
                 'currency_code' => $currency->code,
                 'currency_symbol' => $currency->symbol,
@@ -205,6 +188,7 @@ class InvoiceController extends Controller
         return view('invoices.create', [
             ...$this->catalogs(),
             'availableLogos' => $this->availableLogos(),
+            'lockedFields' => $this->lockedFieldsForUser(),
             'invoice' => $invoice->load('items'),
             'items' => $invoice->items,
             'action' => route('web.invoices.update', $invoice),
@@ -228,6 +212,8 @@ class InvoiceController extends Controller
                 ->withErrors(['amount_received' => 'Los presupuestos no aceptan importes recibidos.'])
                 ->withInput();
         }
+
+        $data = $this->stripLockedFields($data);
 
         DB::transaction(function () use ($data, $invoice): void {
             $payload = $this->invoicePayload($data, $invoice);
@@ -340,7 +326,7 @@ class InvoiceController extends Controller
         $invoice->payments()->create([
             'payment_date' => now()->toDateString(),
             'amount' => $amount,
-            'method' => 'manual',
+            'method' => 'efectivo',
             'created_by' => auth()->id(),
         ]);
 
@@ -390,6 +376,7 @@ class InvoiceController extends Controller
                 'client_name' => $invoice->client_name,
                 'client_tax_id' => $invoice->client_tax_id,
                 'client_address' => $invoice->client_address,
+                'client_city' => $invoice->client_city,
                 'currency_id' => $invoice->currency_id,
                 'currency_code' => $invoice->currency_code,
                 'currency_symbol' => $invoice->currency_symbol,
@@ -496,7 +483,7 @@ class InvoiceController extends Controller
             $invoice->payments()->create([
                 'payment_date' => $data['payment_date'] ?? now()->toDateString(),
                 'amount' => $data['amount'],
-                'method' => $data['method'] ?? 'manual',
+                'method' => $data['method'] ?? 'efectivo',
                 'reference' => $data['reference'] ?? null,
                 'notes' => $data['notes'] ?? null,
                 'created_by' => auth()->id(),
@@ -585,12 +572,13 @@ class InvoiceController extends Controller
         return [
             'document_type' => $data['document_type'],
             'invoice_date' => $invoiceDate->toDateString(),
-            'due_date' => $invoiceDate->addDays($term->days)->toDateString(),
+            'due_date' => $this->dueDateFor($data['document_type'], $invoiceDate, $term),
             'payment_term_id' => $term->id,
             'client_id' => $client->id,
             'client_name' => $client->name,
             'client_tax_id' => $client->tax_id,
             'client_address' => $client->address,
+            'client_city' => $client->city,
             'currency_id' => $currency->id,
             'currency_code' => $currency->code,
             'currency_symbol' => $currency->symbol,
@@ -638,6 +626,62 @@ class InvoiceController extends Controller
         })->all();
     }
 
+    /**
+     * Presupuestos siempre vencen a 30 dias; facturas segun el termino de pago.
+     */
+    private function dueDateFor(string $documentType, CarbonImmutable $invoiceDate, PaymentTerm $term): string
+    {
+        $days = $documentType === Invoice::DOCUMENT_TYPE_QUOTATION ? 30 : $term->days;
+
+        return $invoiceDate->addDays($days)->toDateString();
+    }
+
+    /**
+     * Campos bloqueados por el panel administrativo (invoice.locked_fields).
+     *
+     * @return array<int, string>
+     */
+    private function lockedFields(): array
+    {
+        $value = Setting::query()->where('key', 'invoice.locked_fields')->value('value');
+
+        return array_values(array_intersect(
+            (array) ($value['fields'] ?? ['conformity_text', 'legal_text']),
+            ['conformity_text', 'legal_text', 'observations'],
+        ));
+    }
+
+    /**
+     * Campos bloqueados para el usuario autenticado (los administradores con
+     * permiso de configuracion pueden editarlos siempre).
+     *
+     * @return array<int, string>
+     */
+    private function lockedFieldsForUser(): array
+    {
+        if (auth()->user()?->hasPermission('configurar_sistema')) {
+            return [];
+        }
+
+        return $this->lockedFields();
+    }
+
+    /**
+     * Descarta del request los campos bloqueados para que conserven su valor
+     * por defecto (crear) o el valor ya guardado (editar).
+     *
+     * @param  array<string, mixed>  $data
+     * @return array<string, mixed>
+     */
+    private function stripLockedFields(array $data): array
+    {
+        foreach ($this->lockedFieldsForUser() as $field) {
+            unset($data[$field]);
+        }
+
+        return $data;
+    }
+
     private function amountReceivedForDocument(string $documentType, mixed $amountReceived): string|int|float
     {
         return $documentType === Invoice::DOCUMENT_TYPE_QUOTATION ? 0 : ($amountReceived ?? 0);
@@ -675,20 +719,6 @@ class InvoiceController extends Controller
      */
     private function availableLogos(): array
     {
-        $dir = Storage::disk('public')->path('logos');
-
-        if (! is_dir($dir)) {
-            return [];
-        }
-
-        $logos = [];
-        foreach (File::files($dir) as $file) {
-            if (in_array(strtolower($file->getExtension()), ['png', 'jpg', 'jpeg', 'gif', 'svg', 'webp'], true)) {
-                $relative = 'logos/'.$file->getFilename();
-                $logos[$relative] = $file->getFilename();
-            }
-        }
-
-        return $logos;
+        return \App\Support\AvailableLogos::list();
     }
 }

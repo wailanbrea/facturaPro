@@ -2,8 +2,12 @@
 
 namespace App\Http\Controllers;
 
+use Illuminate\Foundation\Auth\Access\AuthorizesRequests;
+
 abstract class Controller
 {
+    use AuthorizesRequests;
+
     /**
      * Resolve a safe per-page size for paginated endpoints.
      *

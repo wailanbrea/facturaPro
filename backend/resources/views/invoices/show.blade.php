@@ -114,7 +114,7 @@
             <div class="fields">
                 <div class="field">
                     <label>Monto a aplicar</label>
-                    <input id="pay-amount" name="amount" type="number" step="0.01" min="0.01" max="{{ $invoice->balance_due }}" value="{{ old('amount', $invoice->balance_due) }}" required>
+                    <input id="pay-amount" name="amount" type="number" step="0.01" min="0.01" max="{{ number_format((float) $invoice->balance_due, 2, '.', '') }}" value="{{ old('amount', number_format((float) $invoice->balance_due, 2, '.', '')) }}" required>
                 </div>
                 <div class="field">
                     <label>Fecha</label>
@@ -123,7 +123,6 @@
                 <div class="field">
                     <label>Metodo</label>
                     <select name="method">
-                        <option value="manual">Manual</option>
                         <option value="efectivo">Efectivo</option>
                         <option value="transferencia">Transferencia</option>
                         <option value="tarjeta">Tarjeta</option>

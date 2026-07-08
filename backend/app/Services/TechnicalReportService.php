@@ -83,10 +83,12 @@ class TechnicalReportService
         return [
             'report_date' => now()->toDateString(),
             'status' => self::DRAFT,
+            // El formulario arranca con una sola seccion (Titulo + Texto);
+            // las demas se agregan bajo demanda con el boton "Agregar seccion".
             'section_1_title' => $settings->section_1_default_title,
-            'section_2_title' => $settings->section_2_default_title,
-            'section_3_title' => $settings->section_3_default_title,
-            'section_4_title' => $settings->section_4_default_title,
+            'section_2_title' => null,
+            'section_3_title' => null,
+            'section_4_title' => null,
             'intro_text' => $settings->intro_text,
             'final_text' => $settings->final_text,
         ];
@@ -121,19 +123,23 @@ class TechnicalReportService
             'seller_tax_id' => $profile->tax_id,
             'seller_address' => $profile->address,
             'seller_city' => $profile->city,
-            'seller_logo_path' => $profile->logo_path,
             'client_id' => $client?->id,
             'recipient_name' => $recipientName !== '' ? $recipientName : (string) $client?->name,
             'recipient_tax_id' => $recipientTaxId !== '' ? $recipientTaxId : $client?->tax_id,
             'recipient_address' => $recipientAddress !== '' ? $recipientAddress : trim((string) $client?->address),
+            'seller_logo_path' => array_key_exists('logo_path', $data)
+                ? (($data['logo_path'] ?? '') !== '' ? $data['logo_path'] : $profile->logo_path)
+                : ($report?->seller_logo_path ?? $profile->logo_path),
             'section_1_title' => $data['section_1_title'] ?? $report?->section_1_title ?? $settings->section_1_default_title,
             'section_1_content' => $data['section_1_content'] ?? $report?->section_1_content,
-            'section_2_title' => $data['section_2_title'] ?? $report?->section_2_title ?? $settings->section_2_default_title,
-            'section_2_content' => $data['section_2_content'] ?? $report?->section_2_content,
-            'section_3_title' => $data['section_3_title'] ?? $report?->section_3_title ?? $settings->section_3_default_title,
-            'section_3_content' => $data['section_3_content'] ?? $report?->section_3_content,
-            'section_4_title' => $data['section_4_title'] ?? $report?->section_4_title ?? $settings->section_4_default_title,
-            'section_4_content' => $data['section_4_content'] ?? $report?->section_4_content,
+            // Las secciones 2-4 son opcionales: si el formulario las envia vacias
+            // se limpian (no se rellenan con titulos por defecto).
+            'section_2_title' => array_key_exists('section_2_title', $data) ? $data['section_2_title'] : $report?->section_2_title,
+            'section_2_content' => array_key_exists('section_2_content', $data) ? $data['section_2_content'] : $report?->section_2_content,
+            'section_3_title' => array_key_exists('section_3_title', $data) ? $data['section_3_title'] : $report?->section_3_title,
+            'section_3_content' => array_key_exists('section_3_content', $data) ? $data['section_3_content'] : $report?->section_3_content,
+            'section_4_title' => array_key_exists('section_4_title', $data) ? $data['section_4_title'] : $report?->section_4_title,
+            'section_4_content' => array_key_exists('section_4_content', $data) ? $data['section_4_content'] : $report?->section_4_content,
             'intro_text' => array_key_exists('intro_text', $data) ? $data['intro_text'] : ($report?->intro_text ?? $settings->intro_text),
             'final_text' => array_key_exists('final_text', $data) ? $data['final_text'] : ($report?->final_text ?? $settings->final_text),
             'notes' => array_key_exists('notes', $data) ? $data['notes'] : $report?->notes,

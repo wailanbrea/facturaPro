@@ -129,6 +129,7 @@ class TechnicalReportController extends Controller
             'fiscalProfiles' => FiscalProfile::query()->where('is_active', true)->orderByDesc('is_default')->orderBy('name')->get(),
             'reportSetting' => ReportSetting::current(),
             'statusOptions' => TechnicalReportStatusLabel::options(),
+            'availableLogos' => \App\Support\AvailableLogos::list(),
         ];
     }
 }

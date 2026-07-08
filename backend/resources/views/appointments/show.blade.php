@@ -83,8 +83,15 @@
         </section>
 
         {{-- Map --}}
-        @if($appointment->location)
-        @php $encodedLocation = urlencode($appointment->location); @endphp
+        @if($appointment->location || ($appointment->location_lat && $appointment->location_lng))
+        @php
+            // Si hay un pin fijado usamos las coordenadas exactas; si no, la dirección.
+            $hasPin = $appointment->location_lat && $appointment->location_lng;
+            $destination = $hasPin
+                ? $appointment->location_lat.','.$appointment->location_lng
+                : $appointment->location;
+            $encodedLocation = urlencode($destination);
+        @endphp
         <section class="card" style="padding:0; overflow:hidden;">
             {{-- Nav buttons bar --}}
             <div class="flex items-center gap-2 px-4 py-3 border-b border-outline-variant/50 flex-wrap">
@@ -109,13 +116,16 @@
                     Apple Maps
                 </a>
                 <span class="ml-auto text-[11px] text-on-surface-variant truncate max-w-xs hidden sm:block">
-                    {{ $appointment->location }}
+                    {{ $appointment->location ?: $destination }}
+                    @if($hasPin)
+                        <span title="Pin fijado manualmente">📌</span>
+                    @endif
                 </span>
             </div>
             {{-- Embedded map (OpenStreetMap, no API key needed) --}}
             <div style="position:relative; height:300px;">
                 <iframe
-                    src="https://maps.google.com/maps?q={{ $encodedLocation }}&output=embed&z=15"
+                    src="https://maps.google.com/maps?q={{ $encodedLocation }}&output=embed&z={{ $hasPin ? 17 : 15 }}"
                     width="100%"
                     height="300"
                     style="border:0; display:block;"

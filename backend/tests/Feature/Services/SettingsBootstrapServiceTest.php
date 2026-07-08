@@ -17,7 +17,7 @@ class SettingsBootstrapServiceTest extends TestCase
         $bootstrap = app(SettingsBootstrapService::class)->get();
 
         $this->assertCount(1, $bootstrap['currencies']);
-        $this->assertCount(4, $bootstrap['taxes']);
+        $this->assertCount(2, $bootstrap['taxes']);
         $this->assertCount(2, $bootstrap['payment_terms']);
         $this->assertCount(3, $bootstrap['warranties']);
         $this->assertCount(2, $bootstrap['bank_accounts']);

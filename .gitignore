@@ -32,3 +32,6 @@ android/captures/
 android/**/*.hprof
 android/.idea/
 android/.cxx/
+
+# Playwright MCP artifacts
+.playwright-mcp/

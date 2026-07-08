@@ -339,16 +339,16 @@ class AdminPanelTest extends TestCase
     {
         $this->seed();
         $this->actingAs(User::query()->firstOrFail());
-        $role = Role::query()->where('slug', 'vendedor')->firstOrFail();
+        $role = Role::query()->where('slug', 'facturador')->firstOrFail();
 
         $this->post(route('web.users.store'), [
-            'name' => 'Vendedor Web',
-            'email' => 'vendedor@example.com',
+            'name' => 'Facturador Web',
+            'email' => 'facturador@example.com',
             'password' => 'Password1234',
             'roles' => [$role->id],
         ])->assertRedirect(route('web.users.index'));
 
-        $user = User::query()->where('email', 'vendedor@example.com')->firstOrFail();
+        $user = User::query()->where('email', 'facturador@example.com')->firstOrFail();
         $this->assertTrue($user->roles()->whereKey($role->id)->exists());
     }
 

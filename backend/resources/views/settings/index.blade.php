@@ -15,6 +15,7 @@
         'legal-texts' => ['title' => 'Textos legales', 'summary' => 'Gestion documental'],
         'invoice-number' => ['title' => 'Numeracion', 'summary' => 'Secuencia de facturas'],
         'reports' => ['title' => 'Informes', 'summary' => 'Titulos y numeracion tecnica', 'href' => route('web.settings.reports.edit')],
+        'locked-fields' => ['title' => 'Campos bloqueados', 'summary' => 'Bloquea casillas del formulario de factura', 'href' => route('web.settings.locked-fields.edit')],
     ];
 @endphp
 

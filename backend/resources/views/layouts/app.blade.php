@@ -101,6 +101,7 @@
         .brand { font-size:24px; font-weight:800; color:var(--primary); }
     </style>
     @yield('head')
+    @stack('head')
 </head>
 <body class="bg-surface text-on-surface font-sans antialiased">
 @auth
@@ -265,5 +266,6 @@
     });
 </script>
 @yield('scripts')
+@stack('location-picker-script')
 </body>
 </html>

@@ -25,6 +25,7 @@ class Invoice extends Model
         'client_name',
         'client_tax_id',
         'client_address',
+        'client_city',
         'currency_id',
         'currency_code',
         'currency_symbol',
