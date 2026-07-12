@@ -20,10 +20,8 @@
                     <input name="report_number"
                            value="{{ old('report_number', $report->report_number) }}"
                            placeholder="{{ $reportSetting->previewNextNumber() }}"
-                           @readonly(! $reportSetting->allow_manual_number)>
-                    @if(! $reportSetting->allow_manual_number)
-                        <p class="muted" style="font-size:12px;margin-top:6px">La numeracion se asigna automaticamente.</p>
-                    @endif
+                           readonly>
+                    <p class="muted" style="font-size:12px;margin-top:6px">La numeracion se asigna automaticamente.</p>
                 </div>
                 <div class="field">
                     <label>Fecha</label>
@@ -39,7 +37,7 @@
                 </div>
                 <div class="field">
                     <label>Perfil fiscal</label>
-                    <select name="fiscal_profile_id" required>
+                    <select name="fiscal_profile_id" id="report-fiscal-profile-select" required>
                         @foreach($fiscalProfiles as $profile)
                             <option value="{{ $profile->id }}" @selected((int) $selectedProfileId === $profile->id)>{{ $profile->name }}</option>
                         @endforeach
@@ -48,24 +46,21 @@
                 <div class="field span-2">
                     <label>Logo del informe <span class="text-on-surface-variant font-normal">(centrado en la parte superior del documento)</span></label>
                     @php $selectedLogo = old('logo_path', $report->seller_logo_path ?? ''); @endphp
-                    @if(count($availableLogos ?? []) > 0)
                     <div class="flex flex-wrap gap-3 mt-1">
-                        <label class="flex items-center gap-2 cursor-pointer border rounded-lg px-3 py-2 text-[13px] {{ $selectedLogo === '' ? 'border-primary bg-primary-soft-2' : 'border-outline-variant hover:bg-surface-low' }}" id="report-logo-default">
+                        <label data-report-logo-option="default" class="flex items-center gap-2 cursor-pointer border rounded-lg px-3 py-2 text-[13px] {{ $selectedLogo === '' ? 'border-primary bg-primary-soft-2' : 'border-outline-variant hover:bg-surface-low' }}" id="report-logo-default">
                             <input type="radio" name="logo_path" value="" class="sr-only report-logo-radio" {{ $selectedLogo === '' ? 'checked' : '' }}>
                             <span class="w-8 h-8 rounded bg-surface-mid flex items-center justify-center text-[9px] font-bold text-on-surface-variant">AUTO</span>
                             <span>Logo de la empresa</span>
                         </label>
-                        @foreach($availableLogos as $path => $filename)
-                        <label class="flex items-center gap-2 cursor-pointer border rounded-lg px-3 py-2 text-[13px] {{ $selectedLogo === $path ? 'border-primary bg-primary-soft-2' : 'border-outline-variant hover:bg-surface-low' }} report-logo-opt">
-                            <input type="radio" name="logo_path" value="{{ $path }}" class="sr-only report-logo-radio" {{ $selectedLogo === $path ? 'checked' : '' }}>
-                            <img src="{{ asset('storage/'.$path) }}" alt="{{ $filename }}" class="w-10 h-8 object-contain rounded">
-                            <span class="max-w-[140px] truncate">{{ $filename }}</span>
+                        @foreach($availableLogos as $logo)
+                        <label data-report-logo-option="logo" data-profile-id="{{ $logo->fiscal_profile_id }}" class="flex items-center gap-2 cursor-pointer border rounded-lg px-3 py-2 text-[13px] {{ $selectedLogo === $logo->path ? 'border-primary bg-primary-soft-2' : 'border-outline-variant hover:bg-surface-low' }} report-logo-opt">
+                            <input type="radio" name="logo_path" value="{{ $logo->path }}" class="sr-only report-logo-radio" {{ $selectedLogo === $logo->path ? 'checked' : '' }}>
+                            <img src="{{ asset('storage/'.$logo->path) }}" alt="{{ $logo->label ?? basename($logo->path) }}" class="w-10 h-8 object-contain rounded">
+                            <span class="max-w-[140px] truncate">{{ $logo->label ?? basename($logo->path) }}</span>
                         </label>
                         @endforeach
                     </div>
-                    @else
-                    <p class="text-[13px] text-on-surface-variant mt-1">No hay logos cargados aún. Sube logos a <code>storage/app/public/logos/</code></p>
-                    @endif
+                    <p id="report-profile-logos-empty" class="text-[13px] text-on-surface-variant mt-1" style="display:none">Este perfil no tiene logos cargados. Puedes continuar con el logo de la empresa.</p>
                 </div>
             </div>
         </section>
@@ -125,14 +120,14 @@
         <div class="flex items-center justify-between">
             <h3 style="margin:0">Contenido del informe</h3>
             <button type="button" id="add-section-btn" class="btn" style="padding:6px 12px;font-size:12px">
-                <i data-lucide="plus" class="w-3.5 h-3.5"></i> Agregar sección
+                <i data-lucide="plus" class="w-3.5 h-3.5"></i> Agregar seccion
             </button>
         </div>
         <p class="muted" style="font-size:12px;margin:8px 0 0">
-            Empieza con una sección (Título y Texto). Si necesitas más, pulsa "Agregar sección" (hasta 4).
+            Empieza con una seccion (Titulo y Texto). Si necesitas mas, pulsa "Agregar seccion" (hasta 4).
         </p>
         @php
-            $sectionLabels = [1 => ['Título', 'Texto'], 2 => ['2do Título', '2do Texto'], 3 => ['3er Título', '3er Texto'], 4 => ['4to Título', '4to Texto']];
+            $sectionLabels = [1 => ['Titulo', 'Texto'], 2 => ['2do Titulo', '2do Texto'], 3 => ['3er Titulo', '3er Texto'], 4 => ['4to Titulo', '4to Texto']];
         @endphp
         <div class="fields" id="report-sections">
             @foreach([1, 2, 3, 4] as $section)
@@ -156,23 +151,6 @@
         </div>
     </section>
 
-    <section class="card form">
-        <h3>Textos adicionales</h3>
-        <div class="fields">
-            <div class="field span-2">
-                <label>Texto introductorio</label>
-                <textarea name="intro_text">{{ old('intro_text', $report->intro_text) }}</textarea>
-            </div>
-            <div class="field span-2">
-                <label>Texto final</label>
-                <textarea name="final_text">{{ old('final_text', $report->final_text) }}</textarea>
-            </div>
-            <div class="field span-2">
-                <label>Observaciones internas</label>
-                <textarea name="notes">{{ old('notes', $report->notes) }}</textarea>
-            </div>
-        </div>
-    </section>
 </form>
 
 @if($isEdit)
@@ -200,7 +178,6 @@
             });
         }
 
-        // ── Secciones dinámicas (Título/Texto) ────────────────────────────────
         const addBtn = document.getElementById('add-section-btn');
         const sections = Array.from(document.querySelectorAll('.report-section'));
 
@@ -229,10 +206,38 @@
 
         refreshAddButton();
 
-        // ── Selector de logo ──────────────────────────────────────────────────
+        const reportProfileSelect = document.getElementById('report-fiscal-profile-select');
+        const reportLogoEmptyMessage = document.getElementById('report-profile-logos-empty');
+
+        function refreshReportLogoVisibility() {
+            const profileId = reportProfileSelect?.value || '';
+            let visibleLogos = 0;
+
+            document.querySelectorAll('[data-report-logo-option="logo"]').forEach(option => {
+                const visible = (option.dataset.profileId || '') === String(profileId);
+                option.style.display = visible ? '' : 'none';
+                if (visible) visibleLogos++;
+            });
+
+            const checked = document.querySelector('input[name="logo_path"]:checked');
+            const checkedOption = checked?.closest('[data-report-logo-option="logo"]');
+
+            if (checkedOption && checkedOption.style.display === 'none') {
+                const defaultRadio = document.querySelector('#report-logo-default input[name="logo_path"]');
+                if (defaultRadio) {
+                    defaultRadio.checked = true;
+                    defaultRadio.dispatchEvent(new Event('change'));
+                }
+            }
+
+            if (reportLogoEmptyMessage) {
+                reportLogoEmptyMessage.style.display = visibleLogos === 0 ? '' : 'none';
+            }
+        }
+
         document.querySelectorAll('.report-logo-radio').forEach(radio => {
             radio.addEventListener('change', () => {
-                document.querySelectorAll('.report-logo-opt, #report-logo-default').forEach(el => {
+                document.querySelectorAll('[data-report-logo-option]').forEach(el => {
                     el.classList.remove('border-primary', 'bg-primary-soft-2');
                     el.classList.add('border-outline-variant');
                 });
@@ -242,6 +247,9 @@
                 }
             });
         });
+
+        reportProfileSelect?.addEventListener('change', refreshReportLogoVisibility);
+        refreshReportLogoVisibility();
     });
 </script>
 @endsection

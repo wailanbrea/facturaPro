@@ -20,7 +20,7 @@ data class InvoiceDto(
     @SerializedName("payment_term_id")
     val paymentTermId: Long,
     @SerializedName("client_id")
-    val clientId: Long,
+    val clientId: Long? = null,
     @SerializedName("client_name")
     val clientName: String,
     @SerializedName("client_tax_id")
@@ -35,6 +35,8 @@ data class InvoiceDto(
     val currencySymbol: String,
     @SerializedName("fiscal_profile_id")
     val fiscalProfileId: Long? = null,
+    @SerializedName("logo_path")
+    val logoPath: String? = null,
     @SerializedName("bank_account_id")
     val bankAccountId: Long? = null,
     @SerializedName("warranty_id")
@@ -92,11 +94,25 @@ data class InvoiceUpsertDto(
     @SerializedName("payment_term_id")
     val paymentTermId: Long,
     @SerializedName("client_id")
-    val clientId: Long,
+    val clientId: Long? = null,
+    @SerializedName("client_name")
+    val clientName: String? = null,
+    @SerializedName("client_tax_id")
+    val clientTaxId: String? = null,
+    @SerializedName("client_address")
+    val clientAddress: String? = null,
+    @SerializedName("client_city")
+    val clientCity: String? = null,
+    @SerializedName("client_phone")
+    val clientPhone: String? = null,
+    @SerializedName("client_email")
+    val clientEmail: String? = null,
     @SerializedName("currency_id")
     val currencyId: Long,
     @SerializedName("fiscal_profile_id")
     val fiscalProfileId: Long? = null,
+    @SerializedName("logo_path")
+    val logoPath: String? = null,
     @SerializedName("bank_account_id")
     val bankAccountId: Long? = null,
     @SerializedName("warranty_id")
@@ -155,6 +171,7 @@ fun InvoiceDto.toDetail(): InvoiceDetail = InvoiceDetail(
     currencySymbol = currencySymbol,
     paymentTermId = paymentTermId,
     fiscalProfileId = fiscalProfileId,
+    logoPath = logoPath,
     bankAccountId = bankAccountId,
     warrantyId = warrantyId,
     warrantyText = warrantyText,
@@ -191,8 +208,15 @@ fun InvoiceDraft.toRemote(): InvoiceUpsertDto = InvoiceUpsertDto(
     invoiceDate = invoiceDate,
     paymentTermId = paymentTermId,
     clientId = clientId,
+    clientName = clientName?.trim().takeUnless { it.isNullOrEmpty() },
+    clientTaxId = clientTaxId?.trim().takeUnless { it.isNullOrEmpty() },
+    clientAddress = clientAddress?.trim().takeUnless { it.isNullOrEmpty() },
+    clientCity = clientCity?.trim().takeUnless { it.isNullOrEmpty() },
+    clientPhone = clientPhone?.trim().takeUnless { it.isNullOrEmpty() },
+    clientEmail = clientEmail?.trim().takeUnless { it.isNullOrEmpty() },
     currencyId = currencyId,
     fiscalProfileId = fiscalProfileId,
+    logoPath = logoPath?.trim().takeUnless { it.isNullOrEmpty() },
     bankAccountId = bankAccountId,
     warrantyId = warrantyId,
     warrantyText = warrantyText?.trim().takeUnless { it.isNullOrEmpty() },

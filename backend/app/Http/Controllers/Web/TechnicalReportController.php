@@ -7,6 +7,7 @@ use App\Http\Requests\StoreTechnicalReportRequest;
 use App\Http\Requests\UpdateTechnicalReportRequest;
 use App\Models\Client;
 use App\Models\FiscalProfile;
+use App\Models\FiscalProfileLogo;
 use App\Models\ReportSetting;
 use App\Models\TechnicalReport;
 use App\Services\TechnicalReportService;
@@ -70,7 +71,7 @@ class TechnicalReportController extends Controller
 
     public function store(StoreTechnicalReportRequest $request): RedirectResponse
     {
-        $report = $this->reports->create($request->validated(), $request->user());
+        $report = $this->reports->create($this->withoutAdditionalTexts($request->validated()), $request->user());
 
         return redirect()
             ->route('web.technical-reports.show', $report)
@@ -103,7 +104,7 @@ class TechnicalReportController extends Controller
 
     public function update(UpdateTechnicalReportRequest $request, TechnicalReport $technicalReport): RedirectResponse
     {
-        $report = $this->reports->update($technicalReport, $request->validated(), $request->user());
+        $report = $this->reports->update($technicalReport, $this->withoutAdditionalTexts($request->validated()), $request->user());
 
         return redirect()
             ->route('web.technical-reports.show', $report)
@@ -124,12 +125,40 @@ class TechnicalReportController extends Controller
      */
     private function catalogs(): array
     {
+        $fiscalProfiles = auth()->user()->availableFiscalProfiles()->load('logos');
+
         return [
             'clients' => Client::query()->where('is_active', true)->orderBy('name')->get(),
-            'fiscalProfiles' => FiscalProfile::query()->where('is_active', true)->orderByDesc('is_default')->orderBy('name')->get(),
+            'fiscalProfiles' => $fiscalProfiles,
             'reportSetting' => ReportSetting::current(),
             'statusOptions' => TechnicalReportStatusLabel::options(),
-            'availableLogos' => \App\Support\AvailableLogos::list(),
+            'availableLogos' => $this->availableLogos($fiscalProfiles->pluck('id')->all()),
         ];
+    }
+
+    /**
+     * @param  array<int, int>  $profileIds
+     */
+    private function availableLogos(array $profileIds)
+    {
+        return FiscalProfileLogo::query()
+            ->whereIn('fiscal_profile_id', $profileIds)
+            ->orderBy('fiscal_profile_id')
+            ->orderByDesc('is_default')
+            ->orderBy('label')
+            ->get(['fiscal_profile_id', 'path', 'label', 'is_default']);
+    }
+
+    /**
+     * @param array<string, mixed> $data
+     * @return array<string, mixed>
+     */
+    private function withoutAdditionalTexts(array $data): array
+    {
+        $data['intro_text'] = null;
+        $data['final_text'] = null;
+        $data['notes'] = null;
+
+        return $data;
     }
 }

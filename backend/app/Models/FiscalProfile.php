@@ -43,6 +43,11 @@ class FiscalProfile extends Model
         return $this->hasMany(TechnicalReport::class);
     }
 
+    public function logos(): HasMany
+    {
+        return $this->hasMany(FiscalProfileLogo::class)->orderByDesc('is_default')->orderBy('label')->orderBy('id');
+    }
+
     public function users(): BelongsToMany
     {
         return $this->belongsToMany(User::class);

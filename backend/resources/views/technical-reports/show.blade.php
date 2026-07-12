@@ -45,9 +45,7 @@
                 <span class="muted">{{ $report->recipient_tax_id }}<br>{{ $report->recipient_address }}</span>
             </div>
             <div>
-                <strong>Emisor</strong><br>
-                {{ $report->seller_name }}<br>
-                <span class="muted">{{ $report->seller_tax_id }}<br>{{ trim($report->seller_address.' '.$report->seller_city) }}</span>
+                <strong>{{ $report->seller_name }}</strong>
             </div>
         </div>
 
@@ -56,6 +54,7 @@
         @endif
 
         @foreach([1, 2, 3, 4] as $section)
+            @continue(blank($report->{'section_'.$section.'_title'}) && blank($report->{'section_'.$section.'_content'}))
             <section style="margin-top:22px">
                 <h3 style="margin-bottom:8px">{{ $report->{'section_'.$section.'_title'} }}</h3>
                 <p class="muted" style="white-space:pre-line">{{ $report->{'section_'.$section.'_content'} ?: 'Sin contenido.' }}</p>
@@ -83,6 +82,17 @@
             <a class="btn" href="{{ route('web.technical-reports.download-pdf', $report) }}">Descargar PDF</a>
         @else
             <p class="muted">Todavia no se ha generado el PDF final.</p>
+        @endif
+
+        @if($report->verification_code)
+            <h3 style="margin-top:22px">Verificacion</h3>
+            <table class="table">
+                <tr><td>Codigo</td><td class="right" style="font-family:monospace;font-weight:700">{{ $report->verification_code }}</td></tr>
+                <tr><td>Firmado</td><td class="right">{{ $report->signed_at?->format('Y-m-d H:i') }}</td></tr>
+            </table>
+            <a class="btn" style="margin-top:10px" href="{{ route('web.invoices.verify', ['number' => $report->report_number, 'code' => $report->verification_code]) }}" target="_blank">
+                Verificar documento
+            </a>
         @endif
 
         @if($report->notes)

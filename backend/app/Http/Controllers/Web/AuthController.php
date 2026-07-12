@@ -41,22 +41,22 @@ class AuthController extends Controller
     private function homeRouteFor(?\App\Models\User $user): string
     {
         if ($user === null) {
-            return route('login');
+            return route('login', [], false);
         }
 
         if ($user->hasPermission('ver_factura')) {
-            return route('web.dashboard');
+            return route('web.dashboard', [], false);
         }
 
         if ($user->hasPermission('ver_calendario')) {
-            return route('web.appointments.index');
+            return route('web.appointments.index', [], false);
         }
 
         if ($user->hasPermission('ver_informes')) {
-            return route('web.technical-reports.index');
+            return route('web.technical-reports.index', [], false);
         }
 
-        return route('web.dashboard');
+        return route('web.dashboard', [], false);
     }
 
     public function destroy(Request $request): RedirectResponse

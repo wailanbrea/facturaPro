@@ -58,6 +58,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.viewinterop.AndroidView
 import com.facturador.facturapro.domain.model.BootstrapCatalogs
 import com.facturador.facturapro.domain.model.ClientRecord
+import com.facturador.facturapro.domain.model.FiscalProfileLogoCatalogItem
 import com.facturador.facturapro.domain.model.NamedCatalogItem
 import com.facturador.facturapro.domain.model.TechnicalReportDetail
 import com.facturador.facturapro.domain.model.TechnicalReportDraft
@@ -279,7 +280,7 @@ private fun TechnicalReportDetailPane(
             title = report.reportNumber,
             navigation = onBack,
             trailing = {
-                IconButton(onClick = onEdit, enabled = report.status != "cancelled") {
+                IconButton(onClick = onEdit, enabled = report.status == "draft") {
                     Icon(Icons.Outlined.Edit, contentDescription = "Editar")
                 }
                 IconButton(onClick = onPreview) {
@@ -313,6 +314,11 @@ private fun TechnicalReportDetailPane(
                         Text(report.recipientAddress, color = MaterialTheme.colorScheme.onSurfaceVariant)
                         HorizontalDivider()
                         Text(report.sellerName, fontWeight = FontWeight.SemiBold)
+                        report.verificationCode?.takeIf { it.isNotBlank() }?.let { code ->
+                            HorizontalDivider()
+                            Text("Codigo de seguridad", style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                            Text(code, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.primary)
+                        }
                         Text(listOfNotNull(report.sellerTaxId, report.sellerAddress, report.sellerCity).joinToString(" · "), color = MaterialTheme.colorScheme.onSurfaceVariant)
                     }
                 }
@@ -372,6 +378,9 @@ private fun TechnicalReportFormPane(
     var fiscalProfileId by remember(existingReport?.id, defaultProfile) {
         mutableStateOf(existingReport?.fiscalProfileId ?: defaultProfile?.id)
     }
+    var logoPath by remember(existingReport?.id, defaultProfile) {
+        mutableStateOf(existingReport?.logoPath)
+    }
     var clientId by remember(existingReport?.id) {
         mutableStateOf(existingReport?.clientId)
     }
@@ -389,28 +398,36 @@ private fun TechnicalReportFormPane(
     }
     var section1Content by remember(existingReport?.id) { mutableStateOf(existingReport?.section1Content.orEmpty()) }
     var section2Title by remember(existingReport?.id, setting) {
-        mutableStateOf(existingReport?.section2Title ?: setting?.section2DefaultTitle.orEmpty())
+        mutableStateOf(existingReport?.section2Title.orEmpty())
     }
     var section2Content by remember(existingReport?.id) { mutableStateOf(existingReport?.section2Content.orEmpty()) }
     var section3Title by remember(existingReport?.id, setting) {
-        mutableStateOf(existingReport?.section3Title ?: setting?.section3DefaultTitle.orEmpty())
+        mutableStateOf(existingReport?.section3Title.orEmpty())
     }
     var section3Content by remember(existingReport?.id) { mutableStateOf(existingReport?.section3Content.orEmpty()) }
     var section4Title by remember(existingReport?.id, setting) {
-        mutableStateOf(existingReport?.section4Title ?: setting?.section4DefaultTitle.orEmpty())
+        mutableStateOf(existingReport?.section4Title.orEmpty())
     }
     var section4Content by remember(existingReport?.id) { mutableStateOf(existingReport?.section4Content.orEmpty()) }
-    var introText by remember(existingReport?.id, setting) { mutableStateOf(existingReport?.introText ?: setting?.introText.orEmpty()) }
-    var finalText by remember(existingReport?.id, setting) { mutableStateOf(existingReport?.finalText ?: setting?.finalText.orEmpty()) }
-    var notes by remember(existingReport?.id) { mutableStateOf(existingReport?.notes.orEmpty()) }
+    val selectedProfile = fiscalProfiles.firstOrNull { it.id == fiscalProfileId }
+    val availableLogos = selectedProfile?.logos.orEmpty()
+
+    LaunchedEffect(fiscalProfileId, bootstrap) {
+        val profile = fiscalProfiles.firstOrNull { it.id == fiscalProfileId }
+        val profileLogos = profile?.logos.orEmpty()
+        val currentStillValid = logoPath != null && profileLogos.any { it.path == logoPath }
+
+        if (!currentStillValid) {
+            logoPath = profileLogos.firstOrNull { it.isDefault }?.path
+                ?: profileLogos.firstOrNull()?.path
+                ?: profile?.logoPath
+        }
+    }
 
     val canSave = fiscalProfileId != null &&
         recipientName.isNotBlank() &&
         recipientAddress.isNotBlank() &&
         section1Title.isNotBlank() &&
-        section2Title.isNotBlank() &&
-        section3Title.isNotBlank() &&
-        section4Title.isNotBlank() &&
         !isSaving
 
     Column(
@@ -458,8 +475,20 @@ private fun TechnicalReportFormPane(
                         options = fiscalProfiles,
                         selectedId = fiscalProfileId,
                         optionLabel = { it.name },
-                        onSelected = { fiscalProfileId = it },
+                        onSelected = {
+                            fiscalProfileId = it
+                            logoPath = null
+                        },
                     )
+                    if (availableLogos.isNotEmpty()) {
+                        LogoSelectorField(
+                            label = "Logo del informe",
+                            options = availableLogos,
+                            selectedPath = logoPath,
+                            onSelected = { logoPath = it },
+                            allowEmpty = true,
+                        )
+                    }
                 }
             }
 
@@ -492,14 +521,6 @@ private fun TechnicalReportFormPane(
             item { SectionEditorCard(4, section4Title, section4Content, { section4Title = it }, { section4Content = it }) }
 
             item {
-                FormCard(title = "Textos adicionales") {
-                    OutlinedTextField(value = introText, onValueChange = { introText = it }, modifier = Modifier.fillMaxWidth(), label = { Text("Texto introductorio") }, minLines = 2)
-                    OutlinedTextField(value = finalText, onValueChange = { finalText = it }, modifier = Modifier.fillMaxWidth(), label = { Text("Texto final") }, minLines = 2)
-                    OutlinedTextField(value = notes, onValueChange = { notes = it }, modifier = Modifier.fillMaxWidth(), label = { Text("Observaciones internas") }, minLines = 2)
-                }
-            }
-
-            item {
                 Button(
                     onClick = {
                         onSave(
@@ -507,6 +528,7 @@ private fun TechnicalReportFormPane(
                                 reportNumber = reportNumber.takeIf { setting?.allowManualNumber == true },
                                 reportDate = reportDate,
                                 fiscalProfileId = requireNotNull(fiscalProfileId),
+                                logoPath = logoPath,
                                 clientId = clientId,
                                 recipientName = recipientName,
                                 recipientTaxId = recipientTaxId,
@@ -519,9 +541,9 @@ private fun TechnicalReportFormPane(
                                 section3Content = section3Content,
                                 section4Title = section4Title,
                                 section4Content = section4Content,
-                                introText = introText,
-                                finalText = finalText,
-                                notes = notes,
+                                introText = null,
+                                finalText = null,
+                                notes = null,
                                 status = status,
                             ),
                         )
@@ -794,7 +816,55 @@ private fun SelectorField(
 private fun optionId(option: Any): Long = when (option) {
     is ClientRecord -> option.id
     is NamedCatalogItem -> option.id
+    is com.facturador.facturapro.domain.model.FiscalProfileCatalogItem -> option.id
     else -> error("Unsupported option type ${option::class.java.name}")
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun LogoSelectorField(
+    label: String,
+    options: List<FiscalProfileLogoCatalogItem>,
+    selectedPath: String?,
+    onSelected: (String?) -> Unit,
+    allowEmpty: Boolean = false,
+) {
+    var expanded by remember { mutableStateOf(false) }
+    val selectedOption = options.firstOrNull { it.path == selectedPath }
+
+    ExposedDropdownMenuBox(expanded = expanded, onExpandedChange = { expanded = !expanded }) {
+        OutlinedTextField(
+            value = selectedOption?.label ?: if (allowEmpty) "Logo del perfil" else "",
+            onValueChange = {},
+            readOnly = true,
+            modifier = Modifier
+                .menuAnchor(ExposedDropdownMenuAnchorType.PrimaryNotEditable, true)
+                .fillMaxWidth(),
+            label = { Text(label) },
+            trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = expanded) },
+            colors = ExposedDropdownMenuDefaults.outlinedTextFieldColors(),
+        )
+        ExposedDropdownMenu(expanded = expanded, onDismissRequest = { expanded = false }) {
+            if (allowEmpty) {
+                DropdownMenuItem(
+                    text = { Text("Logo del perfil") },
+                    onClick = {
+                        expanded = false
+                        onSelected(null)
+                    },
+                )
+            }
+            options.forEach { option ->
+                DropdownMenuItem(
+                    text = { Text(option.label) },
+                    onClick = {
+                        expanded = false
+                        onSelected(option.path)
+                    },
+                )
+            }
+        }
+    }
 }
 
 private fun TechnicalReportDetail.sections(): List<Pair<String, String?>> = listOf(

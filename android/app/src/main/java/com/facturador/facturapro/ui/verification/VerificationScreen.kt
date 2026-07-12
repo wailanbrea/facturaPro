@@ -141,6 +141,7 @@ private fun ResultBlock(result: InvoiceVerification) {
     when (result.status) {
         VerificationStatus.AUTHENTIC -> {
             val invoice = result.invoice
+            val report = result.report
             ResultCard(
                 color = Color(0xFFDCFCE7),
                 contentColor = Color(0xFF166534),
@@ -148,7 +149,13 @@ private fun ResultBlock(result: InvoiceVerification) {
                 title = "Documento auténtico",
                 body = "Emitido por el sistema y sin alteraciones. Compara estos datos con el ejemplar:",
             ) {
-                if (invoice != null) {
+                if (report != null) {
+                    DataRow("Numero", report.reportNumber)
+                    DataRow("Tipo", "Informe")
+                    DataRow("Emisor", report.sellerName)
+                    DataRow("Destinatario", listOfNotNull(report.recipientName, report.recipientTaxId).joinToString(" Â· "))
+                    DataRow("Fecha", report.reportDate)
+                } else if (invoice != null) {
                     DataRow("Número", invoice.invoiceNumber)
                     DataRow("Emisor", listOfNotNull(invoice.sellerName, invoice.sellerTaxId).joinToString(" · "))
                     DataRow("Cliente", listOfNotNull(invoice.clientName, invoice.clientTaxId).joinToString(" · "))

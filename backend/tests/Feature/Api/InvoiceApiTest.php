@@ -53,6 +53,108 @@ class InvoiceApiTest extends TestCase
         ]);
     }
 
+    public function test_invoice_can_be_created_with_inline_client_payload(): void
+    {
+        $payload = $this->invoicePayload();
+        Client::query()->whereKey($payload['client_id'])->delete();
+        unset($payload['client_id']);
+
+        $payload['client_name'] = 'Cliente Directo API';
+        $payload['client_tax_id'] = '001-8888888-8';
+        $payload['client_address'] = 'Santo Domingo';
+        $payload['client_phone'] = '809-111-2222';
+        $payload['client_email'] = 'directo-api@example.com';
+
+        $response = $this->postJson('/api/invoices', $payload);
+
+        $response->assertCreated()
+            ->assertJsonPath('data.client_name', 'Cliente Directo API')
+            ->assertJsonPath('data.client_tax_id', '001-8888888-8')
+            ->assertJsonPath('data.total', '236.0000');
+
+        $this->assertDatabaseHas('clients', [
+            'id' => $response->json('data.client_id'),
+            'name' => 'Cliente Directo API',
+            'tax_id' => '001-8888888-8',
+            'email' => 'directo-api@example.com',
+        ]);
+    }
+
+    public function test_inline_client_payload_reuses_existing_client_by_tax_id(): void
+    {
+        $existing = Client::query()->create([
+            'name' => 'Cliente Existente API',
+            'tax_id' => '001-7777777-7',
+            'email' => 'existente@example.com',
+        ]);
+
+        $payload = $this->invoicePayload();
+        Client::query()->whereKey($payload['client_id'])->delete();
+        unset($payload['client_id']);
+
+        $payload['client_name'] = 'Nombre Actualizado API';
+        $payload['client_tax_id'] = '001-7777777-7';
+        $payload['client_address'] = 'Direccion nueva';
+
+        $response = $this->postJson('/api/invoices', $payload);
+
+        $response->assertCreated()
+            ->assertJsonPath('data.client_id', $existing->id)
+            ->assertJsonPath('data.client_name', 'Nombre Actualizado API');
+
+        $this->assertSame(1, Client::query()->where('tax_id', '001-7777777-7')->count());
+        $this->assertDatabaseHas('clients', [
+            'id' => $existing->id,
+            'name' => 'Nombre Actualizado API',
+            'address' => 'Direccion nueva',
+        ]);
+    }
+
+    public function test_invoice_logo_path_must_belong_to_selected_fiscal_profile(): void
+    {
+        $profile = FiscalProfile::query()->firstOrFail();
+        $otherProfile = FiscalProfile::query()->create([
+            'name' => 'Otra Empresa API',
+            'tax_id' => 'B00000000',
+            'address' => 'Madrid',
+            'city' => 'Madrid',
+            'is_active' => true,
+        ]);
+
+        $profile->logos()->create(['path' => 'logos/api-a.png', 'label' => 'API A']);
+        $otherProfile->logos()->create(['path' => 'logos/api-b.png', 'label' => 'API B']);
+
+        $this->postJson('/api/invoices', $this->invoicePayload([
+            'fiscal_profile_id' => $profile->id,
+            'logo_path' => 'logos/api-b.png',
+        ]))->assertUnprocessable()
+            ->assertJsonValidationErrors('logo_path');
+
+        $response = $this->postJson('/api/invoices', $this->invoicePayload([
+            'fiscal_profile_id' => $profile->id,
+            'logo_path' => 'logos/api-a.png',
+        ]));
+
+        $response->assertCreated()
+            ->assertJsonPath('data.logo_path', 'logos/api-a.png');
+    }
+
+    public function test_manual_invoice_number_is_rejected_even_if_setting_was_enabled(): void
+    {
+        InvoiceNumberSetting::query()->update(['allow_manual_number' => true]);
+
+        $response = $this->postJson('/api/invoices', $this->invoicePayload([
+            'invoice_number' => 'MANUAL-001',
+        ]));
+
+        $response->assertStatus(422)
+            ->assertSee('Manual invoice numbers are not allowed.');
+
+        $this->assertDatabaseMissing('invoices', [
+            'invoice_number' => 'MANUAL-001',
+        ]);
+    }
+
     public function test_invoice_draft_preview_returns_official_html_without_persisting_invoice(): void
     {
         $initialCount = Invoice::query()->count();
@@ -110,7 +212,7 @@ class InvoiceApiTest extends TestCase
         $issued = $this->postJson("/api/invoices/{$invoiceId}/issue");
 
         $issued->assertOk()
-            ->assertJsonPath('data.invoice_number', 'FAC-AF-000001')
+            ->assertJsonPath('data.invoice_number', 'FAC-LA-000001')
             ->assertJsonPath('data.status', 'issued');
 
         $paid = $this->postJson("/api/invoices/{$invoiceId}/mark-paid", [
@@ -169,7 +271,7 @@ class InvoiceApiTest extends TestCase
 
         $this->postJson("/api/invoices/{$quotationId}/issue")
             ->assertOk()
-            ->assertJsonPath('data.invoice_number', 'PRES-AF-000001')
+            ->assertJsonPath('data.invoice_number', 'PRES-LA-000001')
             ->assertJsonPath('data.status', 'issued')
             ->assertJsonPath('data.amount_received', '0.0000')
             ->assertJsonPath('data.balance_due', '236.0000');
@@ -309,13 +411,25 @@ class InvoiceApiTest extends TestCase
 
     public function test_quotation_preview_uses_quotation_labels(): void
     {
-        $invoiceId = $this->createInvoice(['document_type' => 'quotation'])->json('data.id');
+        $invoiceId = $this->createInvoice([
+            'document_type' => 'quotation',
+            'invoice_date' => '2026-06-28',
+            'due_date' => '2026-06-28',
+        ])->json('data.id');
 
         $this->get("/api/invoices/{$invoiceId}/preview")
             ->assertOk()
             ->assertSee('PRESUPUESTO')
-            ->assertSee('FECHA DE PRESUPUESTO')
-            ->assertSee('COPIA: VENDEDOR');
+            ->assertSee('FECHA:')
+            ->assertSee('28/07/2026')
+            ->assertDontSee('FECHA DE PRESUPUESTO')
+            ->assertSee('PAGA Y SE&Ntilde;AL', false)
+            ->assertSee('CUENTA DE')
+            ->assertSee('SOMOS TECNICOS HOMOLOGOS')
+            ->assertSee('RECIBIDO POR')
+            ->assertSee('PREPARADO POR')
+            ->assertDontSee('ORIGINAL: CLIENTE')
+            ->assertDontSee('COPIA: VENDEDOR');
     }
 
     public function test_invoice_issue_preview_renders_as_final_invoice_without_persisting_issue(): void
@@ -353,7 +467,8 @@ class InvoiceApiTest extends TestCase
      *     currency_code?: string,
      *     tax_name?: string,
      *     amount_received?: string,
-     *     document_type?: string
+     *     document_type?: string,
+     *     invoice_number?: string
      * } $overrides
      */
     private function createInvoice(array $overrides = [])
@@ -368,7 +483,8 @@ class InvoiceApiTest extends TestCase
      *     currency_code?: string,
      *     tax_name?: string,
      *     amount_received?: string,
-     *     document_type?: string
+     *     document_type?: string,
+     *     invoice_number?: string
      * } $overrides
      * @return array<string, mixed>
      */
@@ -389,12 +505,14 @@ class InvoiceApiTest extends TestCase
 
         return [
             'document_type' => $overrides['document_type'] ?? 'invoice',
+            'invoice_number' => $overrides['invoice_number'] ?? null,
             'invoice_date' => $overrides['invoice_date'] ?? CarbonImmutable::today()->toDateString(),
             'due_date' => $overrides['due_date'] ?? null,
             'payment_term_id' => $term->id,
             'client_id' => $client->id,
             'currency_id' => $currency->id,
-            'fiscal_profile_id' => $profile->id,
+            'fiscal_profile_id' => $overrides['fiscal_profile_id'] ?? $profile->id,
+            'logo_path' => $overrides['logo_path'] ?? null,
             'bank_account_id' => $account->id,
             'warranty_id' => $warranty->id,
             'amount_received' => $overrides['amount_received'] ?? '0',

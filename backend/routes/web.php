@@ -22,6 +22,10 @@ Route::middleware('guest')->group(function (): void {
     Route::post('/login', [AuthController::class, 'store'])->name('login.store');
 });
 
+// Public authenticity check. It must stay before /invoices/{invoice} so the
+// "verify" segment is never captured as an invoice route-model binding.
+Route::get('/invoices/verify', [InvoiceVerificationController::class, 'show'])->name('web.invoices.verify');
+
 Route::middleware('auth')->group(function (): void {
     Route::post('/logout', [AuthController::class, 'destroy'])->name('web.logout');
     Route::get('/', DashboardController::class)->name('web.dashboard');
@@ -32,9 +36,6 @@ Route::middleware('auth')->group(function (): void {
         ->names('web.clients');
 
     Route::get('/invoices', [InvoiceController::class, 'index'])->middleware('permission:ver_factura')->name('web.invoices.index');
-    // Internal authenticity check. Declared before /invoices/{invoice} so the
-    // "verify" segment is never captured as an invoice route-model binding.
-    Route::get('/invoices/verify', [InvoiceVerificationController::class, 'show'])->middleware('permission:ver_factura')->name('web.invoices.verify');
     Route::get('/invoices/create', [InvoiceController::class, 'create'])->middleware('permission:crear_factura')->name('web.invoices.create');
     Route::post('/invoices', [InvoiceController::class, 'store'])->middleware('permission:crear_factura')->name('web.invoices.store');
     Route::get('/invoices/{invoice}/edit', [InvoiceController::class, 'edit'])->middleware('permission:editar_factura')->name('web.invoices.edit');

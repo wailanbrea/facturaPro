@@ -2,12 +2,13 @@
 
 namespace App\Services;
 
+use App\Models\FiscalProfile;
 use App\Models\Invoice;
 use App\Models\InvoiceNumberSetting;
-use App\Models\User;
 use Carbon\CarbonImmutable;
 use Carbon\CarbonInterface;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Str;
 
 class InvoiceNumberService
 {
@@ -22,10 +23,10 @@ class InvoiceNumberService
             ? CarbonImmutable::instance($date)
             : CarbonImmutable::parse($date ?? 'now');
 
-        return DB::transaction(function () use ($setting, $date, $fiscalProfileId, $documentType, $userId): string {
+        return DB::transaction(function () use ($setting, $date, $fiscalProfileId, $documentType): string {
             $lockedSetting = $setting !== null
                 ? InvoiceNumberSetting::query()->whereKey($setting->getKey())->lockForUpdate()->first()
-                : $this->resolveSetting($fiscalProfileId, $userId, $documentType);
+                : $this->resolveSetting($fiscalProfileId, $documentType);
 
             $this->resetSequenceIfNeeded($lockedSetting, $date);
 
@@ -46,8 +47,16 @@ class InvoiceNumberService
             date: $invoice->invoice_date,
             fiscalProfileId: $invoice->fiscal_profile_id,
             documentType: $invoice->document_type ?? 'invoice',
-            userId: $invoice->created_by,
         );
+    }
+
+    public function preview(?int $fiscalProfileId = null, string $documentType = 'invoice'): string
+    {
+        return DB::transaction(function () use ($fiscalProfileId, $documentType): string {
+            $setting = $this->resolveSetting($fiscalProfileId, $documentType);
+
+            return $this->format($setting);
+        });
     }
 
     public function format(InvoiceNumberSetting $setting): string
@@ -64,48 +73,32 @@ class InvoiceNumberService
         return $setting->prefix . $serie . $number;
     }
 
-    /**
-     * Resolve (and lock) the counter for a company x invoicing user x document type.
-     *
-     * Each (fiscal profile, user, document type) keeps its own continuous sequence.
-     * When the per-user row does not exist yet it is created on the fly, inheriting
-     * the prefix/format from the company-level template (user_id = null) and getting
-     * a serie derived from the user's initials so numbers stay visually distinct.
-     */
-    private function resolveSetting(?int $fiscalProfileId, ?int $userId, string $documentType): InvoiceNumberSetting
+    private function resolveSetting(?int $fiscalProfileId, string $documentType): InvoiceNumberSetting
     {
         $exact = InvoiceNumberSetting::query()
             ->where('fiscal_profile_id', $fiscalProfileId)
-            ->where(fn ($q) => $userId === null ? $q->whereNull('user_id') : $q->where('user_id', $userId))
+            ->whereNull('user_id')
             ->where('document_type', $documentType)
             ->lockForUpdate()
             ->first();
 
         if ($exact !== null) {
+            if ($fiscalProfileId !== null && blank($exact->serie)) {
+                $exact->serie = $this->serieForProfile($fiscalProfileId, $documentType);
+                $exact->save();
+            }
+
             return $exact;
         }
 
-        // Legacy / system path (no user): preserve the previous behaviour of falling
-        // back to the global counter before creating a company-level row.
-        if ($userId === null) {
-            $global = InvoiceNumberSetting::query()
-                ->whereNull('fiscal_profile_id')
-                ->whereNull('user_id')
-                ->where('document_type', $documentType)
-                ->lockForUpdate()
-                ->first();
-
-            if ($global !== null && $fiscalProfileId === null) {
-                return $global;
-            }
-
+        if ($fiscalProfileId === null) {
             return InvoiceNumberSetting::query()->create([
-                'fiscal_profile_id' => $fiscalProfileId,
+                'fiscal_profile_id' => null,
                 'user_id' => null,
                 'document_type' => $documentType,
-                'prefix' => $global?->prefix ?? $this->defaultPrefix($documentType),
+                'prefix' => $this->defaultPrefix($documentType),
                 'next_number' => 1,
-                'number_length' => $global?->number_length ?? 6,
+                'number_length' => 6,
             ]);
         }
 
@@ -113,22 +106,18 @@ class InvoiceNumberService
 
         return InvoiceNumberSetting::query()->create([
             'fiscal_profile_id' => $fiscalProfileId,
-            'user_id' => $userId,
+            'user_id' => null,
             'document_type' => $documentType,
             'prefix' => $template?->prefix ?? $this->defaultPrefix($documentType),
-            'next_number' => 1,
+            'next_number' => $this->nextNumberForProfile($fiscalProfileId, $documentType),
             'number_length' => $template?->number_length ?? 6,
-            'serie' => $this->serieForUser($userId, $fiscalProfileId, $documentType),
+            'serie' => $this->serieForProfile($fiscalProfileId, $documentType),
             'reset_yearly' => $template?->reset_yearly ?? false,
             'reset_monthly' => $template?->reset_monthly ?? false,
-            'allow_manual_number' => $template?->allow_manual_number ?? false,
+            'allow_manual_number' => false,
         ]);
     }
 
-    /**
-     * Company-level template (user_id = null) for a document type, falling back to
-     * the global one, used to keep prefixes/format consistent across users.
-     */
     private function template(?int $fiscalProfileId, string $documentType): ?InvoiceNumberSetting
     {
         return InvoiceNumberSetting::query()
@@ -140,8 +129,18 @@ class InvoiceNumberService
                     $q->orWhereNull('fiscal_profile_id');
                 }
             })
-            ->orderByRaw('fiscal_profile_id IS NULL') // prefer company-specific over global
+            ->orderByRaw('fiscal_profile_id IS NULL')
             ->first();
+    }
+
+    private function nextNumberForProfile(int $fiscalProfileId, string $documentType): int
+    {
+        $next = InvoiceNumberSetting::query()
+            ->where('fiscal_profile_id', $fiscalProfileId)
+            ->where('document_type', $documentType)
+            ->max('next_number');
+
+        return max(1, (int) ($next ?? 1));
     }
 
     private function defaultPrefix(string $documentType): string
@@ -149,26 +148,23 @@ class InvoiceNumberService
         return $documentType === 'quotation' ? 'PRES-' : 'FAC-';
     }
 
-    /**
-     * Build a short, unique serie for a user within a company + document type
-     * (e.g. "Juan Pérez" => "JP"). Collisions with another user that resolves to
-     * the same initials get a numeric suffix.
-     */
-    private function serieForUser(int $userId, ?int $fiscalProfileId, string $documentType): string
+    private function serieForProfile(int $fiscalProfileId, string $documentType): string
     {
-        $user = User::query()->find($userId);
-        $base = $this->initials($user?->name ?? '');
-        $base = $base !== '' ? $base : 'U' . $userId;
+        $profile = FiscalProfile::query()->find($fiscalProfileId);
+        $base = $this->initials($profile?->name ?? '');
+        $base = $base !== '' ? $base : 'P' . $fiscalProfileId;
 
         $serie = $base;
         $suffix = 1;
 
         while (
             InvoiceNumberSetting::query()
-                ->where('fiscal_profile_id', $fiscalProfileId)
                 ->where('document_type', $documentType)
                 ->where('serie', $serie)
-                ->where('user_id', '!=', $userId)
+                ->where(function ($query) use ($fiscalProfileId): void {
+                    $query->where('fiscal_profile_id', '!=', $fiscalProfileId)
+                        ->orWhereNull('fiscal_profile_id');
+                })
                 ->exists()
         ) {
             $serie = $base . (++$suffix);
@@ -179,12 +175,7 @@ class InvoiceNumberService
 
     private function initials(string $name): string
     {
-        $name = strtr($name, [
-            'á' => 'a', 'é' => 'e', 'í' => 'i', 'ó' => 'o', 'ú' => 'u', 'ñ' => 'n', 'ü' => 'u',
-            'Á' => 'A', 'É' => 'E', 'Í' => 'I', 'Ó' => 'O', 'Ú' => 'U', 'Ñ' => 'N', 'Ü' => 'U',
-        ]);
-
-        $parts = preg_split('/\s+/', trim($name), -1, PREG_SPLIT_NO_EMPTY) ?: [];
+        $parts = preg_split('/\s+/', trim(Str::ascii($name)), -1, PREG_SPLIT_NO_EMPTY) ?: [];
         $letters = '';
 
         foreach ($parts as $part) {

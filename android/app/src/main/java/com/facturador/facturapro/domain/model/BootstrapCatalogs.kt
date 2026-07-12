@@ -6,7 +6,7 @@ data class BootstrapCatalogs(
     val paymentTerms: List<PaymentTermCatalogItem>,
     val warranties: List<WarrantyCatalogItem>,
     val bankAccounts: List<BankAccountCatalogItem>,
-    val fiscalProfiles: List<NamedCatalogItem>,
+    val fiscalProfiles: List<FiscalProfileCatalogItem>,
     val legalTexts: List<LegalTextCatalogItem>,
 )
 
@@ -42,6 +42,22 @@ data class WarrantyCatalogItem(
 data class NamedCatalogItem(
     val id: Long,
     val name: String,
+    val isDefault: Boolean,
+)
+
+data class FiscalProfileCatalogItem(
+    val id: Long,
+    val name: String,
+    val isDefault: Boolean,
+    val logoPath: String?,
+    val logos: List<FiscalProfileLogoCatalogItem>,
+    val nextInvoiceNumber: String?,
+    val nextQuotationNumber: String?,
+)
+
+data class FiscalProfileLogoCatalogItem(
+    val path: String,
+    val label: String,
     val isDefault: Boolean,
 )
 

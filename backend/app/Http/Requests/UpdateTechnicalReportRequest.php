@@ -2,9 +2,11 @@
 
 namespace App\Http\Requests;
 
+use App\Models\FiscalProfileLogo;
 use App\Models\TechnicalReport;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
+use Illuminate\Validation\Validator;
 
 class UpdateTechnicalReportRequest extends FormRequest
 {
@@ -43,5 +45,23 @@ class UpdateTechnicalReportRequest extends FormRequest
             'final_text' => ['nullable', 'string'],
             'notes' => ['nullable', 'string'],
         ];
+    }
+
+    public function withValidator(Validator $validator): void
+    {
+        $validator->after(function (Validator $validator): void {
+            if (blank($this->input('logo_path'))) {
+                return;
+            }
+
+            $exists = FiscalProfileLogo::query()
+                ->where('fiscal_profile_id', $this->input('fiscal_profile_id'))
+                ->where('path', $this->input('logo_path'))
+                ->exists();
+
+            if (! $exists) {
+                $validator->errors()->add('logo_path', 'El logo seleccionado no pertenece a este perfil.');
+            }
+        });
     }
 }

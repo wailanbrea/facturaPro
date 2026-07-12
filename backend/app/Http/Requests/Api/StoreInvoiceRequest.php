@@ -2,6 +2,7 @@
 
 namespace App\Http\Requests\Api;
 
+use App\Models\FiscalProfileLogo;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
 use Illuminate\Validation\Validator;
@@ -24,9 +25,16 @@ class StoreInvoiceRequest extends FormRequest
             'invoice_date' => ['required', 'date'],
             'due_date' => ['nullable', 'date'],
             'payment_term_id' => ['required', 'exists:payment_terms,id'],
-            'client_id' => ['required', 'exists:clients,id'],
+            'client_id' => ['nullable', 'exists:clients,id', 'required_without:client_name'],
+            'client_name' => ['nullable', 'string', 'max:255', 'required_without:client_id'],
+            'client_tax_id' => ['nullable', 'string', 'max:255'],
+            'client_address' => ['nullable', 'string', 'max:255'],
+            'client_city' => ['nullable', 'string', 'max:255'],
+            'client_phone' => ['nullable', 'string', 'max:255'],
+            'client_email' => ['nullable', 'email', 'max:255'],
             'currency_id' => ['required', 'exists:currencies,id'],
             'fiscal_profile_id' => ['required', 'exists:fiscal_profiles,id', Rule::in($this->user()->availableFiscalProfileIds())],
+            'logo_path' => ['nullable', 'string', 'max:255'],
             'bank_account_id' => ['nullable', 'exists:bank_accounts,id'],
             'warranty_id' => ['required', 'exists:warranties,id'],
             'warranty_text' => ['nullable', 'string'],
@@ -47,12 +55,21 @@ class StoreInvoiceRequest extends FormRequest
     public function withValidator(Validator $validator): void
     {
         $validator->after(function (Validator $validator): void {
-            if ($this->input('document_type', 'invoice') !== 'quotation') {
+            if ($this->input('document_type', 'invoice') === 'quotation' && (float) $this->input('amount_received', 0) > 0.0) {
+                $validator->errors()->add('amount_received', 'Los presupuestos no aceptan importes recibidos.');
+            }
+
+            if (blank($this->input('logo_path'))) {
                 return;
             }
 
-            if ((float) $this->input('amount_received', 0) > 0.0) {
-                $validator->errors()->add('amount_received', 'Los presupuestos no aceptan importes recibidos.');
+            $exists = FiscalProfileLogo::query()
+                ->where('fiscal_profile_id', $this->input('fiscal_profile_id'))
+                ->where('path', $this->input('logo_path'))
+                ->exists();
+
+            if (! $exists) {
+                $validator->errors()->add('logo_path', 'El logo seleccionado no pertenece a este perfil.');
             }
         });
     }

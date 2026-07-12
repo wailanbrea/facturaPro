@@ -20,8 +20,18 @@ data class VerifiedInvoice(
     val total: String?,
 )
 
+data class VerifiedReport(
+    val reportNumber: String?,
+    val sellerName: String?,
+    val recipientName: String?,
+    val recipientTaxId: String?,
+    val reportDate: String?,
+)
+
 data class InvoiceVerification(
     val status: VerificationStatus,
     val authentic: Boolean,
+    val type: String?,
     val invoice: VerifiedInvoice?,
+    val report: VerifiedReport?,
 )

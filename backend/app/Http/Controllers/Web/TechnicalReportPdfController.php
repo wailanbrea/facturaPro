@@ -69,7 +69,12 @@ class TechnicalReportPdfController extends Controller
             return back()->withErrors(['report' => $exception->getMessage()]);
         }
 
-        $report->update(['pdf_path' => $path]);
+        $absolutePath = Storage::disk('public')->path($path);
+
+        $report->update([
+            'pdf_path' => $path,
+            'pdf_sha256' => is_file($absolutePath) ? hash_file('sha256', $absolutePath) : null,
+        ]);
 
         return back()->with('status', 'PDF del informe generado correctamente.');
     }

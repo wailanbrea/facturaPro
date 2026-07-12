@@ -56,8 +56,11 @@ class SettingsController extends Controller
 
     public function fiscalProfiles(): JsonResponse
     {
+        $profiles = request()->user()?->availableFiscalProfiles()
+            ?? FiscalProfile::query()->where('is_active', true)->orderByDesc('is_default')->orderBy('name')->get();
+
         return response()->json([
-            'data' => FiscalProfile::query()->where('is_active', true)->orderByDesc('is_default')->orderBy('name')->get(),
+            'data' => $profiles->load('logos'),
         ]);
     }
 }

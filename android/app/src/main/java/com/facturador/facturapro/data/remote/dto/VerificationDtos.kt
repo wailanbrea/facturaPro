@@ -3,12 +3,15 @@ package com.facturador.facturapro.data.remote.dto
 import com.facturador.facturapro.domain.model.InvoiceVerification
 import com.facturador.facturapro.domain.model.VerificationStatus
 import com.facturador.facturapro.domain.model.VerifiedInvoice
+import com.facturador.facturapro.domain.model.VerifiedReport
 import com.google.gson.annotations.SerializedName
 
 data class InvoiceVerificationResponseDto(
     val status: String? = null,
+    val type: String? = null,
     val authentic: Boolean = false,
     val invoice: VerifiedInvoiceDto? = null,
+    val report: VerifiedReportDto? = null,
 )
 
 data class VerifiedInvoiceDto(
@@ -23,6 +26,14 @@ data class VerifiedInvoiceDto(
     val total: String? = null,
 )
 
+data class VerifiedReportDto(
+    @SerializedName("report_number") val reportNumber: String? = null,
+    @SerializedName("seller_name") val sellerName: String? = null,
+    @SerializedName("recipient_name") val recipientName: String? = null,
+    @SerializedName("recipient_tax_id") val recipientTaxId: String? = null,
+    @SerializedName("report_date") val reportDate: String? = null,
+)
+
 fun InvoiceVerificationResponseDto.toDomain(): InvoiceVerification = InvoiceVerification(
     status = when (status) {
         "authentic" -> VerificationStatus.AUTHENTIC
@@ -32,6 +43,7 @@ fun InvoiceVerificationResponseDto.toDomain(): InvoiceVerification = InvoiceVeri
         else -> VerificationStatus.UNKNOWN
     },
     authentic = authentic,
+    type = type,
     invoice = invoice?.let {
         VerifiedInvoice(
             invoiceNumber = it.invoiceNumber,
@@ -43,6 +55,15 @@ fun InvoiceVerificationResponseDto.toDomain(): InvoiceVerification = InvoiceVeri
             invoiceDate = it.invoiceDate,
             currencyCode = it.currencyCode,
             total = it.total,
+        )
+    },
+    report = report?.let {
+        VerifiedReport(
+            reportNumber = it.reportNumber,
+            sellerName = it.sellerName,
+            recipientName = it.recipientName,
+            recipientTaxId = it.recipientTaxId,
+            reportDate = it.reportDate,
         )
     },
 )

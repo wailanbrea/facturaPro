@@ -17,6 +17,7 @@ class TechnicalReportService
 
     public function __construct(
         private readonly ReportNumberService $numberService,
+        private readonly TechnicalReportSignatureService $signatureService,
     ) {
     }
 
@@ -28,7 +29,15 @@ class TechnicalReportService
         return DB::transaction(function () use ($data, $user): TechnicalReport {
             $this->numberService->ensureManualNumberIsAllowed($data['report_number'] ?? null);
 
-            return TechnicalReport::query()->create($this->payload($data, null, $user));
+            $report = TechnicalReport::query()->create($this->payload($data, null, $user));
+
+            if ($report->status === self::ISSUED) {
+                return $this->signatureService->signOnIssue(
+                    $report->load(['client', 'fiscalProfile', 'createdBy', 'updatedBy']),
+                );
+            }
+
+            return $report;
         });
     }
 
@@ -38,10 +47,17 @@ class TechnicalReportService
     public function update(TechnicalReport $report, array $data, ?User $user = null): TechnicalReport
     {
         abort_if($report->status === self::CANCELLED, 409, 'No se puede editar un informe anulado.');
+        abort_if($report->verification_hash !== null, 409, 'No se puede editar un informe emitido y firmado.');
 
         return DB::transaction(function () use ($report, $data, $user): TechnicalReport {
             $this->numberService->ensureManualNumberIsAllowed($data['report_number'] ?? null, $report);
             $report->update($this->payload($data, $report, $user));
+
+            if ($report->status === self::ISSUED) {
+                return $this->signatureService->signOnIssue(
+                    $report->fresh(['client', 'fiscalProfile', 'createdBy', 'updatedBy']),
+                );
+            }
 
             return $report->fresh(['client', 'fiscalProfile', 'createdBy', 'updatedBy']);
         });
@@ -56,7 +72,9 @@ class TechnicalReportService
             ]);
         }
 
-        return $report->fresh(['client', 'fiscalProfile', 'createdBy', 'updatedBy']);
+        return $this->signatureService->signOnIssue(
+            $report->fresh(['client', 'fiscalProfile', 'createdBy', 'updatedBy']),
+        );
     }
 
     public function cancelOrDelete(TechnicalReport $report, ?User $user = null): void
@@ -134,11 +152,11 @@ class TechnicalReportService
             'section_1_content' => $data['section_1_content'] ?? $report?->section_1_content,
             // Las secciones 2-4 son opcionales: si el formulario las envia vacias
             // se limpian (no se rellenan con titulos por defecto).
-            'section_2_title' => array_key_exists('section_2_title', $data) ? $data['section_2_title'] : $report?->section_2_title,
+            'section_2_title' => $this->optionalTitle($data, 'section_2_title', $report?->section_2_title),
             'section_2_content' => array_key_exists('section_2_content', $data) ? $data['section_2_content'] : $report?->section_2_content,
-            'section_3_title' => array_key_exists('section_3_title', $data) ? $data['section_3_title'] : $report?->section_3_title,
+            'section_3_title' => $this->optionalTitle($data, 'section_3_title', $report?->section_3_title),
             'section_3_content' => array_key_exists('section_3_content', $data) ? $data['section_3_content'] : $report?->section_3_content,
-            'section_4_title' => array_key_exists('section_4_title', $data) ? $data['section_4_title'] : $report?->section_4_title,
+            'section_4_title' => $this->optionalTitle($data, 'section_4_title', $report?->section_4_title),
             'section_4_content' => array_key_exists('section_4_content', $data) ? $data['section_4_content'] : $report?->section_4_content,
             'intro_text' => array_key_exists('intro_text', $data) ? $data['intro_text'] : ($report?->intro_text ?? $settings->intro_text),
             'final_text' => array_key_exists('final_text', $data) ? $data['final_text'] : ($report?->final_text ?? $settings->final_text),
@@ -147,5 +165,17 @@ class TechnicalReportService
             'created_by' => $report?->created_by ?? $user?->id,
             'updated_by' => $user?->id,
         ];
+    }
+
+    /**
+     * The current schema keeps optional section titles as NOT NULL strings.
+     *
+     * @param array<string, mixed> $data
+     */
+    private function optionalTitle(array $data, string $key, mixed $fallback): string
+    {
+        $value = array_key_exists($key, $data) ? $data[$key] : $fallback;
+
+        return trim((string) ($value ?? ''));
     }
 }

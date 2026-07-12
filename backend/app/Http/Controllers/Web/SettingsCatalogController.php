@@ -15,6 +15,8 @@ use App\Models\Warranty;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Str;
 use Illuminate\Validation\Rule;
 use Illuminate\View\View;
 
@@ -54,7 +56,11 @@ class SettingsCatalogController extends Controller
 
         $data = $this->validated($request, $catalog);
         $this->clearOtherDefaults($config['model'], $data);
-        $config['model']::query()->create($data);
+        $record = $config['model']::query()->create($data);
+
+        if ($catalog === 'fiscal-profiles' && $record instanceof FiscalProfile) {
+            $this->storeFiscalProfileLogos($request, $record);
+        }
 
         return redirect()->route('web.settings.catalog.index', $catalog)->with('status', 'Configuracion creada.');
     }
@@ -82,6 +88,15 @@ class SettingsCatalogController extends Controller
 
         $this->clearOtherDefaults($config['model'], $data, $record);
         $record->update($data);
+
+        if ($catalog === 'fiscal-profiles' && $record instanceof FiscalProfile) {
+            $record->refresh();
+            $this->deleteFiscalProfileLogos($request, $record);
+            $record->refresh();
+            $this->storeFiscalProfileLogos($request, $record);
+            $record->refresh();
+            $this->syncFiscalProfileDefaultLogo($record);
+        }
 
         return redirect()->route('web.settings.catalog.index', $catalog)->with('status', 'Configuracion actualizada.');
     }
@@ -186,7 +201,15 @@ class SettingsCatalogController extends Controller
                     'city' => ['label' => 'Ciudad', 'type' => 'text'],
                     'phone' => ['label' => 'Telefono', 'type' => 'text'],
                     'email' => ['label' => 'Email', 'type' => 'email'],
-                    'logo_path' => ['label' => 'Ruta logo', 'type' => 'text'],
+                    'logo_uploads' => [
+                        'label' => 'Logos del perfil',
+                        'type' => 'file',
+                        'path_field' => 'logo_path',
+                        'gallery' => 'logos',
+                        'multiple' => true,
+                        'accept' => 'image/png,image/jpeg,image/webp,image/svg+xml',
+                        'help' => 'PNG, JPG, WEBP o SVG. Puedes cargar varios logos y elegir uno distinto al crear cada factura.',
+                    ],
                     'is_default' => ['label' => 'Predeterminado', 'type' => 'checkbox'],
                     'is_active' => ['label' => 'Activo', 'type' => 'checkbox'],
                 ],
@@ -230,7 +253,6 @@ class SettingsCatalogController extends Controller
                     'serie' => ['label' => 'Serie', 'type' => 'text'],
                     'reset_yearly' => ['label' => 'Reiniciar anual', 'type' => 'checkbox'],
                     'reset_monthly' => ['label' => 'Reiniciar mensual', 'type' => 'checkbox'],
-                    'allow_manual_number' => ['label' => 'Permitir numero manual', 'type' => 'checkbox'],
                     'current_year' => ['label' => 'Ano actual', 'type' => 'number'],
                     'current_month' => ['label' => 'Mes actual', 'type' => 'number'],
                 ],
@@ -300,7 +322,10 @@ class SettingsCatalogController extends Controller
                 'city' => ['nullable', 'string', 'max:255'],
                 'phone' => ['nullable', 'string', 'max:255'],
                 'email' => ['nullable', 'email', 'max:255'],
-                'logo_path' => ['nullable', 'string', 'max:255'],
+                'logo_uploads' => ['nullable', 'array'],
+                'logo_uploads.*' => ['file', 'mimes:png,jpg,jpeg,webp,svg', 'max:4096'],
+                'delete_logos' => ['nullable', 'array'],
+                'delete_logos.*' => ['integer'],
                 'is_default' => ['sometimes', 'boolean'],
                 'is_active' => ['sometimes', 'boolean'],
             ],
@@ -332,7 +357,6 @@ class SettingsCatalogController extends Controller
                 'serie' => ['nullable', 'string', 'max:255'],
                 'reset_yearly' => ['sometimes', 'boolean'],
                 'reset_monthly' => ['sometimes', 'boolean'],
-                'allow_manual_number' => ['sometimes', 'boolean'],
                 'current_year' => ['nullable', 'integer', 'min:2000', 'max:2100'],
                 'current_month' => ['nullable', 'integer', 'min:1', 'max:12'],
             ],
@@ -352,9 +376,90 @@ class SettingsCatalogController extends Controller
             $data['code'] = strtoupper((string) $data['code']);
         }
 
+        if ($catalog === 'invoice-number') {
+            $data['allow_manual_number'] = false;
+        }
+
+        if ($catalog === 'fiscal-profiles') {
+            unset($data['logo_uploads'], $data['delete_logos']);
+        }
+
         return collect($data)
             ->map(fn ($value) => $value === '' ? null : $value)
             ->all();
+    }
+
+    private function storeFiscalProfileLogos(Request $request, FiscalProfile $profile): void
+    {
+        if (! $request->hasFile('logo_uploads')) {
+            return;
+        }
+
+        $files = $request->file('logo_uploads');
+        $files = is_array($files) ? $files : [$files];
+        $baseName = Str::slug($profile->name) ?: 'perfil';
+
+        foreach ($files as $index => $file) {
+            $extension = strtolower($file->getClientOriginalExtension() ?: $file->extension() ?: 'png');
+            $filename = $baseName.'-'.now()->format('YmdHis').'-'.($index + 1).'.'.$extension;
+            $path = $file->storeAs('logos', $filename, 'public');
+            $isDefault = ! $profile->logos()->exists() && blank($profile->logo_path);
+
+            $profile->logos()->create([
+                'path' => $path,
+                'label' => $file->getClientOriginalName(),
+                'is_default' => $isDefault,
+            ]);
+
+            if ($isDefault || blank($profile->logo_path)) {
+                $profile->forceFill(['logo_path' => $path])->save();
+            }
+        }
+    }
+
+    private function deleteFiscalProfileLogos(Request $request, FiscalProfile $profile): void
+    {
+        $ids = collect($request->input('delete_logos', []))
+            ->map(fn ($id): int => (int) $id)
+            ->filter()
+            ->values()
+            ->all();
+
+        if ($ids === []) {
+            return;
+        }
+
+        $paths = $profile->logos()->whereKey($ids)->pluck('path')->all();
+        $profile->logos()->whereKey($ids)->delete();
+        $this->syncFiscalProfileDefaultLogo($profile->refresh());
+
+        foreach ($paths as $path) {
+            $stillReferenced = FiscalProfile::query()->where('logo_path', $path)->exists()
+                || \App\Models\FiscalProfileLogo::query()->where('path', $path)->exists();
+
+            if (! $stillReferenced) {
+                Storage::disk('public')->delete($path);
+            }
+        }
+    }
+
+    private function syncFiscalProfileDefaultLogo(FiscalProfile $profile): void
+    {
+        $logos = $profile->logos()->get();
+
+        if ($logos->isEmpty()) {
+            $profile->forceFill(['logo_path' => null])->save();
+
+            return;
+        }
+
+        $default = $logos->firstWhere('is_default', true)
+            ?? $logos->firstWhere('path', $profile->logo_path)
+            ?? $logos->first();
+
+        $profile->logos()->whereKeyNot($default->id)->update(['is_default' => false]);
+        $default->forceFill(['is_default' => true])->save();
+        $profile->forceFill(['logo_path' => $default->path])->save();
     }
 
     private function findRecord(string $model, int $id): Model

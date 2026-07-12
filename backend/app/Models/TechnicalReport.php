@@ -36,6 +36,11 @@ class TechnicalReport extends Model
         'notes',
         'status',
         'pdf_path',
+        'verification_code',
+        'verification_hash',
+        'previous_hash',
+        'signed_at',
+        'pdf_sha256',
         'created_by',
         'updated_by',
     ];
@@ -44,6 +49,7 @@ class TechnicalReport extends Model
     {
         return [
             'report_date' => 'date',
+            'signed_at' => 'datetime',
         ];
     }
 

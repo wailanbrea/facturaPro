@@ -2,6 +2,7 @@
 
 namespace App\Http\Requests\Api;
 
+use App\Models\FiscalProfileLogo;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
 use Illuminate\Validation\Validator;
@@ -31,9 +32,16 @@ class UpdateInvoiceRequest extends FormRequest
             'invoice_date' => ['sometimes', 'required', 'date'],
             'due_date' => ['nullable', 'date'],
             'payment_term_id' => ['sometimes', 'required', 'exists:payment_terms,id'],
-            'client_id' => ['sometimes', 'required', 'exists:clients,id'],
+            'client_id' => ['sometimes', 'nullable', 'exists:clients,id'],
+            'client_name' => ['nullable', 'string', 'max:255'],
+            'client_tax_id' => ['nullable', 'string', 'max:255'],
+            'client_address' => ['nullable', 'string', 'max:255'],
+            'client_city' => ['nullable', 'string', 'max:255'],
+            'client_phone' => ['nullable', 'string', 'max:255'],
+            'client_email' => ['nullable', 'email', 'max:255'],
             'currency_id' => ['sometimes', 'required', 'exists:currencies,id'],
             'fiscal_profile_id' => ['sometimes', 'required', 'exists:fiscal_profiles,id', Rule::in($this->user()->availableFiscalProfileIds())],
+            'logo_path' => ['nullable', 'string', 'max:255'],
             'bank_account_id' => ['nullable', 'exists:bank_accounts,id'],
             'warranty_id' => ['sometimes', 'required', 'exists:warranties,id'],
             'warranty_text' => ['nullable', 'string'],
@@ -55,13 +63,29 @@ class UpdateInvoiceRequest extends FormRequest
     {
         $validator->after(function (Validator $validator): void {
             $documentType = $this->input('document_type', $this->route('invoice')?->document_type ?? 'invoice');
+            $clientFields = ['client_id', 'client_name', 'client_tax_id', 'client_address', 'client_city', 'client_phone', 'client_email'];
+            $changesClient = collect($clientFields)->contains(fn (string $field): bool => $this->has($field));
 
-            if ($documentType !== 'quotation') {
+            if ($changesClient && blank($this->input('client_id')) && blank($this->input('client_name'))) {
+                $validator->errors()->add('client_name', 'El nombre del cliente es obligatorio cuando no se envia client_id.');
+            }
+
+            if ($documentType === 'quotation' && $this->has('amount_received') && (float) $this->input('amount_received', 0) > 0.0) {
+                $validator->errors()->add('amount_received', 'Los presupuestos no aceptan importes recibidos.');
+            }
+
+            if (! $this->has('logo_path') || blank($this->input('logo_path'))) {
                 return;
             }
 
-            if ($this->has('amount_received') && (float) $this->input('amount_received', 0) > 0.0) {
-                $validator->errors()->add('amount_received', 'Los presupuestos no aceptan importes recibidos.');
+            $profileId = $this->input('fiscal_profile_id', $this->route('invoice')?->fiscal_profile_id);
+            $exists = FiscalProfileLogo::query()
+                ->where('fiscal_profile_id', $profileId)
+                ->where('path', $this->input('logo_path'))
+                ->exists();
+
+            if (! $exists) {
+                $validator->errors()->add('logo_path', 'El logo seleccionado no pertenece a este perfil.');
             }
         });
     }

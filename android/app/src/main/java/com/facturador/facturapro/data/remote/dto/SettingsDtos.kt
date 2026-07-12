@@ -3,8 +3,9 @@ package com.facturador.facturapro.data.remote.dto
 import com.facturador.facturapro.domain.model.BootstrapCatalogs
 import com.facturador.facturapro.domain.model.BankAccountCatalogItem
 import com.facturador.facturapro.domain.model.CurrencyCatalogItem
+import com.facturador.facturapro.domain.model.FiscalProfileCatalogItem
+import com.facturador.facturapro.domain.model.FiscalProfileLogoCatalogItem
 import com.facturador.facturapro.domain.model.LegalTextCatalogItem
-import com.facturador.facturapro.domain.model.NamedCatalogItem
 import com.facturador.facturapro.domain.model.PaymentTermCatalogItem
 import com.facturador.facturapro.domain.model.TaxCatalogItem
 import com.facturador.facturapro.domain.model.WarrantyCatalogItem
@@ -23,9 +24,11 @@ data class BootstrapDto(
     @SerializedName("bank_accounts")
     val bankAccounts: List<NamedDto> = emptyList(),
     @SerializedName("fiscal_profiles")
-    val fiscalProfiles: List<NamedDto> = emptyList(),
+    val fiscalProfiles: List<FiscalProfileDto> = emptyList(),
     @SerializedName("legal_texts")
     val legalTexts: List<LegalTextDto> = emptyList(),
+    @SerializedName("invoice_number_settings")
+    val invoiceNumberSettings: List<InvoiceNumberSettingDto> = emptyList(),
 )
 
 data class CurrencyDto(
@@ -70,6 +73,37 @@ data class NamedDto(
     val accountType: String? = null,
     @SerializedName("is_default")
     val isDefault: Boolean = false,
+)
+
+data class FiscalProfileDto(
+    val id: Long,
+    val name: String? = null,
+    val label: String? = null,
+    @SerializedName("logo_path")
+    val logoPath: String? = null,
+    @SerializedName("is_default")
+    val isDefault: Boolean = false,
+    val logos: List<FiscalProfileLogoDto> = emptyList(),
+)
+
+data class FiscalProfileLogoDto(
+    val path: String,
+    val label: String? = null,
+    @SerializedName("is_default")
+    val isDefault: Boolean = false,
+)
+
+data class InvoiceNumberSettingDto(
+    @SerializedName("fiscal_profile_id")
+    val fiscalProfileId: Long? = null,
+    @SerializedName("document_type")
+    val documentType: String = "invoice",
+    val prefix: String = "",
+    val serie: String? = null,
+    @SerializedName("next_number")
+    val nextNumber: Int = 1,
+    @SerializedName("number_length")
+    val numberLength: Int = 6,
 )
 
 data class LegalTextDto(
@@ -127,11 +161,25 @@ fun BootstrapDto.toDomain(): BootstrapCatalogs = BootstrapCatalogs(
             isDefault = it.isDefault,
         )
     },
-    fiscalProfiles = fiscalProfiles.map {
-        NamedCatalogItem(
-            id = it.id,
-            name = it.name ?: it.label.orEmpty(),
-            isDefault = it.isDefault,
+    fiscalProfiles = fiscalProfiles.map { profile ->
+        FiscalProfileCatalogItem(
+            id = profile.id,
+            name = profile.name ?: profile.label.orEmpty(),
+            isDefault = profile.isDefault,
+            logoPath = profile.logoPath,
+            logos = profile.logos.map { logo ->
+                FiscalProfileLogoCatalogItem(
+                    path = logo.path,
+                    label = logo.label ?: logo.path.substringAfterLast('/'),
+                    isDefault = logo.isDefault,
+                )
+            },
+            nextInvoiceNumber = invoiceNumberSettings.firstOrNull {
+                it.fiscalProfileId == profile.id && it.documentType == "invoice"
+            }?.previewNumber(),
+            nextQuotationNumber = invoiceNumberSettings.firstOrNull {
+                it.fiscalProfileId == profile.id && it.documentType == "quotation"
+            }?.previewNumber(),
         )
     },
     legalTexts = legalTexts.map {
@@ -145,3 +193,10 @@ fun BootstrapDto.toDomain(): BootstrapCatalogs = BootstrapCatalogs(
         )
     },
 )
+
+private fun InvoiceNumberSettingDto.previewNumber(): String {
+    val seriePart = serie.orEmpty()
+    val padded = nextNumber.toString().padStart(numberLength, '0')
+
+    return "$prefix$seriePart-$padded"
+}

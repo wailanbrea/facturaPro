@@ -228,7 +228,9 @@ class AppointmentController extends Controller
     private function calendarUserIds(): array
     {
         return \App\Models\User::query()
-            ->whereHas('roles', fn ($q) => $q->whereIn('slug', ['admin', 'facturador', 'operador']))
+            ->whereHas('roles', fn ($q) => $q
+                ->whereIn('slug', ['admin', 'facturador', 'operador', 'calendario'])
+                ->orWhereIn('name', ['ADMIN', 'FACTURADOR', 'CALENDARIO']))
             ->pluck('id')
             ->all();
     }

@@ -6,8 +6,8 @@ import com.facturador.facturapro.domain.model.AuthSession
 import com.facturador.facturapro.domain.model.BankAccountCatalogItem
 import com.facturador.facturapro.domain.model.BootstrapCatalogs
 import com.facturador.facturapro.domain.model.CurrencyCatalogItem
+import com.facturador.facturapro.domain.model.FiscalProfileCatalogItem
 import com.facturador.facturapro.domain.model.LegalTextCatalogItem
-import com.facturador.facturapro.domain.model.NamedCatalogItem
 import com.facturador.facturapro.domain.model.PaymentTermCatalogItem
 import com.facturador.facturapro.domain.model.TaxCatalogItem
 import com.facturador.facturapro.domain.model.WarrantyCatalogItem
@@ -113,6 +113,16 @@ private fun sampleBootstrap(): BootstrapCatalogs = BootstrapCatalogs(
     paymentTerms = listOf(PaymentTermCatalogItem(id = 1, name = "AL CONTADO", days = 0, isDefault = true)),
     warranties = listOf(WarrantyCatalogItem(id = 1, title = "Garantia base", durationMonths = 1, isDefault = true)),
     bankAccounts = listOf(BankAccountCatalogItem(id = 1, name = "Cuenta principal", accountType = "official", isDefault = true)),
-    fiscalProfiles = listOf(NamedCatalogItem(id = 1, name = "Perfil fiscal", isDefault = true)),
+    fiscalProfiles = listOf(
+        FiscalProfileCatalogItem(
+            id = 1,
+            name = "Perfil fiscal",
+            isDefault = true,
+            logoPath = null,
+            logos = emptyList(),
+            nextInvoiceNumber = "FAC-PF-000001",
+            nextQuotationNumber = "PRES-PF-000001",
+        ),
+    ),
     legalTexts = listOf(LegalTextCatalogItem(id = 1, name = "Texto base", legalFooter = "Pie", warrantyText = "Garantia", conformityText = "CONFORMIDAD DEL CLIENTE", isDefault = true)),
 )

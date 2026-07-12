@@ -12,10 +12,23 @@
 
     $isQuotation = $invoice->document_type === 'quotation';
     $documentTitle = $isQuotation ? 'PRESUPUESTO' : 'FACTURA';
-    $dateLabel = $isQuotation ? 'FECHA DE PRESUPUESTO:' : 'FECHA:';
+    $dateLabel = 'FECHA:';
     $numberLabel = $isQuotation ? 'PRESUPUESTO NO.' : 'FACTURA NO.';
+    $quotationValidUntil = $isQuotation
+        ? $invoice->invoice_date?->copy()->addDays(30)
+        : $invoice->due_date;
+    $logoSrc = null;
     $logoPath = $invoice->logo_path ?? $invoice->fiscalProfile?->logo_path;
-    $logoUrl = $logoPath ? asset('storage/'.$logoPath) : null;
+
+    if ($logoPath) {
+        $absoluteLogoPath = storage_path('app/public/'.$logoPath);
+
+        if (is_file($absoluteLogoPath)) {
+            $mime = function_exists('mime_content_type') ? mime_content_type($absoluteLogoPath) : null;
+            $mime = $mime ?: 'image/png';
+            $logoSrc = 'data:'.$mime.';base64,'.base64_encode(file_get_contents($absoluteLogoPath));
+        }
+    }
     $sellerInitial = strtoupper(substr((string) ($invoice->seller_name ?: 'F'), 0, 1));
     $legalText = $invoice->legal_text
         ?: $invoice->conformity_text
@@ -94,13 +107,18 @@
         }
         .page-grid {
             display: grid;
-            grid-template-rows: auto auto 4mm auto auto auto auto;
             row-gap: 3mm;
             height: 100%;
         }
+        .page-grid.invoice-layout {
+            grid-template-rows: auto auto 4mm auto auto auto auto;
+        }
+        .page-grid.quotation-layout {
+            grid-template-rows: auto auto 4mm auto auto;
+        }
         .header-grid {
             display: grid;
-            grid-template-columns: 42mm 1fr 62mm;
+            grid-template-columns: 42mm minmax(0, 1fr) 62mm;
             gap: 3mm;
             align-items: stretch;
         }
@@ -131,12 +149,38 @@
             font-weight: 800;
             border: 1px solid #000;
         }
-        .seller-table td {
-            height: 9mm;
-            font-size: 10.5px;
+        .seller-card {
+            border: 1px solid #000;
+            height: 36mm;
+            min-width: 0;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 3mm;
+            text-align: center;
+            overflow: hidden;
         }
-        .seller-table .label {
-            width: 25mm;
+        .seller-name {
+            display: block;
+            max-width: 100%;
+            font-size: 10.5px;
+            line-height: 1.25;
+            font-weight: 700;
+            text-transform: uppercase;
+            overflow-wrap: break-word;
+            word-break: normal;
+            hyphens: none;
+        }
+        .seller-detail {
+            display: block;
+            max-width: 100%;
+            margin-top: 1.1mm;
+            font-size: 8.6px;
+            line-height: 1.15;
+            font-weight: 700;
+            text-transform: uppercase;
+            overflow-wrap: anywhere;
+            word-break: normal;
         }
         .document-table th {
             height: 11mm;
@@ -262,6 +306,11 @@
             gap: 3mm;
             align-items: stretch;
         }
+        .quotation-side {
+            display: grid;
+            grid-template-rows: auto 3mm auto;
+            align-content: start;
+        }
         .bank-table,
         .signature-table {
             height: 47mm;
@@ -307,6 +356,13 @@
             text-align: center;
             font-weight: 700;
         }
+        .quotation-side .signature-table {
+            height: 31mm;
+        }
+        .quotation-side .signature-name,
+        .quotation-side .prepared-name {
+            height: 8.5mm;
+        }
         .legal-table td {
             text-align: center;
         }
@@ -321,6 +377,63 @@
             line-height: 1.25;
             padding: 2mm 6mm;
             overflow: hidden;
+        }
+        .quotation-bottom {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 3mm;
+        }
+        .quotation-bottom td {
+            border: 1px solid #000;
+            padding: 1.4mm 2mm;
+            font-size: 10.4px;
+        }
+        .quotation-bottom .blue-row {
+            background: #1f4e79;
+            color: #fff;
+            text-align: center;
+            font-weight: 800;
+        }
+        .quotation-bottom .warranty {
+            height: 7mm;
+        }
+        .quotation-bottom .observations {
+            height: 23mm;
+            text-align: center;
+            font-weight: 800;
+            line-height: 1.25;
+            overflow: hidden;
+        }
+        .quotation-bottom .advance {
+            background: #f00000;
+            color: #fff;
+            text-align: center;
+            font-weight: 800;
+            height: 7mm;
+        }
+        .quotation-bottom .bank-label {
+            background: #1f4e79;
+            color: #fff;
+            width: 36mm;
+            text-align: center;
+            font-weight: 800;
+            font-size: 13px;
+            line-height: 1.1;
+        }
+        .quotation-bottom .bank-value {
+            text-align: center;
+            font-weight: 800;
+            font-size: 12px;
+            line-height: 1.25;
+        }
+        .quotation-bottom .service-guarantee {
+            background: #f00000;
+            color: #fff;
+            text-align: center;
+            font-weight: 800;
+            font-size: 12px;
+            line-height: 1.25;
+            height: 15mm;
         }
         .small {
             font-size: 9.4px;
@@ -377,33 +490,30 @@
         <div class="watermark">{{ $watermark }}</div>
     @endif
 
-    <div class="page-grid">
+    <div class="page-grid {{ $isQuotation ? 'quotation-layout' : 'invoice-layout' }}">
         <header class="header-grid">
             <div class="logo-cell">
-                @if($logoUrl)
-                    <img src="{{ $logoUrl }}" alt="Logo">
+                @if($logoSrc)
+                    <img src="{{ $logoSrc }}" alt="Logo">
                 @else
                     <div class="logo-initial">{{ $sellerInitial }}</div>
                 @endif
             </div>
 
-            <table class="seller-table">
-                <tr>
-                    <td class="bold wrap center" colspan="2">{{ $invoice->seller_name ?: 'FacturaPro' }}</td>
-                </tr>
-                <tr>
-                    <td class="blue label">CIF / RNC</td>
-                    <td class="wrap">{{ $invoice->seller_tax_id ?: 'N/A' }}</td>
-                </tr>
-                <tr>
-                    <td class="blue label">DIRECCION</td>
-                    <td class="wrap">{{ $invoice->seller_address ?: 'N/A' }}</td>
-                </tr>
-                <tr>
-                    <td class="blue label">CIUDAD</td>
-                    <td class="wrap">{{ $invoice->seller_city ?: 'N/A' }}</td>
-                </tr>
-            </table>
+            <div class="seller-card">
+                <div>
+                    <span class="seller-name">{{ $invoice->seller_name ?: 'FacturaPro' }}</span>
+                    @if($invoice->seller_tax_id)
+                        <span class="seller-detail">{{ $invoice->seller_tax_id }}</span>
+                    @endif
+                    @if($invoice->seller_address)
+                        <span class="seller-detail">{{ $invoice->seller_address }}</span>
+                    @endif
+                    @if($invoice->seller_city)
+                        <span class="seller-detail">{{ $invoice->seller_city }}</span>
+                    @endif
+                </div>
+            </div>
 
             <table class="document-table">
                 <tr>
@@ -419,7 +529,7 @@
                 </tr>
                 <tr>
                     <td class="label">VENCIMIENTO:</td>
-                    <td class="value">{{ $invoice->due_date?->format('d/m/Y') ?: 'N/A' }}</td>
+                    <td class="value">{{ ($isQuotation ? $quotationValidUntil : $invoice->due_date)?->format('d/m/Y') ?: 'N/A' }}</td>
                 </tr>
                 <tr>
                     <td class="label">TERMINO DE PAGO:</td>
@@ -483,104 +593,149 @@
             </tbody>
         </table>
 
-        <section class="middle-grid">
-            <table class="notes-table">
-                <tr>
-                    <td class="blue warranty-row">
-                        {{ $invoice->warranty_text ?: 'GARANTIA SEGUN CONDICIONES DEL FABRICANTE' }}
-                    </td>
-                </tr>
-                <tr>
-                    <td class="blue observations-label">OBSERVACIONES</td>
-                </tr>
-                <tr>
-                    <td class="observations-box wrap">{{ $invoice->observations ?: ' ' }}</td>
-                </tr>
-            </table>
-
-            <table class="totals-table">
-                @if($isQuotation)
+        @if($isQuotation)
+            <section class="middle-grid">
+                <table class="quotation-bottom">
                     <tr>
-                        <td class="label">VALIDEZ:</td>
-                        <td class="right received nowrap">{{ $invoice->due_date?->format('d/m/Y') ?: 'N/A' }}</td>
+                        <td class="blue-row warranty" colspan="2">{{ $invoice->warranty_text ?: 'GARANTIA SEGUN CONDICIONES DEL FABRICANTE' }}</td>
                     </tr>
-                @else
+                    <tr>
+                        <td class="blue-row" colspan="2">OBSERVACIONES</td>
+                    </tr>
+                    <tr>
+                        <td class="observations wrap" colspan="2">{{ $invoice->observations ?: ' ' }}</td>
+                    </tr>
+                    <tr>
+                        <td class="advance" colspan="2">PAGA Y SE&Ntilde;AL EQUIPO Y MATERIALES AVANCE DE PAGO</td>
+                    </tr>
+                    <tr>
+                        <td class="bank-label">CUENTA DE<br>BANCO</td>
+                        <td class="bank-value">
+                            @if($invoice->bankAccount)
+                                {{ $invoice->bankAccount->bank_name }} - {{ $invoice->bankAccount->account_holder }}<br>
+                                {{ $invoice->bankAccount->iban ?: $invoice->bankAccount->account_number ?: 'SIN NUMERO DE CUENTA' }}
+                            @endif
+                        </td>
+                    </tr>
+                    <tr>
+                        <td class="service-guarantee" colspan="2">SOMOS TECNICOS HOMOLOGOS Y GARANTIZAMOS 100%<br>NUESTROS SERVICIOS.</td>
+                    </tr>
+                </table>
+
+                <div class="quotation-side">
+                    <table class="totals-table">
+                        <tr>
+                            <td class="label">VALIDEZ:</td>
+                            <td class="right received nowrap">{{ $quotationValidUntil?->format('d/m/Y') ?: 'N/A' }}</td>
+                        </tr>
+                        <tr>
+                            <td class="label">SUB-TOTAL:</td>
+                            <td class="right nowrap">{{ $money->format($invoice->subtotal, $currency) }}</td>
+                        </tr>
+                        <tr>
+                            <td class="label">IVA:</td>
+                            <td class="right nowrap">{{ $money->format($invoice->tax_total, $currency) }}</td>
+                        </tr>
+                        <tr>
+                            <td class="label grand-label">TOTAL ESTIMADO:</td>
+                            <td class="right grand-value nowrap">{{ $money->format($invoice->total, $currency) }}</td>
+                        </tr>
+                    </table>
+
+                    <div></div>
+
+                    <table class="signature-table">
+                        <tr>
+                            <td class="blue signature-title">RECIBIDO POR</td>
+                        </tr>
+                        <tr>
+                            <td class="signature-name">{{ $invoice->received_by ?: ' ' }}</td>
+                        </tr>
+                        <tr>
+                            <td class="blue signature-title">PREPARADO POR</td>
+                        </tr>
+                        <tr>
+                            <td class="prepared-name">{{ $invoice->prepared_by ?: ' ' }}</td>
+                        </tr>
+                    </table>
+                </div>
+            </section>
+        @else
+            <section class="middle-grid">
+                <table class="notes-table">
+                    <tr>
+                        <td class="blue warranty-row">
+                            {{ $invoice->warranty_text ?: 'GARANTIA SEGUN CONDICIONES DEL FABRICANTE' }}
+                        </td>
+                    </tr>
+                    <tr>
+                        <td class="blue observations-label">OBSERVACIONES</td>
+                    </tr>
+                    <tr>
+                        <td class="observations-box wrap">{{ $invoice->observations ?: ' ' }}</td>
+                    </tr>
+                </table>
+
+                <table class="totals-table">
                     <tr>
                         <td class="label">IMP. RECIBIDO</td>
                         <td class="right received nowrap">{{ $money->format($invoice->amount_received, $currency) }}</td>
                     </tr>
-                @endif
-                <tr>
-                    <td class="label">SUB-TOTAL:</td>
-                    <td class="right nowrap">{{ $money->format($invoice->subtotal, $currency) }}</td>
-                </tr>
-                <tr>
-                    <td class="label">IVA:</td>
-                    <td class="right nowrap">{{ $money->format($invoice->tax_total, $currency) }}</td>
-                </tr>
-                <tr>
-                    <td class="label grand-label">{{ $isQuotation ? 'TOTAL ESTIMADO:' : 'TOTAL A PAGAR:' }}</td>
-                    <td class="right grand-value nowrap">{{ $money->format($invoice->total, $currency) }}</td>
-                </tr>
-                @if(! $isQuotation)
+                    <tr>
+                        <td class="label">SUB-TOTAL:</td>
+                        <td class="right nowrap">{{ $money->format($invoice->subtotal, $currency) }}</td>
+                    </tr>
+                    <tr>
+                        <td class="label">IVA:</td>
+                        <td class="right nowrap">{{ $money->format($invoice->tax_total, $currency) }}</td>
+                    </tr>
+                    <tr>
+                        <td class="label grand-label">TOTAL A PAGAR:</td>
+                        <td class="right grand-value nowrap">{{ $money->format($invoice->total, $currency) }}</td>
+                    </tr>
                     <tr>
                         <td class="label">BALANCE PENDIENTE:</td>
                         <td class="right nowrap">{{ $money->format($invoice->balance_due, $currency) }}</td>
                     </tr>
-                @endif
-            </table>
-        </section>
+                </table>
+            </section>
+        @endif
 
-        <section class="bottom-grid">
-            <table class="bank-table">
-                <tr>
-                    <td class="blue bank-title">CUENTAS BANCARIAS</td>
-                </tr>
-                <tr>
-                    <td class="bank-name">{{ $invoice->bankAccount?->bank_name ?: 'SIN CUENTA ASIGNADA' }}</td>
-                </tr>
-                <tr>
-                    <td class="bank-details">
-                        @if($invoice->bankAccount)
-                            <div><strong>Tipo:</strong> {{ $invoice->bankAccount->account_type === 'unofficial' ? 'No oficial' : 'Oficial' }}</div>
-                            <div><strong>Titular:</strong> {{ $invoice->bankAccount->account_holder }}</div>
-                            @if($invoice->bankAccount->iban)
-                                <div><strong>IBAN:</strong> {{ $invoice->bankAccount->iban }}</div>
+        @if(! $isQuotation)
+            <section class="bottom-grid">
+                <table class="bank-table">
+                    <tr>
+                        <td class="blue bank-title">CUENTAS BANCARIAS</td>
+                    </tr>
+                    <tr>
+                        <td class="bank-name">{{ $invoice->bankAccount?->bank_name ?: ' ' }}</td>
+                    </tr>
+                    <tr>
+                        <td class="bank-details">
+                            @if($invoice->bankAccount)
+                                <div><strong>Tipo:</strong> {{ $invoice->bankAccount->account_type === 'unofficial' ? 'No oficial' : 'Oficial' }}</div>
+                                <div><strong>Titular:</strong> {{ $invoice->bankAccount->account_holder }}</div>
+                                @if($invoice->bankAccount->iban)
+                                    <div><strong>IBAN:</strong> {{ $invoice->bankAccount->iban }}</div>
+                                @endif
+                                @if($invoice->bankAccount->account_number)
+                                    <div><strong>No. cuenta:</strong> {{ $invoice->bankAccount->account_number }}</div>
+                                @endif
+                                @if($invoice->bankAccount->currency)
+                                    <div><strong>Moneda:</strong> {{ $invoice->bankAccount->currency->code }}</div>
+                                @endif
                             @endif
-                            @if($invoice->bankAccount->account_number)
-                                <div><strong>No. cuenta:</strong> {{ $invoice->bankAccount->account_number }}</div>
-                            @endif
-                            @if($invoice->bankAccount->currency)
-                                <div><strong>Moneda:</strong> {{ $invoice->bankAccount->currency->code }}</div>
-                            @endif
-                        @else
-                            <div>Sin datos bancarios.</div>
-                        @endif
-                    </td>
-                </tr>
-                <tr>
-                    <td class="copy-badge">
-                        ORIGINAL: CLIENTE<br>
-                        COPIA: VENDEDOR
-                    </td>
-                </tr>
-            </table>
+                        </td>
+                    </tr>
+                    <tr>
+                        <td class="copy-badge">
+                            ORIGINAL: CLIENTE<br>
+                            COPIA: VENDEDOR
+                        </td>
+                    </tr>
+                </table>
 
-            <table class="signature-table">
-                @if($isQuotation)
-                    <tr>
-                        <td class="blue signature-title">ACEPTADO POR</td>
-                    </tr>
-                    <tr>
-                        <td class="signature-name">{{ $invoice->received_by ?: ' ' }}</td>
-                    </tr>
-                    <tr>
-                        <td class="blue signature-title">FECHA DE ACEPTACION</td>
-                    </tr>
-                    <tr>
-                        <td class="prepared-name">{{ $invoice->customer_accepted_at?->format('d/m/Y') ?: ' ' }}</td>
-                    </tr>
-                @else
+                <table class="signature-table">
                     <tr>
                         <td class="blue signature-title">RECIBIDO POR</td>
                     </tr>
@@ -593,18 +748,18 @@
                     <tr>
                         <td class="prepared-name">{{ $invoice->prepared_by ?: ' ' }}</td>
                     </tr>
-                @endif
-            </table>
-        </section>
+                </table>
+            </section>
 
-        <table class="legal-table">
-            <tr>
-                <td class="blue legal-title">CONFORMIDAD DEL CLIENTE</td>
-            </tr>
-            <tr>
-                <td class="legal-text wrap">{{ $legalText }}</td>
-            </tr>
-        </table>
+            <table class="legal-table">
+                <tr>
+                    <td class="blue legal-title">CONFORMIDAD DEL CLIENTE</td>
+                </tr>
+                <tr>
+                    <td class="legal-text wrap">{{ $legalText }}</td>
+                </tr>
+            </table>
+        @endif
 
         @if ($isSigned)
             <table class="verify-table">

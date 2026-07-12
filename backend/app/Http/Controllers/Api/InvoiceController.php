@@ -13,7 +13,6 @@ use App\Models\Currency;
 use App\Models\FiscalProfile;
 use App\Models\Invoice;
 use App\Models\InvoiceItem;
-use App\Models\InvoiceNumberSetting;
 use App\Models\LegalText;
 use App\Models\PaymentTerm;
 use App\Models\Setting;
@@ -21,10 +20,12 @@ use App\Models\Tax;
 use App\Models\Warranty;
 use App\Services\ActivityLogService;
 use App\Services\InvoiceCalculationService;
+use App\Services\InvoiceClientResolver;
 use App\Services\InvoiceNumberService;
 use App\Services\InvoicePdfService;
 use App\Services\InvoiceSignatureService;
 use App\Services\InvoiceStatusService;
+use App\Services\TechnicalReportSignatureService;
 use Brick\Math\BigDecimal;
 use Carbon\CarbonImmutable;
 use Illuminate\Database\Eloquent\Collection as EloquentCollection;
@@ -35,7 +36,7 @@ use Illuminate\Http\Response;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
 use RuntimeException;
-use Symfony\Component\HttpFoundation\StreamedResponse;
+use Symfony\Component\HttpFoundation\BinaryFileResponse;
 
 class InvoiceController extends Controller
 {
@@ -46,10 +47,12 @@ class InvoiceController extends Controller
 
     public function __construct(
         private readonly InvoiceCalculationService $calculator,
+        private readonly InvoiceClientResolver $clientResolver,
         private readonly InvoiceStatusService $statusService,
         private readonly InvoiceNumberService $numberService,
         private readonly InvoicePdfService $pdfService,
         private readonly InvoiceSignatureService $signatureService,
+        private readonly TechnicalReportSignatureService $reportSignatureService,
         private readonly ActivityLogService $activityLog,
     ) {}
 
@@ -59,11 +62,13 @@ class InvoiceController extends Controller
             ->with('items')
             ->when(request('status'), fn ($query, string $status) => $query->where('status', $status))
             ->when(request('client_id'), fn ($query, string $clientId) => $query->where('client_id', $clientId))
+            ->when(request('fiscal_profile_id'), fn ($query, string $profileId) => $query->where('fiscal_profile_id', $profileId))
             ->when(request('search'), function ($query, string $search): void {
                 $query->where(function ($query) use ($search): void {
                     $query->where('invoice_number', 'like', "%{$search}%")
                         ->orWhere('client_name', 'like', "%{$search}%")
-                        ->orWhere('client_tax_id', 'like', "%{$search}%");
+                        ->orWhere('client_tax_id', 'like', "%{$search}%")
+                        ->orWhere('seller_name', 'like', "%{$search}%");
                 });
             })
             ->latest('invoice_date')
@@ -287,11 +292,23 @@ class InvoiceController extends Controller
             $request->query('number'),
             $request->query('code'),
         );
+        $result['type'] = 'invoice';
 
-        $invoice = $result['invoice'];
+        if ($result['status'] === 'not_found') {
+            $reportResult = $this->reportSignatureService->verifyByCode(
+                $request->query('number'),
+                $request->query('code'),
+            );
+            $reportResult['type'] = 'report';
+            $result = $reportResult['status'] === 'not_found' ? $result : $reportResult;
+        }
+
+        $invoice = $result['invoice'] ?? null;
+        $report = $result['report'] ?? null;
 
         return response()->json([
             'status' => $result['status'],
+            'type' => $result['type'],
             'authentic' => $result['status'] === 'authentic',
             'invoice' => $invoice === null ? null : [
                 'invoice_number' => $invoice->invoice_number,
@@ -303,6 +320,14 @@ class InvoiceController extends Controller
                 'invoice_date' => $invoice->invoice_date?->toDateString(),
                 'currency_code' => $invoice->currency_code,
                 'total' => (string) $invoice->total,
+            ],
+            'report' => $report === null ? null : [
+                'report_number' => $report->report_number,
+                'seller_name' => $report->seller_name,
+                'seller_tax_id' => $report->seller_tax_id,
+                'recipient_name' => $report->recipient_name,
+                'recipient_tax_id' => $report->recipient_tax_id,
+                'report_date' => $report->report_date?->toDateString(),
             ],
         ]);
     }
@@ -328,13 +353,19 @@ class InvoiceController extends Controller
         return response()->json(['pdf_path' => $path]);
     }
 
-    public function downloadPdf(Invoice $invoice): StreamedResponse|JsonResponse
+    public function downloadPdf(Invoice $invoice): BinaryFileResponse|JsonResponse
     {
         if (! $invoice->pdf_path || ! Storage::disk('public')->exists($invoice->pdf_path)) {
             return response()->json(['message' => 'PDF is not available for this invoice.'], 404);
         }
 
-        return Storage::disk('public')->download($invoice->pdf_path);
+        $path = Storage::disk('public')->path($invoice->pdf_path);
+
+        if (! is_file($path) || filesize($path) === 0) {
+            return response()->json(['message' => 'PDF is not available for this invoice.'], 404);
+        }
+
+        return response()->download($path);
     }
 
     private function pdfChecksum(string $relativePath): ?string
@@ -350,9 +381,9 @@ class InvoiceController extends Controller
      * @param  array<string, mixed>  $data
      * @return array<string, mixed>
      */
-    private function invoicePayload(array $data, string $status, ?Invoice $invoice = null): array
+    private function invoicePayload(array $data, string $status, ?Invoice $invoice = null, bool $persistClient = true): array
     {
-        $client = Client::query()->findOrFail($data['client_id']);
+        $client = $this->clientResolver->resolve($data, $persistClient);
         $currency = Currency::query()->findOrFail($data['currency_id']);
         $paymentTerm = PaymentTerm::query()->findOrFail($data['payment_term_id']);
         $fiscalProfile = isset($data['fiscal_profile_id']) ? FiscalProfile::query()->find($data['fiscal_profile_id']) : null;
@@ -381,6 +412,9 @@ class InvoiceController extends Controller
             'currency_decimal_places' => $currency->decimal_places,
             'currency_symbol_position' => $currency->symbol_position,
             'fiscal_profile_id' => $fiscalProfile?->id,
+            'logo_path' => array_key_exists('logo_path', $data)
+                ? (($data['logo_path'] ?? '') !== '' ? $data['logo_path'] : null)
+                : ($invoice?->logo_path ?? $fiscalProfile?->logo_path),
             'seller_name' => $fiscalProfile?->name,
             'seller_tax_id' => $fiscalProfile?->tax_id,
             'seller_address' => $fiscalProfile?->address,
@@ -405,7 +439,7 @@ class InvoiceController extends Controller
      */
     private function draftPreviewInvoice(array $data): Invoice
     {
-        $payload = $this->invoicePayload($data, InvoiceStatusService::DRAFT);
+        $payload = $this->invoicePayload($data, InvoiceStatusService::DRAFT, persistClient: false);
         $itemsForCalculation = $this->hydrateTaxes($data['items']);
         $calculated = $this->calculator->calculate(
             $itemsForCalculation,
@@ -528,9 +562,7 @@ class InvoiceController extends Controller
             return;
         }
 
-        $setting = InvoiceNumberSetting::query()->first();
-
-        abort_if(! $setting?->allow_manual_number, 422, 'Manual invoice numbers are not allowed.');
+        abort(422, 'Manual invoice numbers are not allowed.');
     }
 
     /**
@@ -562,9 +594,22 @@ class InvoiceController extends Controller
             'invoice_date' => $data['invoice_date'] ?? $invoice->invoice_date->toDateString(),
             'due_date' => array_key_exists('due_date', $data) ? $data['due_date'] : $invoice->due_date?->toDateString(),
             'payment_term_id' => $data['payment_term_id'] ?? $invoice->payment_term_id,
-            'client_id' => $data['client_id'] ?? $invoice->client_id,
+            'client_id' => array_key_exists('client_id', $data)
+                ? $data['client_id']
+                : (array_key_exists('client_name', $data) ? null : $invoice->client_id),
+            'client_name' => $data['client_name'] ?? $invoice->client_name,
+            'client_tax_id' => array_key_exists('client_tax_id', $data) ? $data['client_tax_id'] : $invoice->client_tax_id,
+            'client_address' => array_key_exists('client_address', $data) ? $data['client_address'] : $invoice->client_address,
+            'client_city' => $data['client_city'] ?? null,
+            'client_phone' => $data['client_phone'] ?? null,
+            'client_email' => $data['client_email'] ?? null,
             'currency_id' => $data['currency_id'] ?? $invoice->currency_id,
             'fiscal_profile_id' => $data['fiscal_profile_id'] ?? $invoice->fiscal_profile_id,
+            'logo_path' => array_key_exists('logo_path', $data)
+                ? $data['logo_path']
+                : (array_key_exists('fiscal_profile_id', $data)
+                    ? FiscalProfile::query()->find($data['fiscal_profile_id'])?->logo_path
+                    : $invoice->logo_path),
             'bank_account_id' => $data['bank_account_id'] ?? $invoice->bank_account_id,
             'warranty_id' => $data['warranty_id'] ?? $invoice->warranty_id,
             'warranty_text' => array_key_exists('warranty_text', $data) ? $data['warranty_text'] : $invoice->warranty_text,
@@ -582,7 +627,7 @@ class InvoiceController extends Controller
      */
     private function requestChangesAmounts(array $data): bool
     {
-        return collect(['items', 'amount_received', 'currency_id', 'payment_term_id', 'client_id', 'invoice_date', 'due_date'])
+        return collect(['items', 'amount_received', 'currency_id', 'payment_term_id', 'client_id', 'client_name', 'client_tax_id', 'client_address', 'client_city', 'client_phone', 'client_email', 'invoice_date', 'due_date'])
             ->contains(fn (string $field): bool => array_key_exists($field, $data));
     }
 

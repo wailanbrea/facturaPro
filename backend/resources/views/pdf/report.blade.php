@@ -1,3 +1,5 @@
+@inject('signature', 'App\Services\TechnicalReportSignatureService')
+@inject('qr', 'App\Services\QrCodeService')
 @php
     $logoSrc = null;
     $logoPathValue = $report->seller_logo_path
@@ -19,6 +21,11 @@
         [$report->section_3_title, $report->section_3_content],
         [$report->section_4_title, $report->section_4_content],
     ])->filter(fn (array $section): bool => filled($section[0]) || filled($section[1]));
+
+    $isSigned = filled($report->verification_code) && filled($report->verification_hash);
+    $verificationCode = $report->verification_code;
+    $verificationUrl = $isSigned ? $signature->verificationUrl($report) : null;
+    $verificationQr = $verificationUrl ? $qr->svgDataUri($verificationUrl) : null;
 @endphp
 <!DOCTYPE html>
 <html lang="es">
@@ -139,6 +146,47 @@
         .footer {
             display: none;
         }
+        .verify-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 18pt;
+            font-family: Arial, Helvetica, sans-serif;
+        }
+        .verify-cell {
+            border: 1px solid #1f3b73;
+            padding: 7pt 9pt;
+            vertical-align: middle;
+        }
+        .verify-qr {
+            width: 70pt;
+            text-align: center;
+        }
+        .verify-qr img {
+            width: 62pt;
+            height: 62pt;
+            display: block;
+            margin: 0 auto;
+        }
+        .verify-info {
+            font-size: 8.5pt;
+            line-height: 1.35;
+        }
+        .verify-badge {
+            display: inline-block;
+            font-weight: 700;
+            letter-spacing: .8pt;
+            color: #1f3b73;
+            border: 1px solid #1f3b73;
+            border-radius: 2pt;
+            padding: 2pt 6pt;
+            margin-bottom: 3pt;
+        }
+        .verify-code {
+            font-family: 'Courier New', Courier, monospace;
+            font-weight: 700;
+            font-size: 9.5pt;
+            letter-spacing: .8pt;
+        }
     </style>
 </head>
 <body>
@@ -181,6 +229,26 @@
 
         @if($report->final_text)
             <p class="final">{{ $report->final_text }}</p>
+        @endif
+
+        @if ($isSigned)
+            <table class="verify-table">
+                <tr>
+                    @if ($verificationQr)
+                        <td class="verify-cell verify-qr">
+                            <img src="{{ $verificationQr }}" alt="Codigo de verificacion">
+                        </td>
+                    @endif
+                    <td class="verify-cell verify-info">
+                        <span class="verify-badge">DOCUMENTO ORIGINAL</span><br>
+                        Informe emitido y autenticado por el sistema. Verifique su autenticidad
+                        escaneando el codigo QR o consultando el codigo de seguridad en el sistema:
+                        <br>
+                        Codigo de seguridad: <span class="verify-code">{{ $verificationCode }}</span><br>
+                        Cualquier ejemplar cuyo contenido no coincida con los datos verificados es una copia no autentica.
+                    </td>
+                </tr>
+            </table>
         @endif
 
         <footer class="footer">

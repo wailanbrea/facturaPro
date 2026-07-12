@@ -52,13 +52,6 @@
                 <label>Longitud con ceros</label>
                 <input name="number_length" type="number" min="1" max="10" value="{{ old('number_length', $setting->number_length) }}" required>
             </div>
-            <div class="field">
-                <label>Permitir numero manual</label>
-                <select name="allow_manual_number">
-                    <option value="0" @selected(! old('allow_manual_number', $setting->allow_manual_number))>No</option>
-                    <option value="1" @selected((bool) old('allow_manual_number', $setting->allow_manual_number))>Si</option>
-                </select>
-            </div>
             <div class="field span-2">
                 <label>Vista previa del proximo numero</label>
                 <input value="{{ $setting->previewNextNumber() }}" readonly>

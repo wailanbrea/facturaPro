@@ -21,6 +21,7 @@ data class TechnicalReportDetail(
     val sellerTaxId: String?,
     val sellerAddress: String?,
     val sellerCity: String?,
+    val logoPath: String?,
     val clientId: Long?,
     val recipientName: String,
     val recipientTaxId: String?,
@@ -39,12 +40,14 @@ data class TechnicalReportDetail(
     val status: String,
     val statusLabel: String,
     val pdfPath: String?,
+    val verificationCode: String?,
 )
 
 data class TechnicalReportDraft(
     val reportNumber: String? = null,
     val reportDate: String,
     val fiscalProfileId: Long,
+    val logoPath: String? = null,
     val clientId: Long? = null,
     val recipientName: String,
     val recipientTaxId: String? = null,

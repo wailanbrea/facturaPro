@@ -33,6 +33,6 @@ class ReportNumberService
             return;
         }
 
-        abort_if(! ReportSetting::current()->allow_manual_number, 422, 'La numeracion manual de informes no esta permitida.');
+        abort(422, 'La numeracion manual de informes no esta permitida.');
     }
 }

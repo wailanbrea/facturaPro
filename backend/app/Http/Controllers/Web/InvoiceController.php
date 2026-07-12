@@ -7,6 +7,7 @@ use App\Models\BankAccount;
 use App\Models\Client;
 use App\Models\Currency;
 use App\Models\FiscalProfile;
+use App\Models\FiscalProfileLogo;
 use App\Models\Invoice;
 use App\Models\LegalText;
 use App\Models\PaymentTerm;
@@ -15,6 +16,7 @@ use App\Models\Tax;
 use App\Models\Warranty;
 use App\Services\ActivityLogService;
 use App\Services\InvoiceCalculationService;
+use App\Services\InvoiceClientResolver;
 use App\Services\InvoiceNumberService;
 use App\Services\InvoicePdfService;
 use App\Services\InvoiceSignatureService;
@@ -25,14 +27,16 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Validation\Rule;
+use Illuminate\Validation\ValidationException;
 use Illuminate\View\View;
 use RuntimeException;
-use Symfony\Component\HttpFoundation\StreamedResponse;
+use Symfony\Component\HttpFoundation\BinaryFileResponse;
 
 class InvoiceController extends Controller
 {
     public function __construct(
         private readonly InvoiceCalculationService $calculator,
+        private readonly InvoiceClientResolver $clientResolver,
         private readonly InvoiceNumberService $numberService,
         private readonly InvoiceStatusService $statusService,
         private readonly InvoicePdfService $pdfService,
@@ -42,24 +46,30 @@ class InvoiceController extends Controller
 
     public function index(): View
     {
+        $fiscalProfiles = auth()->user()->availableFiscalProfiles();
+
         $invoices = Invoice::query()
+            ->with('fiscalProfile')
             ->when(request('status'), fn ($query, string $status) => $query->where('status', $status))
+            ->when(request('fiscal_profile_id'), fn ($query, string $profileId) => $query->where('fiscal_profile_id', $profileId))
             ->when(request('search'), function ($query, string $search): void {
-                $query->where('invoice_number', 'like', "%{$search}%")
-                    ->orWhere('client_name', 'like', "%{$search}%");
+                $query->where(function ($query) use ($search): void {
+                    $query->where('invoice_number', 'like', "%{$search}%")
+                        ->orWhere('client_name', 'like', "%{$search}%")
+                        ->orWhere('seller_name', 'like', "%{$search}%");
+                });
             })
             ->latest('invoice_date')
             ->paginate(15)
             ->withQueryString();
 
-        return view('invoices.index', compact('invoices'));
+        return view('invoices.index', compact('invoices', 'fiscalProfiles'));
     }
 
     public function create(): View
     {
         return view('invoices.create', [
             ...$this->catalogs(),
-            'availableLogos' => $this->availableLogos(),
             'lockedFields' => $this->lockedFieldsForUser(),
             'invoice' => new Invoice([
                 'document_type' => 'invoice',
@@ -94,7 +104,7 @@ class InvoiceController extends Controller
 
         $invoice = DB::transaction(function () use ($data): Invoice {
             $documentType = $data['document_type'];
-            $client = Client::query()->findOrFail($data['client_id']);
+            $client = $this->clientResolver->resolve($data);
             $currency = Currency::query()->findOrFail($data['currency_id']);
             $term = PaymentTerm::query()->findOrFail($data['payment_term_id']);
             $profile = isset($data['fiscal_profile_id']) ? FiscalProfile::query()->find($data['fiscal_profile_id']) : null;
@@ -120,7 +130,9 @@ class InvoiceController extends Controller
                 'currency_decimal_places' => $currency->decimal_places,
                 'currency_symbol_position' => $currency->symbol_position,
                 'fiscal_profile_id' => $profile?->id,
-                'logo_path' => $data['logo_path'] ?? $profile?->logo_path,
+                'logo_path' => array_key_exists('logo_path', $data)
+                    ? (($data['logo_path'] ?? '') !== '' ? $data['logo_path'] : null)
+                    : $profile?->logo_path,
                 'seller_name' => $profile?->name,
                 'seller_tax_id' => $profile?->tax_id,
                 'seller_address' => $profile?->address,
@@ -187,7 +199,6 @@ class InvoiceController extends Controller
 
         return view('invoices.create', [
             ...$this->catalogs(),
-            'availableLogos' => $this->availableLogos(),
             'lockedFields' => $this->lockedFieldsForUser(),
             'invoice' => $invoice->load('items'),
             'items' => $invoice->items,
@@ -299,13 +310,19 @@ class InvoiceController extends Controller
         return back()->with('status', 'PDF generado correctamente.');
     }
 
-    public function downloadPdf(Invoice $invoice): StreamedResponse|RedirectResponse
+    public function downloadPdf(Invoice $invoice): BinaryFileResponse|RedirectResponse
     {
         if (! $invoice->pdf_path || ! Storage::disk('public')->exists($invoice->pdf_path)) {
             return back()->withErrors(['invoice' => 'El PDF no esta disponible para esta factura.']);
         }
 
-        return Storage::disk('public')->download($invoice->pdf_path);
+        $path = Storage::disk('public')->path($invoice->pdf_path);
+
+        if (! is_file($path) || filesize($path) === 0) {
+            return back()->withErrors(['invoice' => 'El PDF no esta disponible para esta factura.']);
+        }
+
+        return response()->download($path);
     }
 
     public function markPaid(Invoice $invoice): RedirectResponse
@@ -515,12 +532,22 @@ class InvoiceController extends Controller
      */
     private function catalogs(): array
     {
+        $fiscalProfiles = auth()->user()->availableFiscalProfiles()->load('logos');
+        $numberPreviews = $fiscalProfiles->mapWithKeys(fn (FiscalProfile $profile): array => [
+            $profile->id => [
+                'invoice' => $this->numberService->preview($profile->id, 'invoice'),
+                'quotation' => $this->numberService->preview($profile->id, 'quotation'),
+            ],
+        ]);
+
         return [
             'clients' => Client::query()->where('is_active', true)->orderBy('name')->get(),
             'currencies' => Currency::query()->where('is_active', true)->orderByDesc('is_default')->orderBy('code')->get(),
             'paymentTerms' => PaymentTerm::query()->where('is_active', true)->orderByDesc('is_default')->orderBy('days')->get(),
             'taxes' => Tax::query()->where('is_active', true)->orderByDesc('is_default')->orderBy('name')->get(),
-            'fiscalProfiles' => auth()->user()->availableFiscalProfiles(),
+            'fiscalProfiles' => $fiscalProfiles,
+            'numberPreviews' => $numberPreviews,
+            'availableLogos' => $this->availableLogos($fiscalProfiles->pluck('id')->all()),
             'bankAccounts' => BankAccount::query()->where('is_active', true)->orderByDesc('is_default')->orderBy('label')->get(),
             'warranties' => Warranty::query()->where('is_active', true)->orderByDesc('is_default')->orderBy('duration_months')->get(),
         ];
@@ -531,11 +558,17 @@ class InvoiceController extends Controller
      */
     private function validated(Request $request): array
     {
-        return $request->validate([
+        $data = $request->validate([
             'document_type' => ['required', Rule::in(['invoice', 'quotation'])],
             'invoice_date' => ['required', 'date'],
             'payment_term_id' => ['required', 'exists:payment_terms,id'],
-            'client_id' => ['required', 'exists:clients,id'],
+            'client_id' => ['nullable', 'exists:clients,id', 'required_without:client_name'],
+            'client_name' => ['nullable', 'string', 'max:255', 'required_without:client_id'],
+            'client_tax_id' => ['nullable', 'string', 'max:255'],
+            'client_address' => ['nullable', 'string', 'max:255'],
+            'client_city' => ['nullable', 'string', 'max:255'],
+            'client_phone' => ['nullable', 'string', 'max:255'],
+            'client_email' => ['nullable', 'email', 'max:255'],
             'currency_id' => ['required', 'exists:currencies,id'],
             'fiscal_profile_id' => ['required', 'exists:fiscal_profiles,id', Rule::in(auth()->user()->availableFiscalProfileIds())],
             'logo_path' => ['nullable', 'string', 'max:255'],
@@ -543,6 +576,7 @@ class InvoiceController extends Controller
             'warranty_id' => ['required', 'exists:warranties,id'],
             'legal_text' => ['nullable', 'string'],
             'conformity_text' => ['nullable', 'string'],
+            'edit_legal_texts' => ['nullable', 'boolean'],
             'observations' => ['nullable', 'string'],
             'amount_received' => ['nullable', 'numeric', 'min:0'],
             'prepared_by' => ['nullable', 'string', 'max:255'],
@@ -553,6 +587,10 @@ class InvoiceController extends Controller
             'items.*.unit_cost' => ['required', 'numeric', 'min:0'],
             'items.*.tax_id' => ['required', 'exists:taxes,id'],
         ]);
+
+        $this->validateLogoForFiscalProfile($data);
+
+        return $data;
     }
 
     /**
@@ -561,7 +599,7 @@ class InvoiceController extends Controller
      */
     private function invoicePayload(array $data, ?Invoice $invoice = null): array
     {
-        $client = Client::query()->findOrFail($data['client_id']);
+        $client = $this->clientResolver->resolve($data);
         $currency = Currency::query()->findOrFail($data['currency_id']);
         $term = PaymentTerm::query()->findOrFail($data['payment_term_id']);
         $profile = isset($data['fiscal_profile_id']) ? FiscalProfile::query()->find($data['fiscal_profile_id']) : null;
@@ -587,7 +625,9 @@ class InvoiceController extends Controller
             'currency_decimal_places' => $currency->decimal_places,
             'currency_symbol_position' => $currency->symbol_position,
             'fiscal_profile_id' => $profile?->id,
-            'logo_path' => $data['logo_path'] ?? $profile?->logo_path ?? $invoice?->logo_path,
+            'logo_path' => array_key_exists('logo_path', $data)
+                ? (($data['logo_path'] ?? '') !== '' ? $data['logo_path'] : null)
+                : ($invoice?->logo_path ?? $profile?->logo_path),
             'seller_name' => $profile?->name,
             'seller_tax_id' => $profile?->tax_id,
             'seller_address' => $profile?->address,
@@ -675,7 +715,17 @@ class InvoiceController extends Controller
      */
     private function stripLockedFields(array $data): array
     {
+        if (! (bool) ($data['edit_legal_texts'] ?? false)) {
+            unset($data['legal_text'], $data['conformity_text']);
+        }
+
+        unset($data['edit_legal_texts']);
+
         foreach ($this->lockedFieldsForUser() as $field) {
+            if (in_array($field, ['legal_text', 'conformity_text'], true)) {
+                continue;
+            }
+
             unset($data[$field]);
         }
 
@@ -712,13 +762,34 @@ class InvoiceController extends Controller
             ->value('conformity_text');
     }
 
-    /**
-     * Return logos stored in storage/app/public/logos as [path => filename] pairs.
-     *
-     * @return array<string, string>
-     */
-    private function availableLogos(): array
+    private function validateLogoForFiscalProfile(array $data): void
     {
-        return \App\Support\AvailableLogos::list();
+        if (blank($data['logo_path'] ?? null)) {
+            return;
+        }
+
+        $exists = FiscalProfileLogo::query()
+            ->where('fiscal_profile_id', $data['fiscal_profile_id'])
+            ->where('path', $data['logo_path'])
+            ->exists();
+
+        if (! $exists) {
+            throw ValidationException::withMessages([
+                'logo_path' => 'El logo seleccionado no pertenece a este perfil.',
+            ]);
+        }
+    }
+
+    /**
+     * @param  array<int, int>  $profileIds
+     */
+    private function availableLogos(array $profileIds)
+    {
+        return FiscalProfileLogo::query()
+            ->whereIn('fiscal_profile_id', $profileIds)
+            ->orderBy('fiscal_profile_id')
+            ->orderByDesc('is_default')
+            ->orderBy('label')
+            ->get(['fiscal_profile_id', 'path', 'label', 'is_default']);
     }
 }

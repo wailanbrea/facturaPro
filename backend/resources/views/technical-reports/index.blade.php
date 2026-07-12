@@ -35,7 +35,7 @@
             <th>Fecha</th>
             <th>Cliente / destinatario</th>
             <th>Direccion</th>
-            <th>Emisor</th>
+            <th>Empresa</th>
             <th>Estado</th>
             <th>Creado por</th>
             <th class="right">Acciones</th>

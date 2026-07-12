@@ -4,6 +4,9 @@
     $isEdit = $invoice->exists;
     $oldItems = old('items');
     $rows = $oldItems ? collect($oldItems)->map(fn ($item) => (object) $item) : $items;
+    $selectedClientId = old('client_id', $invoice->client_id);
+    $amountReceivedValue = number_format((float) old('amount_received', $invoice->amount_received ?? 0), 2, '.', '');
+    $legalTextsEditable = old('edit_legal_texts') === '1';
 @endphp
 
 @section('title', $isEdit ? 'Editar factura' : 'Nueva factura')
@@ -27,12 +30,44 @@
                     </select>
                 </div>
                 <div class="field">
-                    <label>Cliente</label>
-                    <select name="client_id" required>
+                    <label>Cliente existente</label>
+                    <select name="client_id" id="client-select">
+                        <option value="">Nuevo cliente en esta factura</option>
                         @foreach($clients as $client)
-                            <option value="{{ $client->id }}" @selected((int) old('client_id', $invoice->client_id) === $client->id)>{{ $client->name }}</option>
+                            <option value="{{ $client->id }}"
+                                data-name="{{ e($client->name) }}"
+                                data-tax-id="{{ e($client->tax_id ?? '') }}"
+                                data-address="{{ e($client->address ?? '') }}"
+                                data-city="{{ e($client->city ?? '') }}"
+                                data-phone="{{ e($client->phone ?? '') }}"
+                                data-email="{{ e($client->email ?? '') }}"
+                                @selected((int) $selectedClientId === $client->id)>{{ $client->name }}</option>
                         @endforeach
                     </select>
+                </div>
+                <div class="field">
+                    <label>Nombre del cliente</label>
+                    <input name="client_name" id="client-name-input" value="{{ old('client_name', $invoice->client_name) }}" maxlength="255">
+                </div>
+                <div class="field">
+                    <label>RNC / cedula</label>
+                    <input name="client_tax_id" id="client-tax-id-input" value="{{ old('client_tax_id', $invoice->client_tax_id) }}" maxlength="255">
+                </div>
+                <div class="field">
+                    <label>Telefono</label>
+                    <input name="client_phone" id="client-phone-input" value="{{ old('client_phone') }}" maxlength="255">
+                </div>
+                <div class="field">
+                    <label>Correo</label>
+                    <input name="client_email" id="client-email-input" type="email" value="{{ old('client_email') }}" maxlength="255">
+                </div>
+                <div class="field">
+                    <label>Ciudad</label>
+                    <input name="client_city" id="client-city-input" value="{{ old('client_city') }}" maxlength="255">
+                </div>
+                <div class="field span-2">
+                    <label>Direccion</label>
+                    <input name="client_address" id="client-address-input" value="{{ old('client_address', $invoice->client_address) }}" maxlength="255">
                 </div>
                 <div class="field"><label>Fecha</label><input name="invoice_date" type="date" value="{{ old('invoice_date', $invoice->invoice_date?->toDateString() ?? now()->toDateString()) }}" required></div>
                 <div class="field">
@@ -58,32 +93,36 @@
                         @foreach($fiscalProfiles as $profile)
                             <option value="{{ $profile->id }}"
                                 data-logo="{{ $profile->logo_path ?? '' }}"
+                                data-next-invoice="{{ $numberPreviews[$profile->id]['invoice'] ?? '' }}"
+                                data-next-quotation="{{ $numberPreviews[$profile->id]['quotation'] ?? '' }}"
                                 @selected((int) old('fiscal_profile_id', $invoice->fiscal_profile_id) === $profile->id)>{{ $profile->name }}</option>
                         @endforeach
                     </select>
-                    <p class="text-[12px] text-on-surface-variant mt-1">La numeración es continua por empresa y por usuario que factura.</p>
+                    <p class="text-[12px] text-on-surface-variant mt-1">La numeracion es continua por perfil fiscal.</p>
+                </div>
+                <div class="field">
+                    <label>Proximo numero</label>
+                    <input id="invoice-number-preview" value="{{ $invoice->invoice_number ?? '' }}" readonly>
+                    <p class="text-[12px] text-on-surface-variant mt-1">Cambia automaticamente segun tipo y perfil.</p>
                 </div>
                 <div class="field span-2" id="logo-picker-field">
                     <label>Logo en factura <span class="text-on-surface-variant font-normal">(por defecto el de la empresa)</span></label>
                     @php $selectedLogo = old('logo_path', $invoice->logo_path ?? ''); @endphp
-                    @if(count($availableLogos) > 0)
                     <div class="flex flex-wrap gap-3 mt-1">
-                        <label class="flex items-center gap-2 cursor-pointer border rounded-lg px-3 py-2 text-[13px] {{ $selectedLogo === '' ? 'border-primary bg-primary-soft-2' : 'border-outline-variant hover:bg-surface-low' }}">
+                        <label data-logo-option="none" data-profile-id="" class="flex items-center gap-2 cursor-pointer border rounded-lg px-3 py-2 text-[13px] {{ $selectedLogo === '' ? 'border-primary bg-primary-soft-2' : 'border-outline-variant hover:bg-surface-low' }}">
                             <input type="radio" name="logo_path" value="" class="sr-only" {{ $selectedLogo === '' ? 'checked' : '' }}>
                             <span class="w-8 h-8 rounded bg-surface-mid flex items-center justify-center text-[10px] font-bold text-on-surface-variant">SIN</span>
                             <span>Sin logo</span>
                         </label>
-                        @foreach($availableLogos as $path => $filename)
-                        <label class="flex items-center gap-2 cursor-pointer border rounded-lg px-3 py-2 text-[13px] {{ $selectedLogo === $path ? 'border-primary bg-primary-soft-2' : 'border-outline-variant hover:bg-surface-low' }}" id="logo-opt-{{ $loop->index }}">
-                            <input type="radio" name="logo_path" value="{{ $path }}" class="sr-only logo-radio" {{ $selectedLogo === $path ? 'checked' : '' }}>
-                            <img src="{{ asset('storage/'.$path) }}" alt="{{ $filename }}" class="w-10 h-8 object-contain rounded">
-                            <span class="max-w-[140px] truncate">{{ $filename }}</span>
+                        @foreach($availableLogos as $logo)
+                        <label data-logo-option="logo" data-profile-id="{{ $logo->fiscal_profile_id }}" class="flex items-center gap-2 cursor-pointer border rounded-lg px-3 py-2 text-[13px] {{ $selectedLogo === $logo->path ? 'border-primary bg-primary-soft-2' : 'border-outline-variant hover:bg-surface-low' }}" id="logo-opt-{{ $loop->index }}">
+                            <input type="radio" name="logo_path" value="{{ $logo->path }}" class="sr-only logo-radio" {{ $selectedLogo === $logo->path ? 'checked' : '' }}>
+                            <img src="{{ asset('storage/'.$logo->path) }}" alt="{{ $logo->label ?? basename($logo->path) }}" class="w-10 h-8 object-contain rounded">
+                            <span class="max-w-[140px] truncate">{{ $logo->label ?? basename($logo->path) }}</span>
                         </label>
                         @endforeach
                     </div>
-                    @else
-                    <p class="text-[13px] text-on-surface-variant mt-1">No hay logos cargados aún. Sube logos a <code>storage/app/public/logos/</code></p>
-                    @endif
+                    <p id="profile-logos-empty" class="text-[13px] text-on-surface-variant mt-1" style="display:none">Este perfil no tiene logos cargados. Puedes continuar sin logo o cargar logos en Configuracion > Perfiles fiscales.</p>
                 </div>
                 <div class="field">
                     <label>Cuenta bancaria</label>
@@ -105,15 +144,25 @@
                         @endforeach
                     </select>
                 </div>
-                <div class="field" id="amount-received-field"><label>Importe recibido</label><input id="amount-received-input" name="amount_received" type="number" step="0.01" min="0" value="{{ old('amount_received', $invoice->amount_received ?? 0) }}"></div>
+                <div class="field" id="amount-received-field"><label>Importe recibido</label><input id="amount-received-input" name="amount_received" type="number" step="0.01" min="0" value="{{ $amountReceivedValue }}"></div>
                 @php $lockedFields = $lockedFields ?? []; @endphp
+                <div class="field span-2" id="legal-texts-lock-panel">
+                    <input type="hidden" id="edit-legal-texts-input" name="edit_legal_texts" value="{{ $legalTextsEditable ? '1' : '0' }}">
+                    <div class="actions" style="justify-content:space-between;align-items:center;margin:0">
+                        <div>
+                            <strong>Textos de factura</strong>
+                            <p class="muted" style="margin:4px 0 0;font-size:12px">Texto legal y texto de conformidad estan bloqueados por defecto.</p>
+                        </div>
+                        <button class="btn" id="enable-legal-texts-btn" type="button">{{ $legalTextsEditable ? 'Edicion habilitada' : 'Habilitar edicion' }}</button>
+                    </div>
+                </div>
                 <div class="field span-2">
                     <label>Texto de conformidad
                         @if(in_array('conformity_text', $lockedFields, true))
                             <span class="text-on-surface-variant font-normal">🔒 Bloqueado por administración</span>
                         @endif
                     </label>
-                    <textarea name="conformity_text" @readonly(in_array('conformity_text', $lockedFields, true)) @if(in_array('conformity_text', $lockedFields, true)) style="background:#f3f2fe;cursor:not-allowed" @endif>{{ old('conformity_text', $invoice->conformity_text) }}</textarea>
+                    <textarea name="conformity_text" data-legal-text-field @readonly(! $legalTextsEditable) @if(! $legalTextsEditable) style="background:#f3f2fe;cursor:not-allowed" @endif>{{ old('conformity_text', $invoice->conformity_text) }}</textarea>
                 </div>
                 <div class="field span-2">
                     <label>Texto legal
@@ -121,7 +170,7 @@
                             <span class="text-on-surface-variant font-normal">🔒 Bloqueado por administración</span>
                         @endif
                     </label>
-                    <textarea name="legal_text" @readonly(in_array('legal_text', $lockedFields, true)) @if(in_array('legal_text', $lockedFields, true)) style="background:#f3f2fe;cursor:not-allowed" @endif>{{ old('legal_text', $invoice->legal_text) }}</textarea>
+                    <textarea name="legal_text" data-legal-text-field @readonly(! $legalTextsEditable) @if(! $legalTextsEditable) style="background:#f3f2fe;cursor:not-allowed" @endif>{{ old('legal_text', $invoice->legal_text) }}</textarea>
                 </div>
                 <div class="field span-2">
                     <label>Observaciones
@@ -179,8 +228,10 @@ function syncDocumentTypeFields(){
     amountField.style.display = isQuotation ? 'none' : '';
     amountInput.disabled = isQuotation;
     if (isQuotation) {
-        amountInput.value = '0';
+        amountInput.value = '0.00';
     }
+
+    window.refreshInvoiceNumberPreview?.();
 }
 
 function addItem(){
@@ -197,9 +248,9 @@ function addItem(){
 }
 
 // Logo picker highlight
-document.querySelectorAll('.logo-radio').forEach(radio => {
+document.querySelectorAll('input[name="logo_path"]').forEach(radio => {
     radio.addEventListener('change', () => {
-        document.querySelectorAll('[id^="logo-opt-"]').forEach(el => {
+        document.querySelectorAll('[data-logo-option]').forEach(el => {
             el.classList.remove('border-primary', 'bg-primary-soft-2');
             el.classList.add('border-outline-variant');
         });
@@ -214,8 +265,75 @@ document.getElementById('document-type-select')?.addEventListener('change', sync
 syncDocumentTypeFields();
 
 (function () {
+    const unlockInput = document.getElementById('edit-legal-texts-input');
+    const unlockButton = document.getElementById('enable-legal-texts-btn');
+    const fields = Array.from(document.querySelectorAll('[data-legal-text-field]'));
+
+    function setLegalTextsEditable(enabled) {
+        if (unlockInput) {
+            unlockInput.value = enabled ? '1' : '0';
+        }
+
+        fields.forEach(field => {
+            field.readOnly = !enabled;
+            field.style.background = enabled ? '' : '#f3f2fe';
+            field.style.cursor = enabled ? '' : 'not-allowed';
+        });
+
+        document.querySelectorAll('.legal-lock-label').forEach(label => {
+            label.textContent = enabled ? 'Edicion habilitada' : 'Bloqueado';
+        });
+
+        if (unlockButton) {
+            unlockButton.textContent = enabled ? 'Edicion habilitada' : 'Habilitar edicion';
+            unlockButton.disabled = enabled;
+        }
+    }
+
+    unlockButton?.addEventListener('click', () => setLegalTextsEditable(true));
+    setLegalTextsEditable(unlockInput?.value === '1');
+})();
+
+(function () {
+    const select = document.getElementById('client-select');
+    const fields = {
+        name: document.getElementById('client-name-input'),
+        taxId: document.getElementById('client-tax-id-input'),
+        address: document.getElementById('client-address-input'),
+        city: document.getElementById('client-city-input'),
+        phone: document.getElementById('client-phone-input'),
+        email: document.getElementById('client-email-input'),
+    };
+    if (!select || !fields.name) return;
+
+    function syncClientFields(overwrite) {
+        const option = select.selectedOptions[0];
+        const hasClient = option && option.value !== '';
+
+        fields.name.required = !hasClient;
+
+        if (!hasClient || !overwrite) {
+            return;
+        }
+
+        fields.name.value = option.dataset.name || '';
+        fields.taxId.value = option.dataset.taxId || '';
+        fields.address.value = option.dataset.address || '';
+        fields.city.value = option.dataset.city || '';
+        fields.phone.value = option.dataset.phone || '';
+        fields.email.value = option.dataset.email || '';
+    }
+
+    select.addEventListener('change', () => syncClientFields(true));
+    syncClientFields(false);
+})();
+
+(function () {
     const profileSelect = document.getElementById('fiscal-profile-select');
     const bankSelect = document.getElementById('bank-account-select');
+    const logoEmptyMessage = document.getElementById('profile-logos-empty');
+    const documentTypeSelect = document.getElementById('document-type-select');
+    const numberPreview = document.getElementById('invoice-number-preview');
     if (!profileSelect) return;
 
     function pickBankFor(profileId) {
@@ -227,24 +345,65 @@ syncDocumentTypeFields();
         return (def || matches[0]).value;
     }
 
-    // Select the logo that belongs to the chosen company (when it is among the
-    // available logos). The user can still override it manually afterwards.
-    function pickLogoFor(profileLogo) {
-        const radio = Array.from(document.querySelectorAll('input[name="logo_path"]'))
-            .find(r => r.value === (profileLogo || ''));
-        if (radio && !radio.checked) {
-            radio.checked = true;
-            radio.dispatchEvent(new Event('change'));
+    function visibleLogoRadioFor(value) {
+        return Array.from(document.querySelectorAll('input[name="logo_path"]'))
+            .find(radio => radio.value === (value || '') && radio.closest('[data-logo-option]')?.style.display !== 'none');
+    }
+
+    function refreshLogoOptions() {
+        const profileId = String(profileSelect.value || '');
+        let visibleLogos = 0;
+
+        document.querySelectorAll('[data-logo-option]').forEach(option => {
+            const isEmptyOption = option.dataset.logoOption === 'none';
+            const matchesProfile = option.dataset.profileId === profileId;
+            option.style.display = isEmptyOption || matchesProfile ? '' : 'none';
+
+            if (matchesProfile) {
+                visibleLogos++;
+            }
+        });
+
+        const checked = document.querySelector('input[name="logo_path"]:checked');
+        const checkedOption = checked?.closest('[data-logo-option]');
+        if (checked && checked.value !== '' && checkedOption?.style.display === 'none') {
+            checked.checked = false;
+        }
+
+        if (!document.querySelector('input[name="logo_path"]:checked')) {
+            const selectedProfile = profileSelect.selectedOptions[0];
+            const defaultLogo = selectedProfile ? selectedProfile.dataset.logo : '';
+            const radio = visibleLogoRadioFor(defaultLogo) || visibleLogoRadioFor('');
+
+            if (radio) {
+                radio.checked = true;
+                radio.dispatchEvent(new Event('change'));
+            }
+        }
+
+        if (logoEmptyMessage) {
+            logoEmptyMessage.style.display = visibleLogos === 0 ? '' : 'none';
         }
     }
+
+    window.refreshInvoiceNumberPreview = function () {
+        if (!numberPreview) return;
+
+        const option = profileSelect.selectedOptions[0];
+        const type = documentTypeSelect?.value === 'quotation' ? 'quotation' : 'invoice';
+        numberPreview.value = option ? (type === 'quotation' ? option.dataset.nextQuotation : option.dataset.nextInvoice) || '' : '';
+    };
 
     profileSelect.addEventListener('change', () => {
         if (bankSelect) {
             bankSelect.value = pickBankFor(profileSelect.value);
         }
-        const opt = profileSelect.selectedOptions[0];
-        pickLogoFor(opt ? opt.dataset.logo : '');
+        refreshLogoOptions();
+        window.refreshInvoiceNumberPreview();
     });
+
+    refreshLogoOptions();
+    window.refreshInvoiceNumberPreview();
 })();
 </script>
 @endsection

@@ -20,7 +20,9 @@ class ReportSettingController extends Controller
     public function update(UpdateReportSettingRequest $request): RedirectResponse
     {
         $setting = ReportSetting::current();
-        $setting->update($request->validated());
+        $data = $request->validated();
+        $data['allow_manual_number'] = false;
+        $setting->update($data);
 
         return redirect()
             ->route('web.settings.reports.edit')

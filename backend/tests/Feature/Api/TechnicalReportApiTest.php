@@ -61,6 +61,49 @@ class TechnicalReportApiTest extends TestCase
             ->assertJsonPath('data.section_1_title', 'Nuevo titulo global');
     }
 
+    public function test_issued_technical_report_is_signed_and_can_be_verified(): void
+    {
+        $created = $this->postJson('/api/technical-reports', $this->reportPayload([
+            'status' => 'issued',
+        ]))
+            ->assertCreated()
+            ->assertJsonPath('data.status', 'issued');
+
+        $report = TechnicalReport::query()->findOrFail($created->json('data.id'));
+
+        $this->assertNotNull($report->verification_hash);
+        $this->assertNotNull($report->verification_code);
+        $this->assertNotNull($report->signed_at);
+
+        $this->getJson('/api/invoices/verify?number='.urlencode($report->report_number).'&code='.$report->verification_code)
+            ->assertOk()
+            ->assertJsonPath('type', 'report')
+            ->assertJsonPath('authentic', true)
+            ->assertJsonPath('report.report_number', $report->report_number);
+
+        $this->get('/invoices/verify?number='.urlencode($report->report_number).'&code='.$report->verification_code)
+            ->assertOk()
+            ->assertSee('Documento autentico');
+
+        $this->putJson("/api/technical-reports/{$report->id}", $this->reportPayload([
+            'section_1_content' => 'Intento de cambio posterior a la firma.',
+        ]))->assertStatus(409);
+    }
+
+    public function test_manual_report_number_is_rejected_even_if_setting_was_enabled(): void
+    {
+        ReportSetting::current()->update(['allow_manual_number' => true]);
+
+        $this->postJson('/api/technical-reports', $this->reportPayload([
+            'report_number' => 'MANUAL-INF-001',
+        ]))->assertStatus(422)
+            ->assertSee('La numeracion manual de informes no esta permitida.');
+
+        $this->assertDatabaseMissing('technical_reports', [
+            'report_number' => 'MANUAL-INF-001',
+        ]);
+    }
+
     public function test_report_preview_uses_independent_report_template(): void
     {
         $reportId = $this->postJson('/api/technical-reports', $this->reportPayload())->json('data.id');
@@ -100,6 +143,17 @@ class TechnicalReportApiTest extends TestCase
             'status' => 'issued',
             'pdf_path' => $path,
         ]);
+
+        $report = TechnicalReport::query()->findOrFail($reportId);
+        $this->assertNotNull($report->verification_hash);
+        $this->assertNotNull($report->verification_code);
+        $this->assertNotNull($report->pdf_sha256);
+
+        $this->getJson('/api/invoices/verify?number='.urlencode($report->report_number).'&code='.$report->verification_code)
+            ->assertOk()
+            ->assertJsonPath('type', 'report')
+            ->assertJsonPath('authentic', true)
+            ->assertJsonPath('report.report_number', $report->report_number);
 
         Storage::disk('public')->delete($path);
     }

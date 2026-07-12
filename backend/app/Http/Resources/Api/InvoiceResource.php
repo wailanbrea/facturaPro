@@ -32,6 +32,7 @@ class InvoiceResource extends JsonResource
             'currency_decimal_places' => $this->currency_decimal_places,
             'currency_symbol_position' => $this->currency_symbol_position,
             'fiscal_profile_id' => $this->fiscal_profile_id,
+            'logo_path' => $this->logo_path,
             'seller_name' => $this->seller_name,
             'seller_tax_id' => $this->seller_tax_id,
             'seller_address' => $this->seller_address,

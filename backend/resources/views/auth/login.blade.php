@@ -24,7 +24,7 @@
         <p class="muted" style="font-size:17px;max-width:520px">Panel administrativo para crear facturas, gestionar clientes y preparar la operacion web y movil desde una misma fuente de verdad.</p>
     </section>
     <section class="login-card">
-        <form method="POST" action="{{ route('login.store') }}" class="card">
+        <form method="POST" action="{{ route('login.store', [], false) }}" class="card">
             @csrf
             <h2 style="margin-top:0">Acceso</h2>
             @if($errors->any())<div class="alert error">{{ $errors->first() }}</div>@endif

@@ -22,6 +22,8 @@ data class TechnicalReportDto(
     val sellerAddress: String? = null,
     @SerializedName("seller_city")
     val sellerCity: String? = null,
+    @SerializedName("seller_logo_path")
+    val logoPath: String? = null,
     @SerializedName("client_id")
     val clientId: Long? = null,
     @SerializedName("recipient_name")
@@ -56,6 +58,8 @@ data class TechnicalReportDto(
     val statusLabel: String = "",
     @SerializedName("pdf_path")
     val pdfPath: String? = null,
+    @SerializedName("verification_code")
+    val verificationCode: String? = null,
 )
 
 data class TechnicalReportUpsertDto(
@@ -65,6 +69,8 @@ data class TechnicalReportUpsertDto(
     val reportDate: String,
     @SerializedName("fiscal_profile_id")
     val fiscalProfileId: Long,
+    @SerializedName("logo_path")
+    val logoPath: String? = null,
     @SerializedName("client_id")
     val clientId: Long? = null,
     @SerializedName("recipient_name")
@@ -143,6 +149,7 @@ fun TechnicalReportDto.toDetail(): TechnicalReportDetail = TechnicalReportDetail
     sellerTaxId = sellerTaxId,
     sellerAddress = sellerAddress,
     sellerCity = sellerCity,
+    logoPath = logoPath,
     clientId = clientId,
     recipientName = recipientName,
     recipientTaxId = recipientTaxId,
@@ -161,12 +168,14 @@ fun TechnicalReportDto.toDetail(): TechnicalReportDetail = TechnicalReportDetail
     status = status,
     statusLabel = statusLabel.ifBlank { status.toReportStatusLabel() },
     pdfPath = pdfPath,
+    verificationCode = verificationCode,
 )
 
 fun TechnicalReportDraft.toRemote(): TechnicalReportUpsertDto = TechnicalReportUpsertDto(
     reportNumber = reportNumber?.trim().takeUnless { it.isNullOrEmpty() },
     reportDate = reportDate,
     fiscalProfileId = fiscalProfileId,
+    logoPath = logoPath?.trim().takeUnless { it.isNullOrEmpty() },
     clientId = clientId,
     recipientName = recipientName.trim(),
     recipientTaxId = recipientTaxId?.trim().takeUnless { it.isNullOrEmpty() },

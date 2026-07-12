@@ -77,6 +77,7 @@ import androidx.compose.ui.viewinterop.AndroidView
 import androidx.core.content.FileProvider
 import com.facturador.facturapro.domain.model.BootstrapCatalogs
 import com.facturador.facturapro.domain.model.ClientRecord
+import com.facturador.facturapro.domain.model.FiscalProfileLogoCatalogItem
 import com.facturador.facturapro.domain.model.InvoiceDetail
 import com.facturador.facturapro.domain.model.InvoiceDraft
 import com.facturador.facturapro.domain.model.InvoiceDraftItem
@@ -992,9 +993,16 @@ private fun InvoiceFormPane(
     var documentType by rememberSaveable(existingInvoice?.id) { mutableStateOf(defaults.documentType) }
     var invoiceDate by rememberSaveable(existingInvoice?.id) { mutableStateOf(defaults.invoiceDate) }
     var selectedClientId by rememberSaveable(existingInvoice?.id) { mutableStateOf(defaults.clientId) }
+    var clientName by rememberSaveable(existingInvoice?.id) { mutableStateOf(defaults.clientName) }
+    var clientTaxId by rememberSaveable(existingInvoice?.id) { mutableStateOf(defaults.clientTaxId) }
+    var clientAddress by rememberSaveable(existingInvoice?.id) { mutableStateOf(defaults.clientAddress) }
+    var clientCity by rememberSaveable(existingInvoice?.id) { mutableStateOf(defaults.clientCity) }
+    var clientPhone by rememberSaveable(existingInvoice?.id) { mutableStateOf(defaults.clientPhone) }
+    var clientEmail by rememberSaveable(existingInvoice?.id) { mutableStateOf(defaults.clientEmail) }
     var selectedTermId by rememberSaveable(existingInvoice?.id) { mutableStateOf(defaults.paymentTermId) }
     var selectedCurrencyId by rememberSaveable(existingInvoice?.id) { mutableStateOf(defaults.currencyId) }
     var selectedFiscalProfileId by rememberSaveable(existingInvoice?.id) { mutableStateOf(defaults.fiscalProfileId) }
+    var selectedLogoPath by rememberSaveable(existingInvoice?.id) { mutableStateOf(defaults.logoPath) }
     var selectedBankAccountId by rememberSaveable(existingInvoice?.id) { mutableStateOf(defaults.bankAccountId) }
     var selectedWarrantyId by rememberSaveable(existingInvoice?.id) { mutableStateOf(defaults.warrantyId) }
     var warrantyText by rememberSaveable(existingInvoice?.id) { mutableStateOf(defaults.warrantyText) }
@@ -1010,14 +1018,29 @@ private fun InvoiceFormPane(
         }
     }
     var showPreview by rememberSaveable(existingInvoice?.id) { mutableStateOf(false) }
-    val canSubmit = selectedClientId != null && selectedTermId != null && selectedCurrencyId != null
+    val selectedProfile = bootstrap?.fiscalProfiles?.firstOrNull { it.id == selectedFiscalProfileId }
+    val availableLogos = selectedProfile?.logos.orEmpty()
+    val nextNumberPreview = if (documentType == "quotation") selectedProfile?.nextQuotationNumber else selectedProfile?.nextInvoiceNumber
+
+    LaunchedEffect(selectedFiscalProfileId, bootstrap) {
+        val profile = bootstrap?.fiscalProfiles?.firstOrNull { it.id == selectedFiscalProfileId }
+        val profileLogos = profile?.logos.orEmpty()
+        val currentStillValid = selectedLogoPath != null && profileLogos.any { it.path == selectedLogoPath }
+
+        if (!currentStillValid) {
+            selectedLogoPath = profileLogos.firstOrNull { it.isDefault }?.path
+                ?: profileLogos.firstOrNull()?.path
+                ?: profile?.logoPath
+        }
+    }
+
+    val canSubmit = (selectedClientId != null || clientName.isNotBlank()) && selectedTermId != null && selectedCurrencyId != null
             && selectedFiscalProfileId != null
             && selectedWarrantyId != null
             && items.all { it.description.isNotBlank() && it.quantity.isNotBlank() && it.unitCost.isNotBlank() }
 
     fun currentDraft(): InvoiceDraft? {
         val paymentTermId = selectedTermId ?: return null
-        val clientId = selectedClientId ?: return null
         val currencyId = selectedCurrencyId ?: return null
         val fiscalProfileId = selectedFiscalProfileId ?: return null
 
@@ -1025,9 +1048,16 @@ private fun InvoiceFormPane(
             documentType = documentType,
             invoiceDate = invoiceDate,
             paymentTermId = paymentTermId,
-            clientId = clientId,
+            clientId = selectedClientId,
+            clientName = clientName,
+            clientTaxId = clientTaxId,
+            clientAddress = clientAddress,
+            clientCity = clientCity,
+            clientPhone = clientPhone,
+            clientEmail = clientEmail,
             currencyId = currencyId,
             fiscalProfileId = fiscalProfileId,
+            logoPath = selectedLogoPath,
             bankAccountId = selectedBankAccountId,
             warrantyId = selectedWarrantyId,
             warrantyText = warrantyText,
@@ -1081,16 +1111,6 @@ private fun InvoiceFormPane(
             return@LazyColumn
         }
 
-        if (clients.isEmpty()) {
-            item {
-                EmptyState(
-                    title = "No hay clientes disponibles",
-                    body = "Primero crea un cliente o revisa permisos del usuario actual.",
-                )
-            }
-            return@LazyColumn
-        }
-
         item {
             DocumentTypeSelector(
                 selectedType = documentType,
@@ -1109,12 +1129,79 @@ private fun InvoiceFormPane(
         }
         item {
             SelectorField(
-                label = "Cliente",
+                label = "Buscar cliente",
                 options = clients,
                 selectedId = selectedClientId,
                 optionLabel = { it.name },
-                onSelected = { selectedClientId = it },
+                onSelected = { selected ->
+                    selectedClientId = selected
+                    clients.firstOrNull { it.id == selected }?.let { client ->
+                        clientName = client.name
+                        clientTaxId = client.taxId.orEmpty()
+                        clientAddress = client.address.orEmpty()
+                        clientCity = client.city.orEmpty()
+                        clientPhone = client.phone.orEmpty()
+                        clientEmail = client.email.orEmpty()
+                    }
+                },
+                allowEmpty = true,
             )
+        }
+        if (selectedClientId == null) {
+            item {
+                OutlinedTextField(
+                    value = clientName,
+                    onValueChange = { clientName = it },
+                    modifier = Modifier.fillMaxWidth(),
+                    label = { Text("Cliente") },
+                    singleLine = true,
+                )
+            }
+            item {
+                OutlinedTextField(
+                    value = clientTaxId,
+                    onValueChange = { clientTaxId = it },
+                    modifier = Modifier.fillMaxWidth(),
+                    label = { Text("Identificacion fiscal") },
+                    singleLine = true,
+                )
+            }
+            item {
+                OutlinedTextField(
+                    value = clientAddress,
+                    onValueChange = { clientAddress = it },
+                    modifier = Modifier.fillMaxWidth(),
+                    label = { Text("Direccion") },
+                    minLines = 2,
+                )
+            }
+            item {
+                OutlinedTextField(
+                    value = clientCity,
+                    onValueChange = { clientCity = it },
+                    modifier = Modifier.fillMaxWidth(),
+                    label = { Text("Ciudad") },
+                    singleLine = true,
+                )
+            }
+            item {
+                OutlinedTextField(
+                    value = clientPhone,
+                    onValueChange = { clientPhone = it },
+                    modifier = Modifier.fillMaxWidth(),
+                    label = { Text("Telefono") },
+                    singleLine = true,
+                )
+            }
+            item {
+                OutlinedTextField(
+                    value = clientEmail,
+                    onValueChange = { clientEmail = it },
+                    modifier = Modifier.fillMaxWidth(),
+                    label = { Text("Email") },
+                    singleLine = true,
+                )
+            }
         }
         item {
             SelectorField(
@@ -1140,8 +1227,32 @@ private fun InvoiceFormPane(
                 options = bootstrap.fiscalProfiles,
                 selectedId = selectedFiscalProfileId,
                 optionLabel = { it.name },
-                onSelected = { selectedFiscalProfileId = it },
+                onSelected = { selected ->
+                    selectedFiscalProfileId = selected
+                    selectedLogoPath = null
+                },
             )
+        }
+        nextNumberPreview?.let { number ->
+            item {
+                Text(
+                    text = "Proximo numero: $number",
+                    style = MaterialTheme.typography.bodyMedium,
+                    fontWeight = FontWeight.SemiBold,
+                    color = MaterialTheme.colorScheme.primary,
+                )
+            }
+        }
+        if (availableLogos.isNotEmpty()) {
+            item {
+                LogoSelectorField(
+                    label = "Logo",
+                    options = availableLogos,
+                    selectedPath = selectedLogoPath,
+                    onSelected = { selectedLogoPath = it },
+                    allowEmpty = true,
+                )
+            }
         }
         item {
             SelectorField(
@@ -1789,12 +1900,66 @@ private fun optionId(option: Any): Long = when (option) {
     is ClientRecord -> option.id
     is com.facturador.facturapro.domain.model.PaymentTermCatalogItem -> option.id
     is com.facturador.facturapro.domain.model.CurrencyCatalogItem -> option.id
+    is com.facturador.facturapro.domain.model.FiscalProfileCatalogItem -> option.id
     is com.facturador.facturapro.domain.model.NamedCatalogItem -> option.id
     is com.facturador.facturapro.domain.model.WarrantyCatalogItem -> option.id
     is com.facturador.facturapro.domain.model.TaxCatalogItem -> option.id
     is com.facturador.facturapro.domain.model.BankAccountCatalogItem -> option.id
     is com.facturador.facturapro.domain.model.LegalTextCatalogItem -> option.id
     else -> error("Unsupported option type ${option::class.java.name}")
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun LogoSelectorField(
+    label: String,
+    options: List<FiscalProfileLogoCatalogItem>,
+    selectedPath: String?,
+    onSelected: (String?) -> Unit,
+    allowEmpty: Boolean = false,
+) {
+    var expanded by remember { mutableStateOf(false) }
+    val selectedOption = options.firstOrNull { it.path == selectedPath }
+
+    ExposedDropdownMenuBox(
+        expanded = expanded,
+        onExpandedChange = { expanded = !expanded },
+    ) {
+        OutlinedTextField(
+            value = selectedOption?.label ?: if (allowEmpty) "Logo del perfil" else "",
+            onValueChange = {},
+            modifier = Modifier
+                .menuAnchor(ExposedDropdownMenuAnchorType.PrimaryNotEditable, true)
+                .fillMaxWidth(),
+            readOnly = true,
+            label = { Text(label) },
+            trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = expanded) },
+            colors = ExposedDropdownMenuDefaults.outlinedTextFieldColors(),
+        )
+        ExposedDropdownMenu(
+            expanded = expanded,
+            onDismissRequest = { expanded = false },
+        ) {
+            if (allowEmpty) {
+                DropdownMenuItem(
+                    text = { Text("Logo del perfil") },
+                    onClick = {
+                        expanded = false
+                        onSelected(null)
+                    },
+                )
+            }
+            options.forEach { option ->
+                DropdownMenuItem(
+                    text = { Text(option.label) },
+                    onClick = {
+                        expanded = false
+                        onSelected(option.path)
+                    },
+                )
+            }
+        }
+    }
 }
 
 
@@ -1993,9 +2158,16 @@ private data class InvoiceFormDefaults(
     val documentType: String,
     val invoiceDate: String,
     val clientId: Long?,
+    val clientName: String,
+    val clientTaxId: String,
+    val clientAddress: String,
+    val clientCity: String,
+    val clientPhone: String,
+    val clientEmail: String,
     val paymentTermId: Long?,
     val currencyId: Long?,
     val fiscalProfileId: Long?,
+    val logoPath: String?,
     val bankAccountId: Long?,
     val warrantyId: Long?,
     val warrantyText: String,
@@ -2018,9 +2190,16 @@ private data class InvoiceFormDefaults(
                     documentType = existingInvoice.documentType,
                     invoiceDate = existingInvoice.invoiceDate,
                     clientId = existingInvoice.clientId,
+                    clientName = existingInvoice.clientName,
+                    clientTaxId = existingInvoice.clientTaxId.orEmpty(),
+                    clientAddress = existingInvoice.clientAddress.orEmpty(),
+                    clientCity = "",
+                    clientPhone = "",
+                    clientEmail = "",
                     paymentTermId = existingInvoice.paymentTermId,
                     currencyId = existingInvoice.currencyId,
                     fiscalProfileId = existingInvoice.fiscalProfileId,
+                    logoPath = existingInvoice.logoPath,
                     bankAccountId = existingInvoice.bankAccountId,
                     warrantyId = existingInvoice.warrantyId,
                     warrantyText = existingInvoice.warrantyText.orEmpty(),
@@ -2048,10 +2227,22 @@ private data class InvoiceFormDefaults(
             return InvoiceFormDefaults(
                 documentType = "invoice",
                 invoiceDate = LocalDate.now().toString(),
-                clientId = clients.firstOrNull()?.id,
+                clientId = null,
+                clientName = "",
+                clientTaxId = "",
+                clientAddress = "",
+                clientCity = "",
+                clientPhone = "",
+                clientEmail = "",
                 paymentTermId = bootstrap?.paymentTerms?.firstOrNull { it.isDefault }?.id ?: bootstrap?.paymentTerms?.firstOrNull()?.id,
                 currencyId = bootstrap?.currencies?.firstOrNull { it.isDefault }?.id ?: bootstrap?.currencies?.firstOrNull()?.id,
                 fiscalProfileId = bootstrap?.fiscalProfiles?.firstOrNull { it.isDefault }?.id ?: bootstrap?.fiscalProfiles?.firstOrNull()?.id,
+                logoPath = bootstrap?.fiscalProfiles?.firstOrNull { it.isDefault }?.logos?.firstOrNull { it.isDefault }?.path
+                    ?: bootstrap?.fiscalProfiles?.firstOrNull { it.isDefault }?.logos?.firstOrNull()?.path
+                    ?: bootstrap?.fiscalProfiles?.firstOrNull { it.isDefault }?.logoPath
+                    ?: bootstrap?.fiscalProfiles?.firstOrNull()?.logos?.firstOrNull { it.isDefault }?.path
+                    ?: bootstrap?.fiscalProfiles?.firstOrNull()?.logos?.firstOrNull()?.path
+                    ?: bootstrap?.fiscalProfiles?.firstOrNull()?.logoPath,
                 bankAccountId = bootstrap?.bankAccounts?.firstOrNull { it.isDefault }?.id ?: bootstrap?.bankAccounts?.firstOrNull()?.id,
                 warrantyId = warranty?.id,
                 warrantyText = legalText?.warrantyText ?: warranty?.title.orEmpty(),
