@@ -492,12 +492,21 @@ class InvoiceController extends Controller
     private function catalogs(): array
     {
         $fiscalProfiles = auth()->user()->availableFiscalProfiles()->load('logos');
-        $numberPreviews = $fiscalProfiles->mapWithKeys(fn (FiscalProfile $profile): array => [
-            $profile->id => [
-                'invoice' => $this->numberService->preview($profile->id, 'invoice'),
-                'quotation' => $this->numberService->preview($profile->id, 'quotation'),
-            ],
-        ]);
+        $availableLogos = $this->availableLogos($fiscalProfiles->pluck('id')->all());
+        $numberPreviews = $fiscalProfiles->mapWithKeys(function (FiscalProfile $profile): array {
+            return [
+                $profile->id => [
+                    'invoice' => $this->numberService->preview($profile->id, 'invoice'),
+                    'quotation' => $this->numberService->preview($profile->id, 'quotation'),
+                    'logos' => $profile->logos->mapWithKeys(fn (FiscalProfileLogo $logo): array => [
+                        $logo->path => [
+                            'invoice' => $this->numberService->preview($profile->id, 'invoice', $logo->path),
+                            'quotation' => $this->numberService->preview($profile->id, 'quotation', $logo->path),
+                        ],
+                    ])->all(),
+                ],
+            ];
+        });
 
         return [
             'clients' => Client::query()->where('is_active', true)->orderBy('name')->get(),
@@ -506,7 +515,7 @@ class InvoiceController extends Controller
             'taxes' => Tax::query()->where('is_active', true)->orderByDesc('is_default')->orderBy('name')->get(),
             'fiscalProfiles' => $fiscalProfiles,
             'numberPreviews' => $numberPreviews,
-            'availableLogos' => $this->availableLogos($fiscalProfiles->pluck('id')->all()),
+            'availableLogos' => $availableLogos,
             'bankAccounts' => BankAccount::query()->where('is_active', true)->orderByDesc('is_default')->orderBy('label')->get(),
             'warranties' => Warranty::query()->where('is_active', true)->orderByDesc('is_default')->orderBy('duration_months')->get(),
         ];

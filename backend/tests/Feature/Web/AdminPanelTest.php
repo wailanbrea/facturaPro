@@ -272,7 +272,7 @@ class AdminPanelTest extends TestCase
         $this->post(route('web.invoices.issue', $quotation))->assertRedirect();
         $quotation->refresh();
 
-        $this->assertSame('PRES-LA-000001', $quotation->invoice_number);
+        $this->assertSame('PRES-LALP-000001', $quotation->invoice_number);
         $this->assertSame('issued', $quotation->status);
         $this->assertSame('0.0000', $quotation->amount_received);
         $this->assertSame($quotation->total, $quotation->balance_due);
@@ -293,6 +293,7 @@ class AdminPanelTest extends TestCase
         $this->assertSame('invoice', $invoice->document_type);
         $this->assertSame($quotation->id, $invoice->source_quotation_id);
         $this->assertSame('logos/presupuesto-especial.png', $invoice->logo_path);
+        $this->assertSame('FAC-LALP-000001', $invoice->invoice_number);
         $this->assertSame('issued', $invoice->status);
         $this->assertSame('0.0000', $invoice->amount_received);
         $this->assertSame($invoice->total, $invoice->balance_due);

@@ -5,6 +5,7 @@ namespace Tests\Feature\Services;
 use App\Models\Client;
 use App\Models\Currency;
 use App\Models\FiscalProfile;
+use App\Models\FiscalProfileLogo;
 use App\Models\Invoice;
 use App\Models\InvoiceNumberSetting;
 use App\Services\InvoiceNumberService;
@@ -98,6 +99,61 @@ class InvoiceNumberServiceTest extends TestCase
         $this->assertSame(2, InvoiceNumberSetting::query()
             ->whereNotNull('fiscal_profile_id')
             ->whereNull('user_id')
+            ->count());
+    }
+
+    public function test_each_logo_keeps_its_own_sequence_within_a_fiscal_profile(): void
+    {
+        $profile = FiscalProfile::query()->create(['name' => 'Pamela Mishell']);
+        $logoA = FiscalProfileLogo::query()->create([
+            'fiscal_profile_id' => $profile->id,
+            'path' => 'logos/pamela-a.png',
+            'label' => 'Taller Norte',
+            'is_default' => true,
+        ]);
+        $logoB = FiscalProfileLogo::query()->create([
+            'fiscal_profile_id' => $profile->id,
+            'path' => 'logos/pamela-b.png',
+            'label' => 'Taller Sur',
+            'is_default' => false,
+        ]);
+
+        InvoiceNumberSetting::query()->create([
+            'fiscal_profile_id' => null,
+            'document_type' => 'invoice',
+            'prefix' => 'FAC-',
+            'next_number' => 1,
+            'number_length' => 6,
+        ]);
+
+        $service = app(InvoiceNumberService::class);
+
+        $this->assertSame('FAC-PMTN-000001', $service->preview($profile->id, 'invoice', $logoA->path));
+        $this->assertSame('FAC-PMTS-000001', $service->preview($profile->id, 'invoice', $logoB->path));
+
+        $this->assertSame('FAC-PMTN-000001', $service->generate(
+            date: '2026-07-13',
+            fiscalProfileId: $profile->id,
+            documentType: 'invoice',
+            logoPath: $logoA->path,
+        ));
+        $this->assertSame('FAC-PMTN-000002', $service->generate(
+            date: '2026-07-13',
+            fiscalProfileId: $profile->id,
+            documentType: 'invoice',
+            logoPath: $logoA->path,
+        ));
+        $this->assertSame('FAC-PMTS-000001', $service->generate(
+            date: '2026-07-13',
+            fiscalProfileId: $profile->id,
+            documentType: 'invoice',
+            logoPath: $logoB->path,
+        ));
+
+        $this->assertSame(2, InvoiceNumberSetting::query()
+            ->where('fiscal_profile_id', $profile->id)
+            ->whereNotNull('logo_path')
+            ->where('document_type', 'invoice')
             ->count());
     }
 }

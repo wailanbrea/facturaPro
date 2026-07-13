@@ -21,6 +21,7 @@ class InvoiceNumberSetting extends Model
     protected $fillable = [
         'fiscal_profile_id',
         'user_id',
+        'logo_path',
         'document_type',
         'prefix',
         'next_number',

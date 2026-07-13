@@ -98,12 +98,12 @@
                                 @selected((int) old('fiscal_profile_id', $invoice->fiscal_profile_id) === $profile->id)>{{ $profile->name }}</option>
                         @endforeach
                     </select>
-                    <p class="text-[12px] text-on-surface-variant mt-1">La numeracion es continua por perfil fiscal.</p>
+                    <p class="text-[12px] text-on-surface-variant mt-1">La numeracion es continua por perfil fiscal y logo.</p>
                 </div>
                 <div class="field">
                     <label>Proximo numero</label>
                     <input id="invoice-number-preview" value="{{ $invoice->invoice_number ?? '' }}" readonly>
-                    <p class="text-[12px] text-on-surface-variant mt-1">Cambia automaticamente segun tipo y perfil.</p>
+                    <p class="text-[12px] text-on-surface-variant mt-1">Cambia automaticamente segun tipo, perfil y logo.</p>
                 </div>
                 <div class="field span-2" id="logo-picker-field">
                     <label>Logo en factura <span class="text-on-surface-variant font-normal">(por defecto el de la empresa)</span></label>
@@ -115,7 +115,14 @@
                             <span>Sin logo</span>
                         </label>
                         @foreach($availableLogos as $logo)
-                        <label data-logo-option="logo" data-profile-id="{{ $logo->fiscal_profile_id }}" class="flex items-center gap-2 cursor-pointer border rounded-lg px-3 py-2 text-[13px] {{ $selectedLogo === $logo->path ? 'border-primary bg-primary-soft-2' : 'border-outline-variant hover:bg-surface-low' }}" id="logo-opt-{{ $loop->index }}">
+                        @php
+                            $logoPreview = $numberPreviews[$logo->fiscal_profile_id]['logos'][$logo->path] ?? [];
+                        @endphp
+                        <label data-logo-option="logo"
+                            data-profile-id="{{ $logo->fiscal_profile_id }}"
+                            data-next-invoice="{{ $logoPreview['invoice'] ?? '' }}"
+                            data-next-quotation="{{ $logoPreview['quotation'] ?? '' }}"
+                            class="flex items-center gap-2 cursor-pointer border rounded-lg px-3 py-2 text-[13px] {{ $selectedLogo === $logo->path ? 'border-primary bg-primary-soft-2' : 'border-outline-variant hover:bg-surface-low' }}" id="logo-opt-{{ $loop->index }}">
                             <input type="radio" name="logo_path" value="{{ $logo->path }}" class="sr-only logo-radio" {{ $selectedLogo === $logo->path ? 'checked' : '' }}>
                             <img src="{{ asset('storage/'.$logo->path) }}" alt="{{ $logo->label ?? basename($logo->path) }}" class="w-10 h-8 object-contain rounded">
                             <span class="max-w-[140px] truncate">{{ $logo->label ?? basename($logo->path) }}</span>
@@ -258,6 +265,7 @@ document.querySelectorAll('input[name="logo_path"]').forEach(radio => {
             radio.closest('label').classList.add('border-primary', 'bg-primary-soft-2');
             radio.closest('label').classList.remove('border-outline-variant');
         }
+        window.refreshInvoiceNumberPreview?.();
     });
 });
 
@@ -391,7 +399,13 @@ syncDocumentTypeFields();
 
         const option = profileSelect.selectedOptions[0];
         const type = documentTypeSelect?.value === 'quotation' ? 'quotation' : 'invoice';
-        numberPreview.value = option ? (type === 'quotation' ? option.dataset.nextQuotation : option.dataset.nextInvoice) || '' : '';
+        const checkedLogo = document.querySelector('input[name="logo_path"]:checked');
+        const checkedLogoOption = checkedLogo?.closest('[data-logo-option]');
+        const logoPreview = checkedLogoOption?.dataset.logoOption === 'logo'
+            ? (type === 'quotation' ? checkedLogoOption.dataset.nextQuotation : checkedLogoOption.dataset.nextInvoice)
+            : '';
+
+        numberPreview.value = logoPreview || (option ? (type === 'quotation' ? option.dataset.nextQuotation : option.dataset.nextInvoice) || '' : '');
     };
 
     profileSelect.addEventListener('change', () => {
