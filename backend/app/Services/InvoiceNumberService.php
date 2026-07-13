@@ -10,6 +10,7 @@ use Carbon\CarbonImmutable;
 use Carbon\CarbonInterface;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
+use RuntimeException;
 
 class InvoiceNumberService
 {
@@ -25,10 +26,10 @@ class InvoiceNumberService
             ? CarbonImmutable::instance($date)
             : CarbonImmutable::parse($date ?? 'now');
 
-        return DB::transaction(function () use ($setting, $date, $fiscalProfileId, $documentType, $logoPath): string {
+        return DB::transaction(function () use ($setting, $date, $fiscalProfileId, $documentType, $logoPath, $userId): string {
             $lockedSetting = $setting !== null
                 ? InvoiceNumberSetting::query()->whereKey($setting->getKey())->lockForUpdate()->first()
-                : $this->resolveSetting($fiscalProfileId, $documentType, $logoPath);
+                : $this->resolveSetting($fiscalProfileId, $documentType, $logoPath, true, $userId ?? auth()->id());
 
             $this->resetSequenceIfNeeded($lockedSetting, $date);
 
@@ -50,15 +51,16 @@ class InvoiceNumberService
             fiscalProfileId: $invoice->fiscal_profile_id,
             documentType: $invoice->document_type ?? 'invoice',
             logoPath: $invoice->logo_path,
+            userId: $invoice->created_by ?? auth()->id(),
         );
     }
 
-    public function preview(?int $fiscalProfileId = null, string $documentType = 'invoice', ?string $logoPath = null): string
+    public function preview(?int $fiscalProfileId = null, string $documentType = 'invoice', ?string $logoPath = null, ?int $userId = null): string
     {
-        return DB::transaction(function () use ($fiscalProfileId, $documentType, $logoPath): string {
-            $setting = $this->resolveSetting($fiscalProfileId, $documentType, $logoPath);
+        return DB::transaction(function () use ($fiscalProfileId, $documentType, $logoPath, $userId): string {
+            $setting = $this->resolveSetting($fiscalProfileId, $documentType, $logoPath, false, $userId ?? auth()->id());
 
-            return $this->format($setting);
+            return $setting ? $this->format($setting) : '';
         });
     }
 
@@ -76,15 +78,17 @@ class InvoiceNumberService
         return $setting->prefix . $serie . $number;
     }
 
-    private function resolveSetting(?int $fiscalProfileId, string $documentType, ?string $logoPath = null): InvoiceNumberSetting
+    private function resolveSetting(
+        ?int $fiscalProfileId,
+        string $documentType,
+        ?string $logoPath = null,
+        bool $createIfMissing = true,
+        ?int $userId = null,
+    ): ?InvoiceNumberSetting
     {
         $logoPath = $this->normalizeLogoPath($logoPath);
 
-        $exact = InvoiceNumberSetting::query()
-            ->where('fiscal_profile_id', $fiscalProfileId)
-            ->whereNull('user_id')
-            ->where('logo_path', $logoPath)
-            ->where('document_type', $documentType)
+        $exact = $this->exactSettingQuery($fiscalProfileId, $documentType, $logoPath, $userId)
             ->lockForUpdate()
             ->first();
 
@@ -97,10 +101,18 @@ class InvoiceNumberService
             return $exact;
         }
 
+        if (! $createIfMissing) {
+            return null;
+        }
+
+        if ($logoPath !== null) {
+            throw new RuntimeException('No hay numeracion configurada para el logo seleccionado.');
+        }
+
         if ($fiscalProfileId === null) {
             return InvoiceNumberSetting::query()->create([
                 'fiscal_profile_id' => null,
-                'user_id' => null,
+                'user_id' => $userId,
                 'logo_path' => null,
                 'document_type' => $documentType,
                 'prefix' => $this->defaultPrefix($documentType),
@@ -113,7 +125,7 @@ class InvoiceNumberService
 
         return InvoiceNumberSetting::query()->create([
             'fiscal_profile_id' => $fiscalProfileId,
-            'user_id' => null,
+            'user_id' => $userId,
             'logo_path' => $logoPath,
             'document_type' => $documentType,
             'prefix' => $template?->prefix ?? $this->defaultPrefix($documentType),
@@ -124,6 +136,24 @@ class InvoiceNumberService
             'reset_monthly' => $template?->reset_monthly ?? false,
             'allow_manual_number' => false,
         ]);
+    }
+
+    private function exactSettingQuery(?int $fiscalProfileId, string $documentType, ?string $logoPath, ?int $userId = null)
+    {
+        return InvoiceNumberSetting::query()
+            ->where('fiscal_profile_id', $fiscalProfileId)
+            ->where(function ($query) use ($userId): void {
+                $query->whereNull('user_id');
+
+                if ($userId !== null) {
+                    $query->orWhere('user_id', $userId);
+                }
+            })
+            ->where('logo_path', $logoPath)
+            ->where('document_type', $documentType)
+            ->orderByRaw('CASE WHEN user_id IS NULL THEN 1 ELSE 0 END')
+            ->orderByRaw("CASE WHEN serie LIKE '%-%' THEN 0 ELSE 1 END")
+            ->orderBy('id');
     }
 
     private function template(?int $fiscalProfileId, string $documentType): ?InvoiceNumberSetting

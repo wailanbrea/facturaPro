@@ -254,7 +254,7 @@ class SettingsCatalogController extends Controller
                             ->mapWithKeys(fn (\App\Models\FiscalProfileLogo $logo): array => [
                                 $logo->path => ($logo->fiscalProfile?->name ? $logo->fiscalProfile->name.' - ' : '').($logo->label ?: basename($logo->path)),
                             ])
-                            ->prepend('Sin logo / predeterminado del perfil', '')
+                            ->prepend('Selecciona un logo', '')
                             ->all(),
                     ],
                     'document_type' => [

@@ -28,7 +28,7 @@ class SettingsBootstrapService
             ?? FiscalProfile::query()->where('is_active', true)->orderByDesc('is_default')->orderBy('name')->get();
 
         $fiscalProfiles = $fiscalProfiles->load('logos');
-        $invoiceNumberPreviews = $this->invoiceNumberPreviews($fiscalProfiles);
+        $invoiceNumberPreviews = $this->invoiceNumberPreviews($fiscalProfiles, auth()->id());
 
         return [
             'currencies' => Currency::query()->where('is_active', true)->orderByDesc('is_default')->orderBy('code')->get(),
@@ -48,19 +48,19 @@ class SettingsBootstrapService
      * @param  \Illuminate\Support\Collection<int, FiscalProfile>  $fiscalProfiles
      * @return array<int, array<string, mixed>>
      */
-    private function invoiceNumberPreviews(\Illuminate\Support\Collection $fiscalProfiles): array
+    private function invoiceNumberPreviews(\Illuminate\Support\Collection $fiscalProfiles, ?int $userId = null): array
     {
-        return $fiscalProfiles->mapWithKeys(function (FiscalProfile $profile): array {
+        return $fiscalProfiles->mapWithKeys(function (FiscalProfile $profile) use ($userId): array {
             return [
                 $profile->id => [
                     'default' => [
-                        'invoice' => $this->invoiceNumberService->preview($profile->id, 'invoice'),
-                        'quotation' => $this->invoiceNumberService->preview($profile->id, 'quotation'),
+                        'invoice' => $this->invoiceNumberService->preview($profile->id, 'invoice', userId: $userId),
+                        'quotation' => $this->invoiceNumberService->preview($profile->id, 'quotation', userId: $userId),
                     ],
                     'logos' => $profile->logos->mapWithKeys(fn ($logo): array => [
                         $logo->path => [
-                            'invoice' => $this->invoiceNumberService->preview($profile->id, 'invoice', $logo->path),
-                            'quotation' => $this->invoiceNumberService->preview($profile->id, 'quotation', $logo->path),
+                            'invoice' => $this->invoiceNumberService->preview($profile->id, 'invoice', $logo->path, $userId),
+                            'quotation' => $this->invoiceNumberService->preview($profile->id, 'quotation', $logo->path, $userId),
                         ],
                     ])->all(),
                 ],

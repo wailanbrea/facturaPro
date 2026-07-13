@@ -205,25 +205,29 @@ class InvoiceController extends Controller
             return response()->json(['message' => 'Cancelled invoices cannot be issued.'], 409);
         }
 
-        $invoice = DB::transaction(function () use ($request, $invoice): Invoice {
-            if ($invoice->invoice_number === null) {
-                $invoice->invoice_number = $this->numberService->generateForInvoice($invoice);
-            }
+        try {
+            $invoice = DB::transaction(function () use ($request, $invoice): Invoice {
+                if ($invoice->invoice_number === null) {
+                    $invoice->invoice_number = $this->numberService->generateForInvoice($invoice);
+                }
 
-            if ($invoice->isQuotation()) {
-                $invoice->amount_received = 0;
-                $invoice->balance_due = $invoice->total;
-            }
+                if ($invoice->isQuotation()) {
+                    $invoice->amount_received = 0;
+                    $invoice->balance_due = $invoice->total;
+                }
 
-            $invoice->status = $this->statusService->statusWhenIssued($invoice);
-            $invoice->save();
+                $invoice->status = $this->statusService->statusWhenIssued($invoice);
+                $invoice->save();
 
-            $this->signatureService->signOnIssue($invoice->load('items'));
+                $this->signatureService->signOnIssue($invoice->load('items'));
 
-            $this->activityLog->record('invoice.issued', $invoice, ['invoice_number' => $invoice->invoice_number], $request->user(), $request);
+                $this->activityLog->record('invoice.issued', $invoice, ['invoice_number' => $invoice->invoice_number], $request->user(), $request);
 
-            return $invoice->fresh('items');
-        });
+                return $invoice->fresh('items');
+            });
+        } catch (RuntimeException $exception) {
+            return response()->json(['message' => $exception->getMessage()], 422);
+        }
 
         return new InvoiceResource($invoice);
     }

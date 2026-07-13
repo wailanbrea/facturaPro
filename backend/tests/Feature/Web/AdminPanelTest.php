@@ -7,6 +7,7 @@ use App\Models\Client;
 use App\Models\Currency;
 use App\Models\FiscalProfile;
 use App\Models\Invoice;
+use App\Models\InvoiceNumberSetting;
 use App\Models\PaymentTerm;
 use App\Models\Role;
 use App\Models\Tax;
@@ -242,6 +243,26 @@ class AdminPanelTest extends TestCase
             'label' => 'Logo presupuesto especial',
             'is_default' => false,
         ]);
+        InvoiceNumberSetting::query()->create([
+            'fiscal_profile_id' => $profile->id,
+            'logo_path' => 'logos/presupuesto-especial.png',
+            'document_type' => 'quotation',
+            'prefix' => 'PRES-',
+            'serie' => 'LA-TEC',
+            'next_number' => 1,
+            'number_length' => 6,
+            'allow_manual_number' => false,
+        ]);
+        InvoiceNumberSetting::query()->create([
+            'fiscal_profile_id' => $profile->id,
+            'logo_path' => 'logos/presupuesto-especial.png',
+            'document_type' => 'invoice',
+            'prefix' => 'FAC-',
+            'serie' => 'LA-TEC',
+            'next_number' => 1,
+            'number_length' => 6,
+            'allow_manual_number' => false,
+        ]);
         $account = BankAccount::query()->firstOrFail();
         $warranty = Warranty::query()->firstOrFail();
 
@@ -272,7 +293,7 @@ class AdminPanelTest extends TestCase
         $this->post(route('web.invoices.issue', $quotation))->assertRedirect();
         $quotation->refresh();
 
-        $this->assertSame('PRES-LALP-000001', $quotation->invoice_number);
+        $this->assertSame('PRES-LA-TEC-000001', $quotation->invoice_number);
         $this->assertSame('issued', $quotation->status);
         $this->assertSame('0.0000', $quotation->amount_received);
         $this->assertSame($quotation->total, $quotation->balance_due);
@@ -293,7 +314,7 @@ class AdminPanelTest extends TestCase
         $this->assertSame('invoice', $invoice->document_type);
         $this->assertSame($quotation->id, $invoice->source_quotation_id);
         $this->assertSame('logos/presupuesto-especial.png', $invoice->logo_path);
-        $this->assertSame('FAC-LALP-000001', $invoice->invoice_number);
+        $this->assertSame('FAC-LA-TEC-000001', $invoice->invoice_number);
         $this->assertSame('issued', $invoice->status);
         $this->assertSame('0.0000', $invoice->amount_received);
         $this->assertSame($invoice->total, $invoice->balance_due);

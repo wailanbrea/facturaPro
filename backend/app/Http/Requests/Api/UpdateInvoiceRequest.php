@@ -74,11 +74,20 @@ class UpdateInvoiceRequest extends FormRequest
                 $validator->errors()->add('amount_received', 'Los presupuestos no aceptan importes recibidos.');
             }
 
-            if (! $this->has('logo_path') || blank($this->input('logo_path'))) {
+            if (! $this->has('logo_path')) {
                 return;
             }
 
             $profileId = $this->input('fiscal_profile_id', $this->route('invoice')?->fiscal_profile_id);
+
+            if (blank($this->input('logo_path'))) {
+                if (FiscalProfileLogo::query()->where('fiscal_profile_id', $profileId)->exists()) {
+                    $validator->errors()->add('logo_path', 'Debe seleccionar un logo para este perfil fiscal.');
+                }
+
+                return;
+            }
+
             $exists = FiscalProfileLogo::query()
                 ->where('fiscal_profile_id', $profileId)
                 ->where('path', $this->input('logo_path'))

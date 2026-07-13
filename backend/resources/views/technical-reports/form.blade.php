@@ -47,11 +47,6 @@
                     <label>Logo del informe <span class="text-on-surface-variant font-normal">(centrado en la parte superior del documento)</span></label>
                     @php $selectedLogo = old('logo_path', $report->seller_logo_path ?? ''); @endphp
                     <div class="flex flex-wrap gap-3 mt-1">
-                        <label data-report-logo-option="default" class="flex items-center gap-2 cursor-pointer border rounded-lg px-3 py-2 text-[13px] {{ $selectedLogo === '' ? 'border-primary bg-primary-soft-2' : 'border-outline-variant hover:bg-surface-low' }}" id="report-logo-default">
-                            <input type="radio" name="logo_path" value="" class="sr-only report-logo-radio" {{ $selectedLogo === '' ? 'checked' : '' }}>
-                            <span class="w-8 h-8 rounded bg-surface-mid flex items-center justify-center text-[9px] font-bold text-on-surface-variant">AUTO</span>
-                            <span>Logo de la empresa</span>
-                        </label>
                         @foreach($availableLogos as $logo)
                         <label data-report-logo-option="logo" data-profile-id="{{ $logo->fiscal_profile_id }}" class="flex items-center gap-2 cursor-pointer border rounded-lg px-3 py-2 text-[13px] {{ $selectedLogo === $logo->path ? 'border-primary bg-primary-soft-2' : 'border-outline-variant hover:bg-surface-low' }} report-logo-opt">
                             <input type="radio" name="logo_path" value="{{ $logo->path }}" class="sr-only report-logo-radio" {{ $selectedLogo === $logo->path ? 'checked' : '' }}>
@@ -60,7 +55,7 @@
                         </label>
                         @endforeach
                     </div>
-                    <p id="report-profile-logos-empty" class="text-[13px] text-on-surface-variant mt-1" style="display:none">Este perfil no tiene logos cargados. Puedes continuar con el logo de la empresa.</p>
+                    <p id="report-profile-logos-empty" class="text-[13px] text-on-surface-variant mt-1" style="display:none">Este perfil no tiene logos cargados. Carga un logo en Configuracion > Perfiles fiscales.</p>
                 </div>
             </div>
         </section>
@@ -223,10 +218,15 @@
             const checkedOption = checked?.closest('[data-report-logo-option="logo"]');
 
             if (checkedOption && checkedOption.style.display === 'none') {
-                const defaultRadio = document.querySelector('#report-logo-default input[name="logo_path"]');
-                if (defaultRadio) {
-                    defaultRadio.checked = true;
-                    defaultRadio.dispatchEvent(new Event('change'));
+                checked.checked = false;
+            }
+
+            if (!document.querySelector('input[name="logo_path"]:checked')) {
+                const firstVisibleLogo = Array.from(document.querySelectorAll('[data-report-logo-option="logo"] input[name="logo_path"]'))
+                    .find(radio => radio.closest('[data-report-logo-option="logo"]')?.style.display !== 'none');
+                if (firstVisibleLogo) {
+                    firstVisibleLogo.checked = true;
+                    firstVisibleLogo.dispatchEvent(new Event('change'));
                 }
             }
 

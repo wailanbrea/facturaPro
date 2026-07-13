@@ -125,25 +125,43 @@ class InvoiceNumberServiceTest extends TestCase
             'next_number' => 1,
             'number_length' => 6,
         ]);
+        InvoiceNumberSetting::query()->create([
+            'fiscal_profile_id' => $profile->id,
+            'logo_path' => $logoA->path,
+            'document_type' => 'invoice',
+            'prefix' => 'FAC-',
+            'serie' => 'PA-AIR',
+            'next_number' => 1,
+            'number_length' => 6,
+        ]);
+        InvoiceNumberSetting::query()->create([
+            'fiscal_profile_id' => $profile->id,
+            'logo_path' => $logoB->path,
+            'document_type' => 'invoice',
+            'prefix' => 'FAC-',
+            'serie' => 'PA-CAL',
+            'next_number' => 1,
+            'number_length' => 6,
+        ]);
 
         $service = app(InvoiceNumberService::class);
 
-        $this->assertSame('FAC-PMTN-000001', $service->preview($profile->id, 'invoice', $logoA->path));
-        $this->assertSame('FAC-PMTS-000001', $service->preview($profile->id, 'invoice', $logoB->path));
+        $this->assertSame('FAC-PA-AIR-000001', $service->preview($profile->id, 'invoice', $logoA->path));
+        $this->assertSame('FAC-PA-CAL-000001', $service->preview($profile->id, 'invoice', $logoB->path));
 
-        $this->assertSame('FAC-PMTN-000001', $service->generate(
+        $this->assertSame('FAC-PA-AIR-000001', $service->generate(
             date: '2026-07-13',
             fiscalProfileId: $profile->id,
             documentType: 'invoice',
             logoPath: $logoA->path,
         ));
-        $this->assertSame('FAC-PMTN-000002', $service->generate(
+        $this->assertSame('FAC-PA-AIR-000002', $service->generate(
             date: '2026-07-13',
             fiscalProfileId: $profile->id,
             documentType: 'invoice',
             logoPath: $logoA->path,
         ));
-        $this->assertSame('FAC-PMTS-000001', $service->generate(
+        $this->assertSame('FAC-PA-CAL-000001', $service->generate(
             date: '2026-07-13',
             fiscalProfileId: $profile->id,
             documentType: 'invoice',
@@ -155,5 +173,25 @@ class InvoiceNumberServiceTest extends TestCase
             ->whereNotNull('logo_path')
             ->where('document_type', 'invoice')
             ->count());
+    }
+
+    public function test_preview_does_not_create_a_missing_logo_sequence(): void
+    {
+        $profile = FiscalProfile::query()->create(['name' => 'Pamela Mishell']);
+        $logo = FiscalProfileLogo::query()->create([
+            'fiscal_profile_id' => $profile->id,
+            'path' => 'logos/pamela-air.png',
+            'label' => 'AIR',
+            'is_default' => true,
+        ]);
+
+        $service = app(InvoiceNumberService::class);
+
+        $this->assertSame('', $service->preview($profile->id, 'invoice', $logo->path));
+        $this->assertDatabaseMissing('invoice_number_settings', [
+            'fiscal_profile_id' => $profile->id,
+            'logo_path' => $logo->path,
+            'document_type' => 'invoice',
+        ]);
     }
 }

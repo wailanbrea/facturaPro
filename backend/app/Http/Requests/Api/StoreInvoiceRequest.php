@@ -60,6 +60,10 @@ class StoreInvoiceRequest extends FormRequest
             }
 
             if (blank($this->input('logo_path'))) {
+                if (FiscalProfileLogo::query()->where('fiscal_profile_id', $this->input('fiscal_profile_id'))->exists()) {
+                    $validator->errors()->add('logo_path', 'Debe seleccionar un logo para este perfil fiscal.');
+                }
+
                 return;
             }
 

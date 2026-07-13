@@ -109,11 +109,6 @@
                     <label>Logo en factura <span class="text-on-surface-variant font-normal">(por defecto el de la empresa)</span></label>
                     @php $selectedLogo = old('logo_path', $invoice->logo_path ?? ''); @endphp
                     <div class="flex flex-wrap gap-3 mt-1">
-                        <label data-logo-option="none" data-profile-id="" class="flex items-center gap-2 cursor-pointer border rounded-lg px-3 py-2 text-[13px] {{ $selectedLogo === '' ? 'border-primary bg-primary-soft-2' : 'border-outline-variant hover:bg-surface-low' }}">
-                            <input type="radio" name="logo_path" value="" class="sr-only" {{ $selectedLogo === '' ? 'checked' : '' }}>
-                            <span class="w-8 h-8 rounded bg-surface-mid flex items-center justify-center text-[10px] font-bold text-on-surface-variant">SIN</span>
-                            <span>Sin logo</span>
-                        </label>
                         @foreach($availableLogos as $logo)
                         @php
                             $logoPreview = $numberPreviews[$logo->fiscal_profile_id]['logos'][$logo->path] ?? [];
@@ -358,14 +353,18 @@ syncDocumentTypeFields();
             .find(radio => radio.value === (value || '') && radio.closest('[data-logo-option]')?.style.display !== 'none');
     }
 
+    function firstVisibleLogoRadio() {
+        return Array.from(document.querySelectorAll('[data-logo-option="logo"] input[name="logo_path"]'))
+            .find(radio => radio.closest('[data-logo-option]')?.style.display !== 'none');
+    }
+
     function refreshLogoOptions() {
         const profileId = String(profileSelect.value || '');
         let visibleLogos = 0;
 
         document.querySelectorAll('[data-logo-option]').forEach(option => {
-            const isEmptyOption = option.dataset.logoOption === 'none';
             const matchesProfile = option.dataset.profileId === profileId;
-            option.style.display = isEmptyOption || matchesProfile ? '' : 'none';
+            option.style.display = matchesProfile ? '' : 'none';
 
             if (matchesProfile) {
                 visibleLogos++;
@@ -381,7 +380,7 @@ syncDocumentTypeFields();
         if (!document.querySelector('input[name="logo_path"]:checked')) {
             const selectedProfile = profileSelect.selectedOptions[0];
             const defaultLogo = selectedProfile ? selectedProfile.dataset.logo : '';
-            const radio = visibleLogoRadioFor(defaultLogo) || visibleLogoRadioFor('');
+            const radio = visibleLogoRadioFor(defaultLogo) || firstVisibleLogoRadio();
 
             if (radio) {
                 radio.checked = true;

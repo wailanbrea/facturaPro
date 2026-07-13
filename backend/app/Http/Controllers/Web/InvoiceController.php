@@ -221,7 +221,11 @@ class InvoiceController extends Controller
         }
 
         if ($invoice->invoice_number === null) {
-            $invoice->invoice_number = $this->numberService->generateForInvoice($invoice);
+            try {
+                $invoice->invoice_number = $this->numberService->generateForInvoice($invoice);
+            } catch (RuntimeException $exception) {
+                return back()->withErrors(['invoice' => $exception->getMessage()]);
+            }
         }
 
         if ($invoice->isQuotation()) {
@@ -337,7 +341,8 @@ class InvoiceController extends Controller
             return back()->withErrors(['invoice' => 'Solo se pueden convertir presupuestos emitidos o aceptados.']);
         }
 
-        $factura = DB::transaction(function () use ($invoice): Invoice {
+        try {
+            $factura = DB::transaction(function () use ($invoice): Invoice {
             $term = $invoice->paymentTerm;
             $invoiceDate = CarbonImmutable::today();
 
@@ -420,7 +425,10 @@ class InvoiceController extends Controller
             );
 
             return $factura;
-        });
+            });
+        } catch (RuntimeException $exception) {
+            return back()->withErrors(['invoice' => $exception->getMessage()]);
+        }
 
         return redirect()
             ->route('web.invoices.show', $factura)
@@ -493,15 +501,16 @@ class InvoiceController extends Controller
     {
         $fiscalProfiles = auth()->user()->availableFiscalProfiles()->load('logos');
         $availableLogos = $this->availableLogos($fiscalProfiles->pluck('id')->all());
-        $numberPreviews = $fiscalProfiles->mapWithKeys(function (FiscalProfile $profile): array {
+        $userId = auth()->id();
+        $numberPreviews = $fiscalProfiles->mapWithKeys(function (FiscalProfile $profile) use ($userId): array {
             return [
                 $profile->id => [
-                    'invoice' => $this->numberService->preview($profile->id, 'invoice'),
-                    'quotation' => $this->numberService->preview($profile->id, 'quotation'),
+                    'invoice' => $this->numberService->preview($profile->id, 'invoice', userId: $userId),
+                    'quotation' => $this->numberService->preview($profile->id, 'quotation', userId: $userId),
                     'logos' => $profile->logos->mapWithKeys(fn (FiscalProfileLogo $logo): array => [
                         $logo->path => [
-                            'invoice' => $this->numberService->preview($profile->id, 'invoice', $logo->path),
-                            'quotation' => $this->numberService->preview($profile->id, 'quotation', $logo->path),
+                            'invoice' => $this->numberService->preview($profile->id, 'invoice', $logo->path, $userId),
+                            'quotation' => $this->numberService->preview($profile->id, 'quotation', $logo->path, $userId),
                         ],
                     ])->all(),
                 ],
@@ -733,6 +742,12 @@ class InvoiceController extends Controller
     private function validateLogoForFiscalProfile(array $data): void
     {
         if (blank($data['logo_path'] ?? null)) {
+            if (FiscalProfileLogo::query()->where('fiscal_profile_id', $data['fiscal_profile_id'])->exists()) {
+                throw ValidationException::withMessages([
+                    'logo_path' => 'Debe seleccionar un logo para este perfil fiscal.',
+                ]);
+            }
+
             return;
         }
 
