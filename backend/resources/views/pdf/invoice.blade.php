@@ -311,7 +311,8 @@
         }
         .bank-table,
         .signature-table {
-            height: 36mm;
+            height: 40mm;
+            table-layout: fixed;
         }
         .bank-table td,
         .signature-table td {
@@ -320,7 +321,7 @@
         }
         .bank-title,
         .signature-title {
-            height: 6mm;
+            height: 7mm;
             text-align: center;
             font-size: 10.5px;
         }
@@ -331,7 +332,7 @@
             font-size: 12px;
         }
         .bank-details {
-            height: 14mm;
+            height: 16mm;
             line-height: 1.35;
             overflow: hidden;
         }
@@ -342,15 +343,15 @@
             font-weight: 800;
             font-size: 11px;
             line-height: 1.25;
-            height: 8mm;
+            height: 10mm;
         }
         .signature-name {
-            height: 8mm;
+            height: 13mm;
             text-align: center;
             font-weight: 700;
         }
         .prepared-name {
-            height: 8mm;
+            height: 13mm;
             text-align: center;
             font-weight: 700;
         }
