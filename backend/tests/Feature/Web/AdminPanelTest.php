@@ -237,6 +237,11 @@ class AdminPanelTest extends TestCase
         $term = PaymentTerm::query()->where('name', 'AL CONTADO')->firstOrFail();
         $tax = Tax::query()->where('name', 'ITBIS 18%')->firstOrFail();
         $profile = FiscalProfile::query()->firstOrFail();
+        $profile->logos()->create([
+            'path' => 'logos/presupuesto-especial.png',
+            'label' => 'Logo presupuesto especial',
+            'is_default' => false,
+        ]);
         $account = BankAccount::query()->firstOrFail();
         $warranty = Warranty::query()->firstOrFail();
 
@@ -247,15 +252,22 @@ class AdminPanelTest extends TestCase
             'client_id' => $client->id,
             'currency_id' => $currency->id,
             'fiscal_profile_id' => $profile->id,
+            'logo_path' => 'logos/presupuesto-especial.png',
             'bank_account_id' => $account->id,
             'warranty_id' => $warranty->id,
             'amount_received' => 0,
             'items' => [
                 ['description' => 'Presupuesto servicio', 'quantity' => 2, 'unit_cost' => 100, 'tax_id' => $tax->id],
             ],
-        ])->assertRedirect();
+        ])->assertRedirect()
+            ->assertSessionHasNoErrors();
 
-        $quotation = Invoice::query()->where('document_type', 'quotation')->firstOrFail();
+        $quotation = Invoice::query()
+            ->where('document_type', 'quotation')
+            ->where('client_name', 'Cliente Presupuesto')
+            ->latest('id')
+            ->firstOrFail();
+        $this->assertSame('logos/presupuesto-especial.png', $quotation->logo_path);
 
         $this->post(route('web.invoices.issue', $quotation))->assertRedirect();
         $quotation->refresh();
@@ -280,6 +292,7 @@ class AdminPanelTest extends TestCase
         $this->assertSame('converted', $quotation->status);
         $this->assertSame('invoice', $invoice->document_type);
         $this->assertSame($quotation->id, $invoice->source_quotation_id);
+        $this->assertSame('logos/presupuesto-especial.png', $invoice->logo_path);
         $this->assertSame('issued', $invoice->status);
         $this->assertSame('0.0000', $invoice->amount_received);
         $this->assertSame($invoice->total, $invoice->balance_due);

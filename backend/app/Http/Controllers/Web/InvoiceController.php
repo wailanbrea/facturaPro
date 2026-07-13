@@ -104,52 +104,7 @@ class InvoiceController extends Controller
 
         $invoice = DB::transaction(function () use ($data): Invoice {
             $documentType = $data['document_type'];
-            $client = $this->clientResolver->resolve($data);
-            $currency = Currency::query()->findOrFail($data['currency_id']);
-            $term = PaymentTerm::query()->findOrFail($data['payment_term_id']);
-            $profile = isset($data['fiscal_profile_id']) ? FiscalProfile::query()->find($data['fiscal_profile_id']) : null;
-            $account = isset($data['bank_account_id']) ? BankAccount::query()->find($data['bank_account_id']) : null;
-            $warranty = isset($data['warranty_id']) ? Warranty::query()->find($data['warranty_id']) : null;
-            $invoiceDate = CarbonImmutable::parse($data['invoice_date']);
-
-            $invoice = Invoice::query()->create([
-                'document_type' => $documentType,
-                'invoice_date' => $invoiceDate->toDateString(),
-                'due_date' => $this->dueDateFor($documentType, $invoiceDate, $term),
-                'payment_term_id' => $term->id,
-                'client_id' => $client->id,
-                'client_name' => $client->name,
-                'client_tax_id' => $client->tax_id,
-                'client_address' => $client->address,
-                'client_city' => $client->city,
-                'currency_id' => $currency->id,
-                'currency_code' => $currency->code,
-                'currency_symbol' => $currency->symbol,
-                'currency_decimal_separator' => $currency->decimal_separator,
-                'currency_thousand_separator' => $currency->thousand_separator,
-                'currency_decimal_places' => $currency->decimal_places,
-                'currency_symbol_position' => $currency->symbol_position,
-                'fiscal_profile_id' => $profile?->id,
-                'logo_path' => array_key_exists('logo_path', $data)
-                    ? (($data['logo_path'] ?? '') !== '' ? $data['logo_path'] : null)
-                    : $profile?->logo_path,
-                'seller_name' => $profile?->name,
-                'seller_tax_id' => $profile?->tax_id,
-                'seller_address' => $profile?->address,
-                'seller_city' => $profile?->city,
-                'bank_account_id' => $account?->id,
-                'warranty_id' => $warranty?->id,
-                'warranty_text' => $warranty?->full_text,
-                'legal_text' => $data['legal_text'] ?? $this->defaultLegalFooter(),
-                'conformity_text' => $data['conformity_text'] ?? $this->defaultConformityText(),
-                'observations' => $data['observations'] ?? null,
-                'amount_received' => $this->amountReceivedForDocument($documentType, $data['amount_received'] ?? 0),
-                'status' => InvoiceStatusService::DRAFT,
-                'prepared_by' => $data['prepared_by'] ?? null,
-                'received_by' => $data['received_by'] ?? null,
-                'created_by' => auth()->id(),
-                'updated_by' => auth()->id(),
-            ]);
+            $invoice = Invoice::query()->create($this->invoicePayload($data));
 
             $calculated = $this->calculator->calculate(
                 $this->hydrateTaxes($data['items']),
@@ -161,6 +116,9 @@ class InvoiceController extends Controller
             }
 
             $invoice->update([
+                'logo_path' => array_key_exists('logo_path', $data)
+                    ? (($data['logo_path'] ?? '') !== '' ? $data['logo_path'] : null)
+                    : $invoice->logo_path,
                 'amount_received' => $calculated['amount_received'],
                 'subtotal' => $calculated['subtotal'],
                 'tax_total' => $calculated['tax_total'],
@@ -402,6 +360,7 @@ class InvoiceController extends Controller
                 'currency_decimal_places' => $invoice->currency_decimal_places,
                 'currency_symbol_position' => $invoice->currency_symbol_position,
                 'fiscal_profile_id' => $invoice->fiscal_profile_id,
+                'logo_path' => $invoice->logo_path,
                 'seller_name' => $invoice->seller_name,
                 'seller_tax_id' => $invoice->seller_tax_id,
                 'seller_address' => $invoice->seller_address,

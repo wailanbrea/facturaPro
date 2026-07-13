@@ -74,12 +74,11 @@
         }
         .invoice-page {
             width: 210mm;
-            height: 297mm;
             margin: 0 auto;
             padding: 8mm 10mm;
             background: #fff;
             position: relative;
-            overflow: hidden;
+            overflow: visible;
         }
         table {
             border-collapse: collapse;
@@ -107,14 +106,13 @@
         }
         .page-grid {
             display: grid;
-            row-gap: 3mm;
-            height: 100%;
+            row-gap: 2mm;
         }
         .page-grid.invoice-layout {
-            grid-template-rows: auto auto 4mm auto auto auto auto;
+            grid-template-rows: auto auto 4mm auto auto auto auto auto;
         }
         .page-grid.quotation-layout {
-            grid-template-rows: auto auto 4mm auto auto;
+            grid-template-rows: auto auto 4mm auto auto auto;
         }
         .header-grid {
             display: grid;
@@ -256,7 +254,7 @@
             align-items: stretch;
         }
         .notes-table {
-            height: 43mm;
+            height: 39mm;
         }
         .notes-table td {
             padding: 2mm;
@@ -271,7 +269,7 @@
             text-align: center;
         }
         .observations-box {
-            height: 26mm;
+            height: 22mm;
             text-align: center;
             font-size: 10px;
             line-height: 1.25;
@@ -313,7 +311,7 @@
         }
         .bank-table,
         .signature-table {
-            height: 47mm;
+            height: 36mm;
         }
         .bank-table td,
         .signature-table td {
@@ -322,18 +320,18 @@
         }
         .bank-title,
         .signature-title {
-            height: 7mm;
+            height: 6mm;
             text-align: center;
             font-size: 10.5px;
         }
         .bank-name {
-            height: 8mm;
+            height: 6mm;
             text-align: center;
             font-weight: 800;
             font-size: 12px;
         }
         .bank-details {
-            height: 20mm;
+            height: 14mm;
             line-height: 1.35;
             overflow: hidden;
         }
@@ -344,35 +342,28 @@
             font-weight: 800;
             font-size: 11px;
             line-height: 1.25;
-            height: 12mm;
+            height: 8mm;
         }
         .signature-name {
-            height: 13mm;
+            height: 8mm;
             text-align: center;
             font-weight: 700;
         }
         .prepared-name {
-            height: 13mm;
+            height: 8mm;
             text-align: center;
             font-weight: 700;
-        }
-        .quotation-side .signature-table {
-            height: 31mm;
-        }
-        .quotation-side .signature-name,
-        .quotation-side .prepared-name {
-            height: 8.5mm;
         }
         .legal-table td {
             text-align: center;
         }
         .legal-title {
-            height: 8mm;
+            height: 6mm;
             font-size: 10.5px;
         }
         .legal-text {
-            height: 18mm;
-            font-size: 10.2px;
+            height: 13mm;
+            font-size: 9.4px;
             font-weight: 700;
             line-height: 1.25;
             padding: 2mm 6mm;
@@ -440,27 +431,33 @@
         }
         .verify-table {
             width: 100%;
-            border-collapse: collapse;
-            margin-top: 2mm;
+            margin-top: 0;
+            page-break-inside: avoid;
+            break-inside: avoid;
+            display: flex;
+            align-items: stretch;
+            border: 1px solid #1f3b73;
         }
         .verify-cell {
-            border: 1px solid #1f3b73;
-            padding: 2mm 3mm;
+            padding: .8mm 1.5mm;
             vertical-align: middle;
         }
         .verify-qr {
-            width: 24mm;
+            width: 15mm;
             text-align: center;
+            border-right: 1px solid #1f3b73;
+            flex: 0 0 15mm;
         }
         .verify-qr img {
-            width: 22mm;
-            height: 22mm;
+            width: 13mm;
+            height: 13mm;
             display: block;
             margin: 0 auto;
         }
         .verify-info {
-            font-size: 9px;
-            line-height: 1.35;
+            font-size: 7.2px;
+            line-height: 1.12;
+            flex: 1;
         }
         .verify-badge {
             display: inline-block;
@@ -469,13 +466,13 @@
             color: #1f3b73;
             border: 1px solid #1f3b73;
             border-radius: 2px;
-            padding: 0.5mm 2mm;
-            margin-bottom: 1mm;
+            padding: 0.2mm 1.2mm;
+            margin-bottom: .25mm;
         }
         .verify-code {
             font-family: 'Courier New', Courier, monospace;
             font-weight: 700;
-            font-size: 11px;
+            font-size: 8px;
             letter-spacing: 1px;
         }
         @media print {
@@ -762,24 +759,22 @@
         @endif
 
         @if ($isSigned)
-            <table class="verify-table">
-                <tr>
-                    @if ($verificationQr)
-                        <td class="verify-cell verify-qr">
-                            <img src="{{ $verificationQr }}" alt="Codigo de verificacion">
-                        </td>
-                    @endif
-                    <td class="verify-cell verify-info">
-                        <span class="verify-badge">DOCUMENTO ORIGINAL</span><br>
-                        Documento emitido y autenticado por el sistema. Verifique su autenticidad
-                        escaneando el codigo QR o consultando el codigo de seguridad en el sistema:
-                        <br>
-                        Codigo de seguridad: <span class="verify-code">{{ $verificationCode }}</span><br>
-                        Cualquier ejemplar cuyo total o datos no coincidan con los mostrados al verificar
-                        este codigo es una copia no autentica.
-                    </td>
-                </tr>
-            </table>
+            <div class="verify-table">
+                @if ($verificationQr)
+                    <div class="verify-cell verify-qr">
+                        <img src="{{ $verificationQr }}" alt="Codigo de verificacion">
+                    </div>
+                @endif
+                <div class="verify-cell verify-info">
+                    <span class="verify-badge">DOCUMENTO ORIGINAL</span><br>
+                    Documento emitido y autenticado por el sistema. Verifique su autenticidad
+                    escaneando el codigo QR o consultando el codigo de seguridad en el sistema:
+                    <br>
+                    Codigo de seguridad: <span class="verify-code">{{ $verificationCode }}</span><br>
+                    Cualquier ejemplar cuyo total o datos no coincidan con los mostrados al verificar
+                    este codigo es una copia no autentica.
+                </div>
+            </div>
         @endif
     </div>
 </section>
