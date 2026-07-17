@@ -8,6 +8,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.outlined.Logout
 import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.outlined.Assignment
 import androidx.compose.material.icons.outlined.CalendarMonth
 import androidx.compose.material.icons.outlined.Description
 import androidx.compose.material.icons.outlined.Home
@@ -226,6 +227,8 @@ fun WorkspaceScreen(
                     onConsumeSavedEvent = invoicesViewModel::consumeSavedInvoiceEvent,
                     onConsumeSharedPdfEvent = invoicesViewModel::consumeSharedPdfEvent,
                     onClearInternalPdf = invoicesViewModel::clearInternalPdfViewer,
+                    onConvertQuotation = invoicesViewModel::convertSelectedQuotation,
+                    onRegisterPayment = invoicesViewModel::registerPaymentForSelectedInvoice,
                 )
 
                 WorkspaceSection.Clients -> ClientsScreen(
@@ -358,7 +361,7 @@ private data class BottomItem(
 private val bottomNavItems = listOf(
     BottomItem(WorkspaceSection.Home, "Inicio", Icons.Outlined.Home),
     BottomItem(WorkspaceSection.Invoices, "Facturas", Icons.Outlined.Description),
+    BottomItem(WorkspaceSection.TechnicalReports, "Informes", Icons.Outlined.Assignment),
     BottomItem(WorkspaceSection.Calendar, "Calendario", Icons.Outlined.CalendarMonth),
-    BottomItem(WorkspaceSection.Clients, "Clientes", Icons.Outlined.People),
     BottomItem(WorkspaceSection.Settings, "Ajustes", Icons.Outlined.Settings),
 )

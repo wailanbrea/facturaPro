@@ -147,6 +147,15 @@ interface FacturaProApi {
     @GET("invoices/{invoice}/download-pdf")
     suspend fun downloadInvoicePdf(@Path("invoice") invoiceId: Long): Response<ResponseBody>
 
+    @POST("invoices/{invoice}/convert")
+    suspend fun convertInvoice(@Path("invoice") invoiceId: Long): SingleDataResponseDto<InvoiceDto>
+
+    @POST("invoices/{invoice}/mark-paid")
+    suspend fun markInvoicePaid(
+        @Path("invoice") invoiceId: Long,
+        @Body body: Map<String, @JvmSuppressWildcards Any?>,
+    ): SingleDataResponseDto<InvoiceDto>
+
     @GET("appointments")
     suspend fun appointments(
         @Query("year") year: Int,

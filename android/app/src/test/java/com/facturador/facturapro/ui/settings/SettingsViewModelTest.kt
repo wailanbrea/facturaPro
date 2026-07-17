@@ -1,5 +1,6 @@
 package com.facturador.facturapro.ui.settings
 
+import com.facturador.facturapro.data.local.ServerConfigStoreContract
 import com.facturador.facturapro.data.repository.PrinterRepositoryContract
 import com.facturador.facturapro.domain.model.PrinterDevice
 import com.facturador.facturapro.domain.model.SavedPrinter
@@ -26,7 +27,7 @@ class SettingsViewModelTest {
             PrinterDevice(name = "Impresora Caja", address = "00:11:22:33:44:55"),
         )
         val repository = FakePrinterRepository(printersResult = Result.success(printers))
-        val viewModel = SettingsViewModel(repository)
+        val viewModel = SettingsViewModel(repository, FakeServerConfigStore())
 
         advanceUntilIdle()
         viewModel.loadBluetoothPrinters()
@@ -42,7 +43,7 @@ class SettingsViewModelTest {
     fun save_printer_persists_selected_printer_in_state() = runTest {
         val printer = PrinterDevice(name = "Impresora Taller", address = "AA:BB:CC:DD:EE:FF")
         val repository = FakePrinterRepository()
-        val viewModel = SettingsViewModel(repository)
+        val viewModel = SettingsViewModel(repository, FakeServerConfigStore())
 
         advanceUntilIdle()
         viewModel.savePrinter(printer)
@@ -51,6 +52,30 @@ class SettingsViewModelTest {
         val state = viewModel.uiState.value
         assertEquals(SavedPrinter(name = printer.name, address = printer.address), state.selectedPrinter)
         assertEquals("Impresora guardada.", state.printerMessage)
+    }
+}
+
+private class FakeServerConfigStore(
+    initialUrl: String = DEFAULT_URL,
+) : ServerConfigStoreContract {
+    private val apiBaseUrlState = MutableStateFlow(initialUrl)
+
+    override val apiBaseUrl: Flow<String> = apiBaseUrlState
+
+    override suspend fun currentApiBaseUrl(): String = apiBaseUrlState.value
+
+    override suspend fun saveApiBaseUrl(rawValue: String): Result<String> {
+        apiBaseUrlState.value = rawValue
+        return Result.success(rawValue)
+    }
+
+    override suspend fun resetApiBaseUrl(): String {
+        apiBaseUrlState.value = DEFAULT_URL
+        return DEFAULT_URL
+    }
+
+    private companion object {
+        const val DEFAULT_URL = "https://facturapro.bsolutions.dev/api/"
     }
 }
 

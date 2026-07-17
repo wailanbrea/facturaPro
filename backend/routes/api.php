@@ -70,5 +70,6 @@ Route::middleware('auth:sanctum')->group(function (): void {
     Route::post('/invoices/{invoice}/cancel', [InvoiceController::class, 'cancel'])->middleware('permission:anular_factura');
     Route::post('/invoices/{invoice}/generate-pdf', [InvoiceController::class, 'generatePdf'])->middleware('permission:descargar_pdf');
     Route::get('/invoices/{invoice}/download-pdf', [InvoiceController::class, 'downloadPdf'])->middleware('permission:descargar_pdf');
+    Route::post('/invoices/{invoice}/convert', [InvoiceController::class, 'convert'])->middleware('permission:crear_factura');
     Route::post('/invoices/{invoice}/mark-paid', [InvoiceController::class, 'markPaid'])->middleware('permission:registrar_pagos');
 });

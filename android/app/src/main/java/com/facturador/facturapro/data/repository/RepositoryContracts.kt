@@ -64,6 +64,10 @@ interface InvoiceRepositoryContract {
     suspend fun downloadPdf(invoiceId: Long, fileName: String): Result<File>
 
     suspend fun verify(number: String, code: String): Result<InvoiceVerification>
+
+    suspend fun convert(invoiceId: Long): Result<InvoiceDetail>
+
+    suspend fun markPaid(invoiceId: Long, amount: Double, paymentMethod: String, reference: String?, date: String): Result<InvoiceDetail>
 }
 
 interface ReportRepositoryContract {

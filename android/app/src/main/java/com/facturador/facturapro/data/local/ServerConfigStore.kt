@@ -15,16 +15,26 @@ import okhttp3.HttpUrl.Companion.toHttpUrlOrNull
 
 private val Context.serverConfigDataStore: DataStore<Preferences> by preferencesDataStore(name = "server_config")
 
-class ServerConfigStore(context: Context) {
+interface ServerConfigStoreContract {
+    val apiBaseUrl: Flow<String>
+
+    suspend fun currentApiBaseUrl(): String
+
+    suspend fun saveApiBaseUrl(rawValue: String): Result<String>
+
+    suspend fun resetApiBaseUrl(): String
+}
+
+class ServerConfigStore(context: Context) : ServerConfigStoreContract {
     private val dataStore = context.serverConfigDataStore
 
-    val apiBaseUrl: Flow<String> = dataStore.data.map { preferences ->
+    override val apiBaseUrl: Flow<String> = dataStore.data.map { preferences ->
         preferences[Keys.apiBaseUrl]?.normalizeApiBaseUrlOrNull() ?: DEFAULT_API_BASE_URL
     }
 
-    suspend fun currentApiBaseUrl(): String = apiBaseUrl.first()
+    override suspend fun currentApiBaseUrl(): String = apiBaseUrl.first()
 
-    suspend fun saveApiBaseUrl(rawValue: String): Result<String> = runCatching {
+    override suspend fun saveApiBaseUrl(rawValue: String): Result<String> = runCatching {
         val normalized = rawValue.normalizeApiBaseUrlOrNull()
             ?: error("URL invalida. Usa un dominio HTTPS, por ejemplo facturapro.bsolutions.dev")
 
@@ -44,7 +54,7 @@ class ServerConfigStore(context: Context) {
         normalized
     }
 
-    suspend fun resetApiBaseUrl(): String {
+    override suspend fun resetApiBaseUrl(): String {
         dataStore.edit { preferences ->
             preferences.remove(Keys.apiBaseUrl)
         }

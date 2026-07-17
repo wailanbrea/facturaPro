@@ -1,7 +1,7 @@
 package com.facturador.facturapro.data.remote
 
 import com.facturador.facturapro.BuildConfig
-import com.facturador.facturapro.data.local.ServerConfigStore
+import com.facturador.facturapro.data.local.ServerConfigStoreContract
 import com.facturador.facturapro.data.local.SessionStore
 import okhttp3.HttpUrl.Companion.toHttpUrl
 import okhttp3.OkHttpClient
@@ -13,7 +13,7 @@ import java.util.concurrent.TimeUnit
 object ApiClientFactory {
     fun create(
         sessionStore: SessionStore,
-        serverConfigStore: ServerConfigStore,
+        serverConfigStore: ServerConfigStoreContract,
     ): FacturaProApi {
         val logging = HttpLoggingInterceptor().apply {
             level = if (BuildConfig.DEBUG) {

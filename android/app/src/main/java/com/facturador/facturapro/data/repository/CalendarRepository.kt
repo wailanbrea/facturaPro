@@ -13,6 +13,21 @@ class CalendarRepository(private val api: FacturaProApi) {
     suspend fun createAppointment(request: CreateAppointmentRequest): Appointment =
         api.createAppointment(request).data.toDomain()
 
+    suspend fun updateAppointment(id: Int, request: CreateAppointmentRequest): Appointment =
+        api.updateAppointment(id, mapOf(
+            "title" to request.title,
+            "client_id" to request.clientId,
+            "start_at" to request.startAt,
+            "end_at" to request.endAt,
+            "location" to request.location,
+            "location_lat" to request.locationLat,
+            "location_lng" to request.locationLng,
+            "service_description" to request.serviceDescription,
+            "observations" to request.observations,
+            "contacts" to request.contacts,
+            "status" to request.status
+        )).data.toDomain()
+
     suspend fun updateStatus(id: Int, status: String): Appointment =
         api.updateAppointment(id, mapOf("status" to status)).data.toDomain()
 

@@ -11,6 +11,7 @@ data class LoginUiState(
     val isLoading: Boolean = false,
     val isBootstrapLoading: Boolean = false,
     val isAuthenticated: Boolean = false,
+    val isSessionLoaded: Boolean = false,
     val userName: String? = null,
     val bootstrap: BootstrapCatalogs? = null,
     val errorMessage: String? = null,

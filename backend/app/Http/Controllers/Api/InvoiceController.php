@@ -240,6 +240,120 @@ class InvoiceController extends Controller
         return new InvoiceResource($invoice->fresh('items'));
     }
 
+    public function convert(Request $request, Invoice $invoice): JsonResponse
+    {
+        if ($invoice->document_type !== 'quotation') {
+            return response()->json(['message' => 'Solo se pueden convertir presupuestos.'], 422);
+        }
+
+        if ($invoice->converted_to_invoice_id !== null) {
+            return response()->json(['message' => 'Este presupuesto ya fue convertido.'], 422);
+        }
+
+        if ($invoice->status === InvoiceStatusService::CANCELLED) {
+            return response()->json(['message' => 'No se puede convertir un presupuesto anulado.'], 422);
+        }
+
+        if ($invoice->status === InvoiceStatusService::DRAFT || $invoice->invoice_number === null) {
+            return response()->json(['message' => 'Debe emitir el presupuesto antes de convertirlo en factura.'], 422);
+        }
+
+        if (! in_array($invoice->status, [InvoiceStatusService::ISSUED, InvoiceStatusService::ACCEPTED], true)) {
+            return response()->json(['message' => 'Solo se pueden convertir presupuestos emitidos o aceptados.'], 422);
+        }
+
+        try {
+            $factura = DB::transaction(function () use ($invoice, $request): Invoice {
+                $term = $invoice->paymentTerm;
+                $invoiceDate = CarbonImmutable::today();
+
+                $factura = Invoice::query()->create([
+                    'document_type' => 'invoice',
+                    'source_quotation_id' => $invoice->id,
+                    'invoice_date' => $invoiceDate->toDateString(),
+                    'due_date' => $term ? $invoiceDate->addDays($term->days)->toDateString() : $invoice->due_date?->toDateString(),
+                    'payment_term_id' => $invoice->payment_term_id,
+                    'client_id' => $invoice->client_id,
+                    'client_name' => $invoice->client_name,
+                    'client_tax_id' => $invoice->client_tax_id,
+                    'client_address' => $invoice->client_address,
+                    'client_city' => $invoice->client_city,
+                    'currency_id' => $invoice->currency_id,
+                    'currency_code' => $invoice->currency_code,
+                    'currency_symbol' => $invoice->currency_symbol,
+                    'currency_decimal_separator' => $invoice->currency_decimal_separator,
+                    'currency_thousand_separator' => $invoice->currency_thousand_separator,
+                    'currency_decimal_places' => $invoice->currency_decimal_places,
+                    'currency_symbol_position' => $invoice->currency_symbol_position,
+                    'fiscal_profile_id' => $invoice->fiscal_profile_id,
+                    'logo_path' => $invoice->logo_path,
+                    'seller_name' => $invoice->seller_name,
+                    'seller_tax_id' => $invoice->seller_tax_id,
+                    'seller_address' => $invoice->seller_address,
+                    'seller_city' => $invoice->seller_city,
+                    'bank_account_id' => $invoice->bank_account_id,
+                    'warranty_id' => $invoice->warranty_id,
+                    'warranty_text' => $invoice->warranty_text,
+                    'legal_text' => $invoice->legal_text,
+                    'conformity_text' => $invoice->conformity_text,
+                    'observations' => $invoice->observations,
+                    'amount_received' => 0,
+                    'subtotal' => $invoice->subtotal,
+                    'tax_total' => $invoice->tax_total,
+                    'total' => $invoice->total,
+                    'balance_due' => $invoice->total,
+                    'status' => InvoiceStatusService::ISSUED,
+                    'prepared_by' => $invoice->prepared_by,
+                    'received_by' => $invoice->received_by,
+                    'created_by' => $request->user()->id,
+                    'updated_by' => $request->user()->id,
+                ]);
+
+                foreach ($invoice->items as $item) {
+                    $factura->items()->create([
+                        'description' => $item->description,
+                        'quantity' => $item->quantity,
+                        'unit_cost' => $item->unit_cost,
+                        'tax_id' => $item->tax_id,
+                        'tax_name' => $item->tax_name,
+                        'tax_rate' => $item->tax_rate,
+                        'tax_amount' => $item->tax_amount,
+                        'unit_price' => $item->unit_price,
+                        'line_subtotal' => $item->line_subtotal,
+                        'line_total' => $item->line_total,
+                        'sort_order' => $item->sort_order,
+                    ]);
+                }
+
+                $factura->invoice_number = $this->numberService->generateForInvoice($factura);
+                $factura->save();
+                $this->signatureService->signOnIssue($factura->load('items'));
+
+                $invoice->update([
+                    'status' => InvoiceStatusService::CONVERTED,
+                    'converted_to_invoice_id' => $factura->id,
+                    'converted_at' => now(),
+                    'customer_accepted_at' => $invoice->customer_accepted_at ?? now(),
+                    'updated_by' => $request->user()->id,
+                ]);
+
+                $this->activityLog->record(
+                    'invoice.quotation_converted',
+                    $invoice,
+                    ['quotation_id' => $invoice->id, 'invoice_id' => $factura->id, 'invoice_number' => $factura->invoice_number],
+                    $request->user(),
+                    $request,
+                );
+
+                return $factura;
+            });
+
+            return response()->json(['data' => new InvoiceResource($factura->load('items'))]);
+        } catch (RuntimeException $exception) {
+            return response()->json(['message' => $exception->getMessage()], 400);
+        }
+    }
+
     public function markPaid(MarkInvoicePaidRequest $request, Invoice $invoice): InvoiceResource|JsonResponse
     {
         if (! $this->statusService->canReceivePayments($invoice)) {

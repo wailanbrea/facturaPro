@@ -17,16 +17,20 @@ import com.facturador.facturapro.ui.auth.LoginScreen
 import com.facturador.facturapro.ui.auth.LoginViewModel
 import com.facturador.facturapro.ui.theme.FacturaProTheme
 import com.facturador.facturapro.ui.workspace.WorkspaceScreen
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import androidx.compose.material3.CircularProgressIndicator
 
 class MainActivity : FragmentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
 
-        val container = (application as FacturaProApplication).container
-
         setContent {
             FacturaProTheme {
+                val container = (application as FacturaProApplication).container
                 FacturaProApp(container = container)
             }
         }
@@ -45,11 +49,32 @@ fun FacturaProApp(container: AppContainer) {
     )
     val state by viewModel.uiState.collectAsStateWithLifecycle()
 
+    if (!state.isSessionLoaded) {
+        Box(
+            modifier = Modifier.fillMaxSize(),
+            contentAlignment = Alignment.Center
+        ) {
+            CircularProgressIndicator()
+        }
+        return
+    }
+
     LaunchedEffect(state.isAuthenticated) {
-        val route = if (state.isAuthenticated) Routes.Home else Routes.Login
-        navController.navigate(route) {
-            popUpTo(0)
-            launchSingleTop = true
+        val currentRoute = navController.currentDestination?.route
+        if (state.isAuthenticated) {
+            if (currentRoute != Routes.Home) {
+                navController.navigate(Routes.Home) {
+                    popUpTo(0) { inclusive = true }
+                    launchSingleTop = true
+                }
+            }
+        } else {
+            if (currentRoute != Routes.Login) {
+                navController.navigate(Routes.Login) {
+                    popUpTo(0) { inclusive = true }
+                    launchSingleTop = true
+                }
+            }
         }
     }
 

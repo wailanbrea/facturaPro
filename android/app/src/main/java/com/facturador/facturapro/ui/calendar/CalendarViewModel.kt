@@ -74,6 +74,25 @@ class CalendarViewModel(private val repository: CalendarRepository) : ViewModel(
         }
     }
 
+    fun updateAppointment(
+        id: Int,
+        request: CreateAppointmentRequest,
+        onSuccess: () -> Unit,
+        onError: (String) -> Unit,
+    ) {
+        viewModelScope.launch {
+            try {
+                val updated = repository.updateAppointment(id, request)
+                _state.update { s ->
+                    s.copy(appointments = s.appointments.map { if (it.id == id) updated else it })
+                }
+                onSuccess()
+            } catch (e: Exception) {
+                onError(e.message ?: "Error al actualizar la cita")
+            }
+        }
+    }
+
     fun updateStatus(id: Int, status: String) {
         viewModelScope.launch {
             try {

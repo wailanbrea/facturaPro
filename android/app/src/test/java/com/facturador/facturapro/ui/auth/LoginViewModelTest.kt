@@ -1,5 +1,6 @@
 package com.facturador.facturapro.ui.auth
 
+import com.facturador.facturapro.data.local.ServerConfigStoreContract
 import com.facturador.facturapro.data.repository.AuthRepositoryContract
 import com.facturador.facturapro.data.repository.SettingsRepositoryContract
 import com.facturador.facturapro.domain.model.AuthSession
@@ -34,7 +35,7 @@ class LoginViewModelTest {
     fun login_authenticates_and_loads_bootstrap() = runTest {
         val authRepository = FakeAuthRepository()
         val settingsRepository = FakeSettingsRepository(Result.success(sampleBootstrap()))
-        val viewModel = LoginViewModel(authRepository, settingsRepository)
+        val viewModel = LoginViewModel(authRepository, settingsRepository, FakeServerConfigStore())
 
         viewModel.onEmailChanged("admin@facturapro.local")
         viewModel.onPasswordChanged("FacturaPro123!")
@@ -58,6 +59,7 @@ class LoginViewModelTest {
         val viewModel = LoginViewModel(
             authRepository = authRepository,
             settingsRepository = FakeSettingsRepository(Result.success(sampleBootstrap())),
+            serverConfigStore = FakeServerConfigStore(),
         )
 
         advanceUntilIdle()
@@ -66,6 +68,30 @@ class LoginViewModelTest {
 
         assertEquals("Correo y password son obligatorios.", viewModel.uiState.value.errorMessage)
         assertEquals(0, authRepository.loginCalls)
+    }
+}
+
+private class FakeServerConfigStore(
+    initialUrl: String = DEFAULT_URL,
+) : ServerConfigStoreContract {
+    private val apiBaseUrlState = MutableStateFlow(initialUrl)
+
+    override val apiBaseUrl: Flow<String> = apiBaseUrlState
+
+    override suspend fun currentApiBaseUrl(): String = apiBaseUrlState.value
+
+    override suspend fun saveApiBaseUrl(rawValue: String): Result<String> {
+        apiBaseUrlState.value = rawValue
+        return Result.success(rawValue)
+    }
+
+    override suspend fun resetApiBaseUrl(): String {
+        apiBaseUrlState.value = DEFAULT_URL
+        return DEFAULT_URL
+    }
+
+    private companion object {
+        const val DEFAULT_URL = "https://facturapro.bsolutions.dev/api/"
     }
 }
 

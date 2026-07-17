@@ -1,6 +1,6 @@
 package com.facturador.facturapro.data.remote
 
-import com.facturador.facturapro.data.local.ServerConfigStore
+import com.facturador.facturapro.data.local.ServerConfigStoreContract
 import kotlinx.coroutines.runBlocking
 import okhttp3.HttpUrl
 import okhttp3.HttpUrl.Companion.toHttpUrl
@@ -8,7 +8,7 @@ import okhttp3.Interceptor
 import okhttp3.Response
 
 class BaseUrlInterceptor(
-    private val serverConfigStore: ServerConfigStore,
+    private val serverConfigStore: ServerConfigStoreContract,
     private val defaultBaseUrl: HttpUrl,
 ) : Interceptor {
     override fun intercept(chain: Interceptor.Chain): Response {

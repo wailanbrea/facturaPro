@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <network-security-config>
-    <!-- Production default: HTTPS only, no cleartext allowed. -->
-    <base-config cleartextTrafficPermitted="false" />
+    <!-- Production default: cleartext permitted for local Wi-Fi development or HTTP servers. -->
+    <base-config cleartextTrafficPermitted="true" />
 
     <!-- Cleartext is permitted only against local development hosts
          (Android emulator loopback, localhost). Shipped builds talk to an

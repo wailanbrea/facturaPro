@@ -3,7 +3,7 @@ package com.facturador.facturapro.ui.settings
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
-import com.facturador.facturapro.data.local.ServerConfigStore
+import com.facturador.facturapro.data.local.ServerConfigStoreContract
 import com.facturador.facturapro.data.repository.PrinterRepositoryContract
 import com.facturador.facturapro.domain.model.PrinterDevice
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -14,7 +14,7 @@ import kotlinx.coroutines.launch
 
 class SettingsViewModel(
     private val printerRepository: PrinterRepositoryContract,
-    private val serverConfigStore: ServerConfigStore,
+    private val serverConfigStore: ServerConfigStoreContract,
 ) : ViewModel() {
     private val _uiState = MutableStateFlow(SettingsUiState())
     val uiState: StateFlow<SettingsUiState> = _uiState.asStateFlow()
@@ -157,7 +157,7 @@ class SettingsViewModel(
     companion object {
         fun factory(
             printerRepository: PrinterRepositoryContract,
-            serverConfigStore: ServerConfigStore,
+            serverConfigStore: ServerConfigStoreContract,
         ): ViewModelProvider.Factory =
             object : ViewModelProvider.Factory {
                 @Suppress("UNCHECKED_CAST")

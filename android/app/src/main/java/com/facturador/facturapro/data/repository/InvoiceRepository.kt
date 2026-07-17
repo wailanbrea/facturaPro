@@ -219,4 +219,36 @@ class InvoiceRepository(
             )
         }
     }.ifBlank { "factura.pdf" }
+
+    override suspend fun convert(invoiceId: Long): Result<InvoiceDetail> = runCatching {
+        api.convertInvoice(invoiceId).data.toDetail()
+    }.fold(
+        onSuccess = { Result.success(it) },
+        onFailure = { error ->
+            Result.failure(IllegalStateException(ApiErrorMapper.message(error), error))
+        },
+    )
+
+    override suspend fun markPaid(
+        invoiceId: Long,
+        amount: Double,
+        paymentMethod: String,
+        reference: String?,
+        date: String
+    ): Result<InvoiceDetail> = runCatching {
+        api.markInvoicePaid(
+            invoiceId,
+            mapOf(
+                "amount" to amount,
+                "payment_method" to paymentMethod,
+                "reference" to reference,
+                "payment_date" to date
+            )
+        ).data.toDetail()
+    }.fold(
+        onSuccess = { Result.success(it) },
+        onFailure = { error ->
+            Result.failure(IllegalStateException(ApiErrorMapper.message(error), error))
+        },
+    )
 }

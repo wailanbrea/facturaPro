@@ -34,11 +34,15 @@ import androidx.compose.material.icons.outlined.Edit
 import androidx.compose.material.icons.outlined.OpenInBrowser
 import androidx.compose.material.icons.outlined.PictureAsPdf
 import androidx.compose.material.icons.outlined.Print
+import androidx.compose.material.icons.outlined.Assignment
 import androidx.compose.material.icons.outlined.RemoveRedEye
 import androidx.compose.material.icons.outlined.Search
 import androidx.compose.material.icons.outlined.Share
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.FilterChip
+import androidx.compose.material3.TextButton
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
@@ -58,6 +62,7 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextField
 import androidx.compose.material3.TextFieldDefaults
+import androidx.activity.compose.BackHandler
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -130,11 +135,43 @@ fun InvoicesScreen(
     onConsumeSavedEvent: () -> Unit,
     onConsumeSharedPdfEvent: () -> Unit,
     onClearInternalPdf: () -> Unit,
+    onConvertQuotation: () -> Unit,
+    onRegisterPayment: (Double, String, String?, String) -> Unit,
     modifier: Modifier = Modifier,
 ) {
     val context = LocalContext.current
     var pane by rememberSaveable { mutableStateOf(InvoicePane.List) }
     var editingInvoiceId by rememberSaveable { mutableStateOf<Long?>(null) }
+    var showPaymentDialog by remember { mutableStateOf(false) }
+    var paymentAmount by remember { mutableStateOf("") }
+    var paymentMethod by remember { mutableStateOf("cash") }
+    var paymentReference by remember { mutableStateOf("") }
+    var paymentDate by remember { mutableStateOf(java.time.LocalDate.now().toString()) }
+
+    BackHandler(enabled = pane != InvoicePane.List) {
+        when (pane) {
+            InvoicePane.Detail -> {
+                pane = InvoicePane.List
+                onClearSelection()
+            }
+            InvoicePane.Create -> {
+                pane = InvoicePane.List
+            }
+            InvoicePane.Edit -> {
+                pane = InvoicePane.Detail
+            }
+            InvoicePane.Preview -> {
+                pane = InvoicePane.Detail
+            }
+            InvoicePane.PdfViewer -> {
+                pane = InvoicePane.Detail
+                onClearInternalPdf()
+            }
+            else -> {
+                pane = InvoicePane.List
+            }
+        }
+    }
 
     LaunchedEffect(openCreateRequest) {
         if (openCreateRequest > 0) {
@@ -219,6 +256,8 @@ fun InvoicesScreen(
             onPrintPdf = onPrintPdf,
             onSharePdfToWhatsApp = onSharePdfToWhatsApp,
             onIssueAndPreparePdf = onIssueAndPreparePdf,
+            onConvert = onConvertQuotation,
+            onRegisterPayment = { showPaymentDialog = true },
             modifier = modifier,
         )
 
@@ -295,6 +334,88 @@ fun InvoicesScreen(
                 )
             }
         }
+    }
+
+    if (showPaymentDialog && state.selectedInvoice != null) {
+        val invoice = state.selectedInvoice
+        val maxAmount = invoice.balanceDue ?: "0.0"
+        LaunchedEffect(showPaymentDialog) {
+            paymentAmount = maxAmount
+        }
+        AlertDialog(
+            onDismissRequest = { showPaymentDialog = false },
+            title = { Text("Registrar Pago", fontWeight = FontWeight.Bold) },
+            text = {
+                Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                    Text("Monto pendiente: ${invoice.currencySymbol}$maxAmount", fontSize = 13.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    OutlinedTextField(
+                        value = paymentAmount,
+                        onValueChange = { paymentAmount = it },
+                        label = { Text("Monto *") },
+                        modifier = Modifier.fillMaxWidth(),
+                        singleLine = true
+                    )
+
+                    Text("Método de pago", fontWeight = FontWeight.Medium, fontSize = 12.sp)
+                    val methods = listOf(
+                        "cash" to "Efectivo",
+                        "bank_transfer" to "Transferencia",
+                        "card" to "Tarjeta",
+                        "check" to "Cheque"
+                    )
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        methods.forEach { (key, label) ->
+                            FilterChip(
+                                selected = paymentMethod == key,
+                                onClick = { paymentMethod = key },
+                                label = { Text(label, fontSize = 10.sp) }
+                            )
+                        }
+                    }
+
+                    OutlinedTextField(
+                        value = paymentReference,
+                        onValueChange = { paymentReference = it },
+                        label = { Text("Referencia (opcional)") },
+                        modifier = Modifier.fillMaxWidth(),
+                        singleLine = true
+                    )
+                    OutlinedTextField(
+                        value = paymentDate,
+                        onValueChange = { paymentDate = it },
+                        label = { Text("Fecha (AAAA-MM-DD)") },
+                        modifier = Modifier.fillMaxWidth(),
+                        singleLine = true
+                    )
+                }
+            },
+            confirmButton = {
+                Button(
+                    onClick = {
+                        val amountVal = paymentAmount.toDoubleOrNull()
+                        if (amountVal != null && amountVal > 0) {
+                            onRegisterPayment(
+                                amountVal,
+                                paymentMethod,
+                                paymentReference.ifBlank { null },
+                                paymentDate
+                            )
+                            showPaymentDialog = false
+                        }
+                    }
+                ) {
+                    Text("Guardar Pago")
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { showPaymentDialog = false }) {
+                    Text("Cancelar")
+                }
+            }
+        )
     }
 }
 
@@ -506,6 +627,8 @@ private fun InvoiceDetailPane(
     onPrintPdf: () -> Unit,
     onSharePdfToWhatsApp: () -> Unit,
     onIssueAndPreparePdf: (InvoicePdfAction) -> Unit,
+    onConvert: () -> Unit,
+    onRegisterPayment: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
     val invoice = state.selectedInvoice
@@ -556,6 +679,8 @@ private fun InvoiceDetailPane(
                     onPrintPdf = onPrintPdf,
                     onSharePdfToWhatsApp = onSharePdfToWhatsApp,
                     onIssueAndPreparePdf = onIssueAndPreparePdf,
+                    onConvert = onConvert,
+                    onRegisterPayment = onRegisterPayment,
                 )
             }
             item {
@@ -583,6 +708,8 @@ private fun InvoiceActionRow(
     onPrintPdf: () -> Unit,
     onSharePdfToWhatsApp: () -> Unit,
     onIssueAndPreparePdf: (InvoicePdfAction) -> Unit,
+    onConvert: () -> Unit,
+    onRegisterPayment: () -> Unit,
 ) {
     val documentName = if (invoice.documentType == "quotation") "presupuesto" else "factura"
 
@@ -646,6 +773,29 @@ private fun InvoiceActionRow(
                 modifier = Modifier.fillMaxWidth(),
                 enabled = !isSaving,
                 onClick = onPrintPdf,
+            )
+        }
+
+        // Convert Quotation button
+        if (invoice.documentType == "quotation" && invoice.status != "draft" && invoice.status != "cancelled" && invoice.status != "converted") {
+            PrimaryButton(
+                text = "Convertir a factura",
+                icon = Icons.Outlined.Assignment,
+                isBusy = isSaving,
+                onClick = onConvert,
+                modifier = Modifier.fillMaxWidth()
+            )
+        }
+
+        // Register payment button
+        val balanceDue = runCatching { invoice.balanceDue?.toDouble() ?: 0.0 }.getOrElse { 0.0 }
+        if (invoice.documentType == "invoice" && invoice.status != "cancelled" && balanceDue > 0.0) {
+            PrimaryButton(
+                text = "Registrar Pago",
+                icon = Icons.Outlined.Assignment, // Use Assignment/Wallet or simple default icon
+                isBusy = isSaving,
+                onClick = onRegisterPayment,
+                modifier = Modifier.fillMaxWidth()
             )
         }
     }
@@ -1008,6 +1158,7 @@ private fun InvoiceFormPane(
     var warrantyText by rememberSaveable(existingInvoice?.id) { mutableStateOf(defaults.warrantyText) }
     var legalText by rememberSaveable(existingInvoice?.id) { mutableStateOf(defaults.legalText) }
     var conformityText by rememberSaveable(existingInvoice?.id) { mutableStateOf(defaults.conformityText) }
+    var editLegalTexts by rememberSaveable { mutableStateOf(false) }
     var observations by rememberSaveable(existingInvoice?.id) { mutableStateOf(defaults.observations) }
     var preparedBy by rememberSaveable(existingInvoice?.id) { mutableStateOf(defaults.preparedBy) }
     var receivedBy by rememberSaveable(existingInvoice?.id) { mutableStateOf(defaults.receivedBy) }
@@ -1270,17 +1421,34 @@ private fun InvoiceFormPane(
                 options = bootstrap.warranties,
                 selectedId = selectedWarrantyId,
                 optionLabel = { it.title },
-                onSelected = { selectedWarrantyId = it },
+                onSelected = { 
+                    selectedWarrantyId = it
+                    warrantyText = ""
+                },
                 allowEmpty = false,
             )
         }
         item {
-            OutlinedTextField(
-                value = warrantyText,
-                onValueChange = { warrantyText = it },
-                modifier = Modifier.fillMaxWidth(),
-                label = { Text("Texto garantia") },
-            )
+            Row(
+                modifier = Modifier.fillMaxWidth().padding(vertical = 8.dp),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.SpaceBetween
+            ) {
+                Column(modifier = Modifier.weight(1f)) {
+                    Text("Textos de factura", fontWeight = FontWeight.Bold, fontSize = 14.sp)
+                    Text("Texto legal y de conformidad están bloqueados por defecto.", fontSize = 11.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                }
+                Button(
+                    onClick = { editLegalTexts = !editLegalTexts },
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = if (editLegalTexts) MaterialTheme.colorScheme.secondaryContainer else MaterialTheme.colorScheme.primaryContainer,
+                        contentColor = if (editLegalTexts) MaterialTheme.colorScheme.onSecondaryContainer else MaterialTheme.colorScheme.onPrimaryContainer
+                    ),
+                    modifier = Modifier.padding(start = 8.dp)
+                ) {
+                    Text(if (editLegalTexts) "Habilitado" else "Habilitar edición", fontSize = 12.sp)
+                }
+            }
         }
         item {
             OutlinedTextField(
@@ -1288,6 +1456,13 @@ private fun InvoiceFormPane(
                 onValueChange = { legalText = it },
                 modifier = Modifier.fillMaxWidth(),
                 label = { Text("Texto legal") },
+                readOnly = !editLegalTexts,
+                enabled = editLegalTexts,
+                colors = OutlinedTextFieldDefaults.colors(
+                    disabledTextColor = MaterialTheme.colorScheme.onSurface,
+                    disabledBorderColor = MaterialTheme.colorScheme.outline,
+                    disabledLabelColor = MaterialTheme.colorScheme.onSurfaceVariant
+                )
             )
         }
         item {
@@ -1296,6 +1471,13 @@ private fun InvoiceFormPane(
                 onValueChange = { conformityText = it },
                 modifier = Modifier.fillMaxWidth(),
                 label = { Text("Texto de conformidad") },
+                readOnly = !editLegalTexts,
+                enabled = editLegalTexts,
+                colors = OutlinedTextFieldDefaults.colors(
+                    disabledTextColor = MaterialTheme.colorScheme.onSurface,
+                    disabledBorderColor = MaterialTheme.colorScheme.outline,
+                    disabledLabelColor = MaterialTheme.colorScheme.onSurfaceVariant
+                )
             )
         }
         item {

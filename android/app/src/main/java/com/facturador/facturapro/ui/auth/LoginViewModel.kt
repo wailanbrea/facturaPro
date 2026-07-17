@@ -3,7 +3,7 @@ package com.facturador.facturapro.ui.auth
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
-import com.facturador.facturapro.data.local.ServerConfigStore
+import com.facturador.facturapro.data.local.ServerConfigStoreContract
 import com.facturador.facturapro.data.repository.AuthRepositoryContract
 import com.facturador.facturapro.data.repository.SettingsRepositoryContract
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -16,7 +16,7 @@ import kotlinx.coroutines.launch
 class LoginViewModel(
     private val authRepository: AuthRepositoryContract,
     private val settingsRepository: SettingsRepositoryContract,
-    private val serverConfigStore: ServerConfigStore,
+    private val serverConfigStore: ServerConfigStoreContract,
 ) : ViewModel() {
     private val _uiState = MutableStateFlow(LoginUiState())
     val uiState: StateFlow<LoginUiState> = _uiState.asStateFlow()
@@ -38,6 +38,7 @@ class LoginViewModel(
                 _uiState.update {
                     it.copy(
                         isAuthenticated = session != null,
+                        isSessionLoaded = true,
                         userName = session?.userName,
                         errorMessage = null,
                     )
@@ -189,7 +190,7 @@ class LoginViewModel(
         fun factory(
             authRepository: AuthRepositoryContract,
             settingsRepository: SettingsRepositoryContract,
-            serverConfigStore: ServerConfigStore,
+            serverConfigStore: ServerConfigStoreContract,
         ): ViewModelProvider.Factory = object : ViewModelProvider.Factory {
             @Suppress("UNCHECKED_CAST")
             override fun <T : ViewModel> create(modelClass: Class<T>): T {

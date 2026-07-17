@@ -66,6 +66,7 @@ import com.facturador.facturapro.domain.model.TechnicalReportSetting
 import com.facturador.facturapro.domain.model.TechnicalReportSummary
 import com.facturador.facturapro.ui.common.IsoDatePickerField
 import com.facturador.facturapro.ui.invoices.PdfViewerScreen
+import androidx.activity.compose.BackHandler
 import java.time.LocalDate
 
 @Composable
@@ -90,6 +91,24 @@ fun TechnicalReportsScreen(
 ) {
     var showForm by remember { mutableStateOf(false) }
     var editingReport by remember { mutableStateOf<TechnicalReportDetail?>(null) }
+
+    val hasBackAction = state.internalPdfPath != null ||
+            state.previewHtml != null ||
+            state.isPreviewLoading ||
+            showForm ||
+            state.selectedReport != null
+
+    BackHandler(enabled = hasBackAction) {
+        when {
+            state.internalPdfPath != null -> onClearInternalPdf()
+            state.previewHtml != null || state.isPreviewLoading -> onClearPreview()
+            showForm -> {
+                showForm = false
+                editingReport = null
+            }
+            state.selectedReport != null -> onClearSelection()
+        }
+    }
 
     LaunchedEffect(openCreateRequest) {
         if (openCreateRequest > 0) {

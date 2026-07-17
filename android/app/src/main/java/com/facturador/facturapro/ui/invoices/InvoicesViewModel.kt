@@ -194,6 +194,80 @@ class InvoicesViewModel(
         }
     }
 
+    fun convertSelectedQuotation() {
+        val invoiceId = _uiState.value.selectedInvoice?.id ?: return
+
+        viewModelScope.launch {
+            _uiState.update {
+                it.copy(
+                    isSaving = true,
+                    errorMessage = null,
+                )
+            }
+
+            repository.convert(invoiceId).fold(
+                onSuccess = { invoice ->
+                    _uiState.update {
+                        it.copy(
+                            isSaving = false,
+                            selectedInvoice = invoice,
+                            invoices = (it.invoices.filterNot { summary -> summary.id == invoice.id } + invoice.toSummary())
+                                .sortedByDescending { summary -> summary.invoiceDate },
+                        )
+                    }
+                    refresh()
+                },
+                onFailure = { error ->
+                    _uiState.update {
+                        it.copy(
+                            isSaving = false,
+                            errorMessage = error.message ?: "No se pudo convertir el presupuesto.",
+                        )
+                    }
+                }
+            )
+        }
+    }
+
+    fun registerPaymentForSelectedInvoice(
+        amount: Double,
+        paymentMethod: String,
+        reference: String?,
+        date: String
+    ) {
+        val invoiceId = _uiState.value.selectedInvoice?.id ?: return
+
+        viewModelScope.launch {
+            _uiState.update {
+                it.copy(
+                    isSaving = true,
+                    errorMessage = null,
+                )
+            }
+
+            repository.markPaid(invoiceId, amount, paymentMethod, reference, date).fold(
+                onSuccess = { invoice ->
+                    _uiState.update {
+                        it.copy(
+                            isSaving = false,
+                            selectedInvoice = invoice,
+                            invoices = (it.invoices.filterNot { summary -> summary.id == invoice.id } + invoice.toSummary())
+                                .sortedByDescending { summary -> summary.invoiceDate },
+                        )
+                    }
+                },
+                onFailure = { error ->
+                    _uiState.update {
+                        it.copy(
+                            isSaving = false,
+                            errorMessage = error.message ?: "No se pudo registrar el pago.",
+                        )
+                    }
+                }
+            )
+        }
+    }
+
     fun issueSelectedInvoiceAndPreparePdf(action: InvoicePdfAction) {
         preparePdfActionForSelectedInvoice(action = action, issueBeforePreparing = true)
     }

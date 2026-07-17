@@ -232,6 +232,18 @@ private class FakeInvoiceRepository(
         code: String,
     ): Result<com.facturador.facturapro.domain.model.InvoiceVerification> =
         Result.failure(UnsupportedOperationException())
+
+    override suspend fun convert(invoiceId: Long): Result<InvoiceDetail> =
+        Result.failure(UnsupportedOperationException())
+
+    override suspend fun markPaid(
+        invoiceId: Long,
+        amount: Double,
+        paymentMethod: String,
+        reference: String?,
+        date: String
+    ): Result<InvoiceDetail> =
+        Result.failure(UnsupportedOperationException())
 }
 
 private fun sampleDraft(): InvoiceDraft = InvoiceDraft(

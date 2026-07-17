@@ -41,7 +41,8 @@ import java.util.Locale
 @Composable
 fun CalendarScreen(viewModel: CalendarViewModel) {
     val state by viewModel.state.collectAsStateWithLifecycle()
-    var showCreate by remember { mutableStateOf(false) }
+    var showForm by remember { mutableStateOf(false) }
+    var selectedAppointment by remember { mutableStateOf<Appointment?>(null) }
 
     Column(modifier = Modifier.fillMaxSize().padding(16.dp)) {
         Row(verticalAlignment = Alignment.CenterVertically) {
@@ -53,7 +54,7 @@ fun CalendarScreen(viewModel: CalendarViewModel) {
                 )
             }
             FloatingActionButton(
-                onClick = { showCreate = true },
+                onClick = { selectedAppointment = null; showForm = true },
                 modifier = Modifier.size(40.dp),
                 containerColor = MaterialTheme.colorScheme.primary,
                 contentColor = MaterialTheme.colorScheme.onPrimary,
@@ -86,7 +87,7 @@ fun CalendarScreen(viewModel: CalendarViewModel) {
                 Spacer(Modifier.height(6.dp))
                 LazyColumn(modifier = Modifier.weight(1f)) {
                     items(dayAppts) { appt ->
-                        AppointmentCard(appt)
+                        AppointmentCard(appt, onClick = { selectedAppointment = appt; showForm = true })
                     }
                 }
             }
@@ -98,10 +99,11 @@ fun CalendarScreen(viewModel: CalendarViewModel) {
         }
     }
 
-    if (showCreate) {
+    if (showForm) {
         CreateAppointmentScreen(
             viewModel = viewModel,
-            onDismiss = { showCreate = false },
+            existingAppointment = selectedAppointment,
+            onDismiss = { showForm = false; selectedAppointment = null },
         )
     }
 }
@@ -233,7 +235,7 @@ private fun CalendarGrid(
 }
 
 @Composable
-private fun AppointmentCard(appointment: Appointment) {
+private fun AppointmentCard(appointment: Appointment, onClick: () -> Unit) {
     val context = LocalContext.current
     var showNavSheet by remember { mutableStateOf(false) }
 
@@ -242,7 +244,7 @@ private fun AppointmentCard(appointment: Appointment) {
     }.getOrElse { MaterialTheme.colorScheme.primary }
 
     Card(
-        modifier = Modifier.fillMaxWidth().padding(vertical = 3.dp),
+        modifier = Modifier.fillMaxWidth().padding(vertical = 3.dp).clickable { onClick() },
         shape = RoundedCornerShape(8.dp),
     ) {
         Column(Modifier.padding(10.dp)) {
