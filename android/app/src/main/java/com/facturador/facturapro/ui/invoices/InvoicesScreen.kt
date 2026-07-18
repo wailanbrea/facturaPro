@@ -144,7 +144,7 @@ fun InvoicesScreen(
     var editingInvoiceId by rememberSaveable { mutableStateOf<Long?>(null) }
     var showPaymentDialog by remember { mutableStateOf(false) }
     var paymentAmount by remember { mutableStateOf("") }
-    var paymentMethod by remember { mutableStateOf("cash") }
+    var paymentMethod by remember { mutableStateOf("efectivo") }
     var paymentReference by remember { mutableStateOf("") }
     var paymentDate by remember { mutableStateOf(java.time.LocalDate.now().toString()) }
 
@@ -358,10 +358,10 @@ fun InvoicesScreen(
 
                     Text("Método de pago", fontWeight = FontWeight.Medium, fontSize = 12.sp)
                     val methods = listOf(
-                        "cash" to "Efectivo",
-                        "bank_transfer" to "Transferencia",
-                        "card" to "Tarjeta",
-                        "check" to "Cheque"
+                        "efectivo" to "Efectivo",
+                        "transferencia" to "Transferencia",
+                        "tarjeta" to "Tarjeta",
+                        "cheque" to "Cheque"
                     )
                     Row(
                         modifier = Modifier.fillMaxWidth(),

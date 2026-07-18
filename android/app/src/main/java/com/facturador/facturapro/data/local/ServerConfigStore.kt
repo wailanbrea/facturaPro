@@ -39,11 +39,10 @@ class ServerConfigStore(context: Context) : ServerConfigStoreContract {
             ?: error("URL invalida. Usa un dominio HTTPS, por ejemplo facturapro.bsolutions.dev")
 
         val parsed = normalized.toHttpUrl()
-        val isLocal = parsed.host == "localhost" ||
-            parsed.host == "127.0.0.1" ||
-            parsed.host == "10.0.2.2"
 
-        require(parsed.isHttps || isLocal) {
+        // El texto plano (HTTP) solo se admite contra hosts locales o de la red
+        // local (WiFi de desarrollo). Los servidores publicos deben usar HTTPS.
+        require(parsed.isHttps || parsed.host.isLocalOrPrivateHost()) {
             "Por seguridad, usa HTTPS para servidores publicos."
         }
 
@@ -72,6 +71,26 @@ class ServerConfigStore(context: Context) : ServerConfigStoreContract {
     }
 }
 
+/**
+ * Hosts contra los que se admite HTTP en claro: loopback del emulador,
+ * localhost y las direcciones IPv4 privadas (RFC 1918) de una red WiFi local.
+ */
+internal fun String.isLocalOrPrivateHost(): Boolean {
+    if (this == "localhost" || this == "127.0.0.1" || this == "10.0.2.2") return true
+
+    val octets = split(".")
+    if (octets.size != 4) return false
+    val (a, b) = octets.take(2).map { it.toIntOrNull() ?: return false }
+    if (octets.drop(2).any { (it.toIntOrNull() ?: return false) !in 0..255 }) return false
+
+    return when (a) {
+        10 -> true                       // 10.0.0.0/8
+        172 -> b in 16..31               // 172.16.0.0/12
+        192 -> b == 168                  // 192.168.0.0/16
+        else -> false
+    }
+}
+
 private fun String.normalizeApiBaseUrlOrNull(): String? {
     val trimmed = trim()
     if (trimmed.isBlank()) return null
@@ -79,7 +98,9 @@ private fun String.normalizeApiBaseUrlOrNull(): String? {
     val withScheme = if (trimmed.contains("://")) {
         trimmed
     } else {
-        "https://$trimmed"
+        // Sin esquema explicito: HTTP para hosts locales/LAN, HTTPS para el resto.
+        val host = trimmed.substringBefore('/').substringBefore(':')
+        if (host.isLocalOrPrivateHost()) "http://$trimmed" else "https://$trimmed"
     }
 
     val parsed = withScheme.toHttpUrlOrNull() ?: return null

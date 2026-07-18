@@ -240,7 +240,8 @@ class InvoiceRepository(
             invoiceId,
             mapOf(
                 "amount" to amount,
-                "payment_method" to paymentMethod,
+                // El backend (MarkInvoicePaidRequest) espera la clave "method".
+                "method" to paymentMethod,
                 "reference" to reference,
                 "payment_date" to date
             )

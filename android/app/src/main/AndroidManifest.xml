@@ -42,6 +42,7 @@
         <activity
             android:name=".MainActivity"
             android:exported="true"
+            android:configChanges="orientation|screenSize|smallestScreenSize|screenLayout|keyboardHidden|keyboard|navigation|uiMode|density|fontScale|layoutDirection|locale"
             android:theme="@style/Theme.FacturaPro">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
