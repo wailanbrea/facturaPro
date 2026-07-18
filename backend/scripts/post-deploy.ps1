@@ -1,10 +1,15 @@
 param(
     [string] $PhpPath = "C:\xampp\php\php.exe",
-    [string] $ProjectRoot = "C:\xampp\php\www\FacturaPro\backend"
+    [string] $ProjectRoot = "C:\xampp\htdocs\facturaPro\backend"
 )
 
 Set-StrictMode -Version Latest
 $ErrorActionPreference = "Stop"
+
+$principal = New-Object Security.Principal.WindowsPrincipal([Security.Principal.WindowsIdentity]::GetCurrent())
+if (-not $principal.IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator)) {
+    throw "Ejecuta este script en PowerShell como Administrador. Sin elevacion no puede purgar bootstrap\cache ni reiniciar servicios de XAMPP."
+}
 
 if (-not (Test-Path -LiteralPath $PhpPath)) {
     throw "No se encontro php.exe en: $PhpPath"

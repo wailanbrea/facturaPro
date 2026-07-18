@@ -448,6 +448,9 @@ curl -s -o /dev/null -w "%{http_code}\n" https://<tu-dominio>/api/health   # 200
 php artisan route:list | grep convert                                      # la ruta nueva existe
 ```
 
-> **En Windows/XAMPP** usa `backend/scripts/post-deploy.ps1`, que ya purga esas
-> cachés antes de ejecutar artisan. No apliques `systemctl`/`php8.3-fpm`: ahí basta
-> con reiniciar Apache desde el panel de XAMPP.
+> **En Windows/XAMPP** abre PowerShell **como Administrador** y usa
+> `backend/scripts/post-deploy.ps1`. El script apunta por defecto a
+> `C:\xampp\htdocs\facturaPro\backend` y purga esas cachés antes de ejecutar
+> artisan. Sin elevación, Windows deja esos archivos como solo lectura para el
+> usuario interactivo aunque la cuenta sea `Administrator`. No apliques
+> `systemctl`/`php8.3-fpm`: ahí basta con reiniciar Apache desde el panel de XAMPP.

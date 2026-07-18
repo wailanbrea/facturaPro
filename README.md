@@ -296,6 +296,19 @@ php artisan route:cache
 php artisan view:cache
 ```
 
+En Windows/XAMPP, ejecutar el script de post-deploy desde PowerShell abierto
+como Administrador:
+
+```powershell
+cd C:\xampp\htdocs\facturaPro
+.\backend\scripts\post-deploy.ps1
+```
+
+El script usa por defecto `C:\xampp\htdocs\facturaPro\backend` y purga
+`bootstrap/cache/packages.php` y `bootstrap/cache/services.php` antes de llamar
+a `artisan`. Esto evita el 500 completo por `Laravel\Pail\PailServiceProvider`
+cuando se hizo `composer install --no-dev`.
+
 Para limpiar cache durante diagnostico:
 
 ```powershell
@@ -351,4 +364,3 @@ No subir:
 - `backend/storage/app/public/*` con archivos reales de clientes
 - `android/local.properties`
 - PDFs o imagenes temporales de revision
-
