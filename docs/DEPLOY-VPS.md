@@ -402,3 +402,52 @@ Para probar la app **debug** contra un backend de desarrollo en tu PC y un telé
 | Verificación dice "alterado" en facturas válidas | `INVOICE_SIGNING_KEY` (o `APP_KEY` sin clave dedicada) cambió tras firmar | Restaurar la clave original; si se rotó a propósito, re-firmar |
 | Descarga de PDF 404 desde web | Falta `php artisan storage:link` | Ejecutarlo y verificar permisos de `public/storage` |
 | Login responde 429 | Throttle de fuerza bruta (5/min por email+IP) | Esperar 1 min; es comportamiento esperado |
+| **Todo el sitio y el API responden 500** (incluso `/api/health`) y la consola dice `Class "Laravel\Pail\PailServiceProvider" not found` | `composer install --no-dev` desinstalo los paquetes de desarrollo, pero `bootstrap/cache/packages.php` sigue registrando sus providers. Laravel no arranca, asi que ni `artisan` funciona | Borrar las caches a mano (no con artisan) y regenerarlas: ver [seccion 12](#12-actualizacion-redeploy) |
+
+---
+
+## 12. Actualización (redeploy)
+
+Para publicar cambios en un servidor ya aprovisionado. **El orden importa**: las
+cachés compiladas se purgan *antes* de tocar las dependencias, porque si quedan
+apuntando a un paquete de desarrollo ya desinstalado, Laravel deja de arrancar y
+ningún comando `artisan` funciona.
+
+```bash
+cd /var/www/facturapro
+php artisan --working-dir=backend down || true   # tolera que la app ya este caida
+git pull origin master
+cd backend
+
+# 1. Purga de caches compiladas (a nivel de ficheros, no con artisan)
+rm -f bootstrap/cache/packages.php bootstrap/cache/services.php \
+      bootstrap/cache/config.php bootstrap/cache/events.php
+
+# 2. Dependencias de produccion (regenera el descubrimiento ya sin paquetes dev)
+composer install --no-dev --optimize-autoloader
+
+# 3. Migraciones pendientes (idempotente)
+php artisan migrate --force
+
+# 4. Reconstruir caches. Imprescindible tras anadir rutas nuevas:
+#    sin `route:cache` al dia, los endpoints recien creados responden 404.
+php artisan config:cache
+php artisan route:cache
+php artisan view:cache
+
+# 5. Permisos y arranque
+sudo chown -R www-data:www-data storage bootstrap/cache public/storage
+php artisan up
+sudo systemctl reload php8.3-fpm
+```
+
+Verificación:
+
+```bash
+curl -s -o /dev/null -w "%{http_code}\n" https://<tu-dominio>/api/health   # 200
+php artisan route:list | grep convert                                      # la ruta nueva existe
+```
+
+> **En Windows/XAMPP** usa `backend/scripts/post-deploy.ps1`, que ya purga esas
+> cachés antes de ejecutar artisan. No apliques `systemctl`/`php8.3-fpm`: ahí basta
+> con reiniciar Apache desde el panel de XAMPP.

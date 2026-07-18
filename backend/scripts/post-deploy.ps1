@@ -24,6 +24,29 @@ $commands = @(
     @("artisan", "up")
 )
 
+# Purga las caches compiladas ANTES de invocar artisan.
+#
+# `composer install --no-dev` desinstala los paquetes de desarrollo (p. ej.
+# laravel/pail), pero deja intacto el `bootstrap/cache/packages.php` generado
+# cuando si estaban presentes. Al arrancar, Laravel intenta registrar el
+# provider de un paquete que ya no existe y lanza
+# "Class Laravel\Pail\PailServiceProvider not found": la aplicacion entera
+# responde 500 y ni siquiera `artisan down` funciona. Estos ficheros se
+# regeneran solos, asi que borrarlos siempre es seguro.
+$staleCaches = @(
+    (Join-Path $ProjectRoot "bootstrap\cache\packages.php"),
+    (Join-Path $ProjectRoot "bootstrap\cache\services.php"),
+    (Join-Path $ProjectRoot "bootstrap\cache\config.php"),
+    (Join-Path $ProjectRoot "bootstrap\cache\events.php")
+)
+
+foreach ($cacheFile in $staleCaches) {
+    if (Test-Path -LiteralPath $cacheFile) {
+        Write-Output ("Purgando cache obsoleta: " + $cacheFile)
+        Remove-Item -LiteralPath $cacheFile -Force
+    }
+}
+
 Push-Location $ProjectRoot
 try {
     foreach ($command in $commands) {

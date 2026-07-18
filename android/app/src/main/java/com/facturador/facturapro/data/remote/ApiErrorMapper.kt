@@ -21,7 +21,10 @@ object ApiErrorMapper {
             403 -> "Tu usuario no tiene permisos para esta operacion."
             422 -> serverMessage ?: "Revisa los datos enviados."
             429 -> "Demasiados intentos. Espera un momento e intenta nuevamente."
-            in 500..599 -> serverMessage ?: "El servidor no pudo procesar la solicitud."
+            // En produccion Laravel devuelve siempre el literal "Server Error", que no
+            // le dice nada al usuario: en ese caso preferimos nuestro propio mensaje.
+            in 500..599 -> serverMessage?.takeUnless { it.equals("Server Error", ignoreCase = true) }
+                ?: "El servidor no esta disponible (error ${error.code()}). Intentalo mas tarde o avisa al administrador."
             else -> serverMessage ?: "Solicitud rechazada por el servidor (${error.code()})."
         }
     }
