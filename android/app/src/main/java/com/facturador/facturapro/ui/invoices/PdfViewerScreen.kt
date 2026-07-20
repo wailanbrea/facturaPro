@@ -1,7 +1,11 @@
 package com.facturador.facturapro.ui.invoices
 
 import android.content.ContextWrapper
+import android.content.ContentValues
+import android.content.Intent
 import android.net.Uri
+import android.os.Environment
+import android.provider.MediaStore
 import android.util.Log
 import android.view.View
 import androidx.compose.foundation.layout.Arrangement
@@ -14,6 +18,8 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.outlined.ArrowBack
+import androidx.compose.material.icons.outlined.Download
+import androidx.compose.material.icons.outlined.Share
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -38,6 +44,7 @@ import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleOwner
 import androidx.pdf.viewer.fragment.PdfViewerFragment
 import java.io.File
+import java.io.IOException
 
 private const val TAG = "FacturaProPDF"
 
@@ -45,6 +52,7 @@ private const val TAG = "FacturaProPDF"
 fun PdfViewerScreen(
     filePath: String,
     onBack: () -> Unit,
+    title: String = "Factura PDF",
     modifier: Modifier = Modifier,
 ) {
     val context = LocalContext.current
@@ -94,12 +102,18 @@ fun PdfViewerScreen(
                 )
             }
             Text(
-                text = "Factura PDF",
+                text = title,
                 style = MaterialTheme.typography.titleLarge,
                 fontWeight = FontWeight.Bold,
                 color = MaterialTheme.colorScheme.onSurface,
                 modifier = Modifier.weight(1f),
             )
+            IconButton(onClick = { sharePdf(context, file) }, enabled = fileError == null) {
+                Icon(Icons.Outlined.Share, contentDescription = "Compartir PDF")
+            }
+            IconButton(onClick = { savePdfToDownloads(context, file) }, enabled = fileError == null) {
+                Icon(Icons.Outlined.Download, contentDescription = "Guardar en Descargas")
+            }
         }
 
         HorizontalDivider()
@@ -131,6 +145,42 @@ fun PdfViewerScreen(
                 )
             }
         }
+    }
+}
+
+private fun sharePdf(context: android.content.Context, file: File) {
+    val uri = runCatching {
+        FileProvider.getUriForFile(context, "${context.packageName}.fileprovider", file)
+    }.getOrElse {
+        android.widget.Toast.makeText(context, "No se pudo preparar el PDF para compartir.", android.widget.Toast.LENGTH_LONG).show()
+        return
+    }
+
+    context.startActivity(Intent.createChooser(Intent(Intent.ACTION_SEND).apply {
+        type = "application/pdf"
+        putExtra(Intent.EXTRA_STREAM, uri)
+        addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+    }, "Compartir PDF"))
+}
+
+private fun savePdfToDownloads(context: android.content.Context, file: File) {
+    runCatching {
+        val values = ContentValues().apply {
+            put(MediaStore.Downloads.DISPLAY_NAME, file.name)
+            put(MediaStore.Downloads.MIME_TYPE, "application/pdf")
+            put(MediaStore.Downloads.RELATIVE_PATH, Environment.DIRECTORY_DOWNLOADS + "/FacturaPro")
+            put(MediaStore.Downloads.IS_PENDING, 1)
+        }
+        val uri = context.contentResolver.insert(MediaStore.Downloads.EXTERNAL_CONTENT_URI, values)
+            ?: throw IOException("No se pudo crear el archivo en Descargas.")
+        context.contentResolver.openOutputStream(uri)?.use { output -> file.inputStream().use { input -> input.copyTo(output) } }
+            ?: throw IOException("No se pudo guardar el PDF.")
+        values.clear()
+        values.put(MediaStore.Downloads.IS_PENDING, 0)
+        context.contentResolver.update(uri, values, null, null)
+        android.widget.Toast.makeText(context, "PDF guardado en Descargas/FacturaPro", android.widget.Toast.LENGTH_LONG).show()
+    }.onFailure {
+        android.widget.Toast.makeText(context, "No se pudo guardar el PDF.", android.widget.Toast.LENGTH_LONG).show()
     }
 }
 

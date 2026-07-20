@@ -266,6 +266,7 @@ fun WorkspaceScreen(
                     onLoadPreview = technicalReportsViewModel::loadPreviewForSelectedReport,
                     onClearPreview = technicalReportsViewModel::clearPreview,
                     onGenerateAndViewPdf = technicalReportsViewModel::generateAndViewPdfForSelectedReport,
+                    onFiscalProfileChanged = technicalReportsViewModel::loadSettings,
                     onClearInternalPdf = technicalReportsViewModel::clearInternalPdfViewer,
                     onConsumeSavedEvent = technicalReportsViewModel::consumeSavedEvent,
                 )

@@ -40,7 +40,7 @@ class TechnicalReportApiTest extends TestCase
     {
         $created = $this->postJson('/api/technical-reports', $this->reportPayload())
             ->assertCreated()
-            ->assertJsonPath('data.report_number', 'INF-000001')
+            ->assertJsonPath('data.report_number', 'INF-LARG-000001')
             ->assertJsonPath('data.status', 'draft')
             ->assertJsonPath('data.section_1_title', 'Diagnóstico de la Avería');
 
@@ -57,8 +57,35 @@ class TechnicalReportApiTest extends TestCase
             'section_1_title' => ReportSetting::current()->section_1_default_title,
         ]))->assertCreated();
 
-        $second->assertJsonPath('data.report_number', 'INF-000002')
+        $second->assertJsonPath('data.report_number', 'INF-LARG-000002')
             ->assertJsonPath('data.section_1_title', 'Nuevo titulo global');
+    }
+
+    public function test_report_numbering_uses_an_independent_series_per_fiscal_profile(): void
+    {
+        $first = $this->postJson('/api/technical-reports', $this->reportPayload())
+            ->assertCreated()
+            ->json('data.report_number');
+
+        $secondProfile = FiscalProfile::query()->create([
+            'name' => 'Servicio Norte',
+            'tax_id' => 'B76543210',
+            'is_active' => true,
+        ]);
+
+        $second = $this->postJson('/api/technical-reports', $this->reportPayload([
+            'fiscal_profile_id' => $secondProfile->id,
+        ]))
+            ->assertCreated()
+            ->json('data.report_number');
+
+        $this->assertSame('INF-LARG-000001', $first);
+        $this->assertSame('INF-SN-000001', $second);
+        $this->assertNotSame($first, $second);
+
+        $this->getJson('/api/report-settings?fiscal_profile_id='.$secondProfile->id)
+            ->assertOk()
+            ->assertJsonPath('data.next_number_preview', 'INF-SN-000002');
     }
 
     public function test_issued_technical_report_is_signed_and_can_be_verified(): void

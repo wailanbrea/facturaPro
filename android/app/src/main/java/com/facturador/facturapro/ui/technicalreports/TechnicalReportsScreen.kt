@@ -15,6 +15,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -85,6 +86,7 @@ fun TechnicalReportsScreen(
     onLoadPreview: () -> Unit,
     onClearPreview: () -> Unit,
     onGenerateAndViewPdf: () -> Unit,
+    onFiscalProfileChanged: (Long?) -> Unit,
     onClearInternalPdf: () -> Unit,
     onConsumeSavedEvent: () -> Unit,
     modifier: Modifier = Modifier,
@@ -160,6 +162,7 @@ fun TechnicalReportsScreen(
                     onUpdateReport(current.id, draft)
                 }
             },
+            onFiscalProfileChanged = onFiscalProfileChanged,
             modifier = modifier,
         )
 
@@ -380,6 +383,7 @@ private fun TechnicalReportFormPane(
     errorMessage: String?,
     onBack: () -> Unit,
     onSave: (TechnicalReportDraft) -> Unit,
+    onFiscalProfileChanged: (Long?) -> Unit,
     modifier: Modifier = Modifier,
 ) {
     val fiscalProfiles = bootstrap?.fiscalProfiles.orEmpty()
@@ -428,6 +432,16 @@ private fun TechnicalReportFormPane(
         mutableStateOf(existingReport?.section4Title.orEmpty())
     }
     var section4Content by remember(existingReport?.id) { mutableStateOf(existingReport?.section4Content.orEmpty()) }
+    var additionalSections by remember(existingReport?.id) {
+        mutableStateOf(
+            when {
+                existingReport?.section4Title?.isNotBlank() == true || existingReport?.section4Content?.isNotBlank() == true -> 3
+                existingReport?.section3Title?.isNotBlank() == true || existingReport?.section3Content?.isNotBlank() == true -> 2
+                existingReport?.section2Title?.isNotBlank() == true || existingReport?.section2Content?.isNotBlank() == true -> 1
+                else -> 0
+            }
+        )
+    }
     val selectedProfile = fiscalProfiles.firstOrNull { it.id == fiscalProfileId }
     val availableLogos = selectedProfile?.logos.orEmpty()
 
@@ -441,6 +455,10 @@ private fun TechnicalReportFormPane(
                 ?: profileLogos.firstOrNull()?.path
                 ?: profile?.logoPath
         }
+    }
+
+    LaunchedEffect(fiscalProfileId) {
+        onFiscalProfileChanged(fiscalProfileId)
     }
 
     val canSave = fiscalProfileId != null &&
@@ -535,9 +553,73 @@ private fun TechnicalReportFormPane(
             }
 
             item { SectionEditorCard(1, section1Title, section1Content, { section1Title = it }, { section1Content = it }) }
-            item { SectionEditorCard(2, section2Title, section2Content, { section2Title = it }, { section2Content = it }) }
-            item { SectionEditorCard(3, section3Title, section3Content, { section3Title = it }, { section3Content = it }) }
-            item { SectionEditorCard(4, section4Title, section4Content, { section4Title = it }, { section4Content = it }) }
+            if (additionalSections >= 1) {
+                item {
+                    SectionEditorCard(
+                        number = 2,
+                        title = section2Title,
+                        content = section2Content,
+                        onTitleChanged = { section2Title = it },
+                        onContentChanged = { section2Content = it },
+                        onRemove = {
+                            section2Title = section3Title
+                            section2Content = section3Content
+                            section3Title = section4Title
+                            section3Content = section4Content
+                            section4Title = ""
+                            section4Content = ""
+                            additionalSections--
+                        }
+                    )
+                }
+            }
+            if (additionalSections >= 2) {
+                item {
+                    SectionEditorCard(
+                        number = 3,
+                        title = section3Title,
+                        content = section3Content,
+                        onTitleChanged = { section3Title = it },
+                        onContentChanged = { section3Content = it },
+                        onRemove = {
+                            section3Title = section4Title
+                            section3Content = section4Content
+                            section4Title = ""
+                            section4Content = ""
+                            additionalSections--
+                        }
+                    )
+                }
+            }
+            if (additionalSections >= 3) {
+                item {
+                    SectionEditorCard(
+                        number = 4,
+                        title = section4Title,
+                        content = section4Content,
+                        onTitleChanged = { section4Title = it },
+                        onContentChanged = { section4Content = it },
+                        onRemove = {
+                            section4Title = ""
+                            section4Content = ""
+                            additionalSections--
+                        }
+                    )
+                }
+            }
+            if (additionalSections < 3) {
+                item {
+                    OutlinedButton(
+                        onClick = { additionalSections++ },
+                        modifier = Modifier.fillMaxWidth(),
+                        shape = RoundedCornerShape(12.dp)
+                    ) {
+                        Icon(Icons.Filled.Add, contentDescription = null)
+                        Spacer(Modifier.width(8.dp))
+                        Text("Agregar sección")
+                    }
+                }
+            }
 
             item {
                 Button(
@@ -584,10 +666,36 @@ private fun SectionEditorCard(
     content: String,
     onTitleChanged: (String) -> Unit,
     onContentChanged: (String) -> Unit,
+    onRemove: (() -> Unit)? = null,
 ) {
-    FormCard(title = "Seccion $number") {
-        OutlinedTextField(value = title, onValueChange = onTitleChanged, modifier = Modifier.fillMaxWidth(), label = { Text("Titulo") })
-        OutlinedTextField(value = content, onValueChange = onContentChanged, modifier = Modifier.fillMaxWidth(), label = { Text("Contenido") }, minLines = 5)
+    Card(
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerLowest),
+        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
+        shape = RoundedCornerShape(12.dp),
+    ) {
+        Column(
+            modifier = Modifier.padding(14.dp),
+            verticalArrangement = Arrangement.spacedBy(12.dp),
+        ) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Text("Seccion $number", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+                if (onRemove != null) {
+                    IconButton(onClick = onRemove) {
+                        Icon(
+                            imageVector = Icons.Outlined.Delete,
+                            contentDescription = "Quitar seccion",
+                            tint = MaterialTheme.colorScheme.error
+                        )
+                    }
+                }
+            }
+            OutlinedTextField(value = title, onValueChange = onTitleChanged, modifier = Modifier.fillMaxWidth(), label = { Text("Titulo") })
+            OutlinedTextField(value = content, onValueChange = onContentChanged, modifier = Modifier.fillMaxWidth(), label = { Text("Contenido") }, minLines = 5)
+        }
     }
 }
 

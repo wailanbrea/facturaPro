@@ -2,6 +2,7 @@
 
 namespace App\Http\Resources\Api;
 
+use App\Services\ReportNumberService;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\JsonResource;
 
@@ -24,7 +25,9 @@ class ReportSettingResource extends JsonResource
             'next_report_number' => $this->next_report_number,
             'number_length' => $this->number_length,
             'allow_manual_number' => $this->allow_manual_number,
-            'next_number_preview' => $this->previewNextNumber(),
+            'next_number_preview' => $request->integer('fiscal_profile_id') > 0
+                ? app(ReportNumberService::class)->preview($request->integer('fiscal_profile_id'))
+                : $this->previewNextNumber(),
             'created_at' => $this->created_at?->toISOString(),
             'updated_at' => $this->updated_at?->toISOString(),
         ];

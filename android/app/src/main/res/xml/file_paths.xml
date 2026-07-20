@@ -3,4 +3,7 @@
     <cache-path
         name="invoices_cache"
         path="invoices/" />
+    <cache-path
+        name="technical_reports_cache"
+        path="technical-reports/" />
 </paths>

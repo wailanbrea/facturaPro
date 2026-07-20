@@ -21,8 +21,8 @@ class TechnicalReportRepository(
 ) : TechnicalReportRepositoryContract {
     private val appContext = context.applicationContext
 
-    override suspend fun settings(): Result<TechnicalReportSetting> = runCatching {
-        api.reportSettings().data.toDomain()
+    override suspend fun settings(fiscalProfileId: Long?): Result<TechnicalReportSetting> = runCatching {
+        api.reportSettings(fiscalProfileId).data.toDomain()
     }.fold(
         onSuccess = { Result.success(it) },
         onFailure = { Result.failure(IllegalStateException(ApiErrorMapper.message(it), it)) },

@@ -126,7 +126,7 @@ class TechnicalReportService
 
         $reportNumber = trim((string) ($data['report_number'] ?? ''));
         if ($reportNumber === '') {
-            $reportNumber = $report?->report_number ?: $this->numberService->generate();
+            $reportNumber = $report?->report_number ?: $this->numberService->generate($profile->id);
         }
 
         $recipientName = trim((string) ($data['recipient_name'] ?? ''));

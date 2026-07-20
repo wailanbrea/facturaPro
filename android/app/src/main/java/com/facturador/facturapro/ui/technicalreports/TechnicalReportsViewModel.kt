@@ -46,9 +46,9 @@ class TechnicalReportsViewModel(
         }
     }
 
-    fun loadSettings() {
+    fun loadSettings(fiscalProfileId: Long? = null) {
         viewModelScope.launch {
-            repository.settings().fold(
+            repository.settings(fiscalProfileId).fold(
                 onSuccess = { setting -> _uiState.update { it.copy(setting = setting) } },
                 onFailure = { error ->
                     _uiState.update {
@@ -59,9 +59,16 @@ class TechnicalReportsViewModel(
         }
     }
 
-    fun loadDetail(reportId: Long) {
+    fun loadDetail(reportId: Long, clearPdf: Boolean = true) {
         viewModelScope.launch {
-            _uiState.update { it.copy(isDetailLoading = true, errorMessage = null, previewHtml = null, internalPdfPath = null) }
+            _uiState.update {
+                it.copy(
+                    isDetailLoading = true,
+                    errorMessage = null,
+                    previewHtml = null,
+                    internalPdfPath = if (clearPdf) null else it.internalPdfPath
+                )
+            }
             repository.detail(reportId).fold(
                 onSuccess = { report ->
                     _uiState.update { it.copy(selectedReport = report, isDetailLoading = false) }
@@ -212,7 +219,7 @@ class TechnicalReportsViewModel(
                             internalPdfPath = file.absolutePath,
                         )
                     }
-                    loadDetail(report.id)
+                    loadDetail(report.id, clearPdf = false)
                     refresh()
                 },
                 onFailure = { error ->

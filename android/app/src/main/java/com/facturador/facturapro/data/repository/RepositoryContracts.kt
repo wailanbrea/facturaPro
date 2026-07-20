@@ -75,7 +75,7 @@ interface ReportRepositoryContract {
 }
 
 interface TechnicalReportRepositoryContract {
-    suspend fun settings(): Result<TechnicalReportSetting>
+    suspend fun settings(fiscalProfileId: Long? = null): Result<TechnicalReportSetting>
 
     suspend fun list(search: String? = null): Result<List<TechnicalReportSummary>>
 

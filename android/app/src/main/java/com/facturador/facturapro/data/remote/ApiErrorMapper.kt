@@ -30,6 +30,14 @@ object ApiErrorMapper {
     }
 
     private fun parseServerMessage(body: String): String? = runCatching {
-        JSONObject(body).optString("message")
+        val json = JSONObject(body)
+        val errors = json.optJSONObject("errors")
+        val firstField = errors?.keys()?.asSequence()?.firstOrNull()
+        val firstError = firstField
+            ?.let(errors::optJSONArray)
+            ?.optString(0)
+            ?.takeIf { it.isNotBlank() }
+
+        firstError ?: json.optString("message").takeIf { it.isNotBlank() }
     }.getOrNull()
 }

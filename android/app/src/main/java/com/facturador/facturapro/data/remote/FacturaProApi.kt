@@ -52,7 +52,9 @@ interface FacturaProApi {
     ): ReportResponseDto
 
     @GET("report-settings")
-    suspend fun reportSettings(): SingleDataResponseDto<TechnicalReportSettingDto>
+    suspend fun reportSettings(
+        @Query("fiscal_profile_id") fiscalProfileId: Long? = null,
+    ): SingleDataResponseDto<TechnicalReportSettingDto>
 
     @GET("technical-reports")
     suspend fun technicalReports(
