@@ -264,50 +264,55 @@ fun CreateAppointmentScreen(
                         }
                     }
 
-                    // Map preview + nav buttons when location selected
-                    if (locationLat != null && locationLng != null) {
-                        Spacer(Modifier.height(10.dp))
-                        Card(shape = RoundedCornerShape(10.dp), modifier = Modifier.fillMaxWidth()) {
-                            Column {
-                                // Leaflet WebView Map
-                                Box(
-                                    modifier = Modifier
-                                        .fillMaxWidth()
-                                        .height(200.dp)
-                                        .background(MaterialTheme.colorScheme.surfaceVariant)
-                                ) {
-                                    AndroidView(
-                                        factory = { ctx ->
-                                            android.webkit.WebView(ctx).apply {
-                                                settings.javaScriptEnabled = true
-                                                settings.domStorageEnabled = true
-                                                webViewClient = WebViewClient()
-                                                addJavascriptInterface(object {
-                                                    @android.webkit.JavascriptInterface
-                                                    fun onMarkerMoved(lat: Double, lng: Double) {
-                                                        post {
-                                                            locationLat = lat
-                                                            locationLng = lng
-                                                            coroutineScope.launch {
-                                                                val newAddr = reverseGeocode(lat, lng)
-                                                                if (newAddr != null) {
-                                                                    locationText = newAddr
-                                                                }
+                    // Map preview + nav buttons - ALWAYS visible so user can position marker
+                    val displayLat = locationLat ?: 18.4861
+                    val displayLng = locationLng ?: -69.9312
+
+                    Spacer(Modifier.height(10.dp))
+                    Card(shape = RoundedCornerShape(10.dp), modifier = Modifier.fillMaxWidth()) {
+                        Column {
+                            // Leaflet WebView Map
+                            Box(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .height(200.dp)
+                                    .background(MaterialTheme.colorScheme.surfaceVariant)
+                            ) {
+                                AndroidView(
+                                    factory = { ctx ->
+                                        android.webkit.WebView(ctx).apply {
+                                            settings.javaScriptEnabled = true
+                                            settings.domStorageEnabled = true
+                                            webViewClient = WebViewClient()
+                                            addJavascriptInterface(object {
+                                                @android.webkit.JavascriptInterface
+                                                fun onMarkerMoved(lat: Double, lng: Double) {
+                                                    post {
+                                                        locationLat = lat
+                                                        locationLng = lng
+                                                        coroutineScope.launch {
+                                                            val newAddr = reverseGeocode(lat, lng)
+                                                            if (newAddr != null) {
+                                                                locationText = newAddr
                                                             }
                                                         }
                                                     }
-                                                }, "AndroidBridge")
+                                                }
+                                            }, "AndroidBridge")
 
-                                                val html = getLeafletMapHtml(locationLat!!, locationLng!!)
-                                                loadDataWithBaseURL("https://openstreetmap.org", html, "text/html", "UTF-8", null)
-                                            }
-                                        },
-                                        update = { webView ->
-                                            webView.evaluateJavascript("updateMarker(${locationLat!!}, ${locationLng!!})", null)
-                                        },
-                                        modifier = Modifier.fillMaxSize()
-                                    )
-                                }
+                                            val html = getLeafletMapHtml(displayLat, displayLng)
+                                            loadDataWithBaseURL("https://openstreetmap.org", html, "text/html", "UTF-8", null)
+                                        }
+                                    },
+                                    update = { webView ->
+                                        if (locationLat != null && locationLng != null) {
+                                            webView.evaluateJavascript("updateMarker($locationLat, $locationLng)", null)
+                                        }
+                                    },
+                                    modifier = Modifier.fillMaxSize()
+                                )
+                            }
+                            if (locationLat != null && locationLng != null) {
                                 Row(Modifier.padding(10.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                                     val enc = URLEncoder.encode(locationText, "UTF-8")
                                     NavChip("Google Maps", Color(0xFF4285F4)) {
@@ -322,10 +327,8 @@ fun CreateAppointmentScreen(
                                 }
                             }
                         }
-                        Spacer(Modifier.height(12.dp))
-                    } else {
-                        Spacer(Modifier.height(12.dp))
                     }
+                    Spacer(Modifier.height(12.dp))
                 }
 
                 item {
