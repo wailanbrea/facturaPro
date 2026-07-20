@@ -31,6 +31,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.viewinterop.AndroidView
 import androidx.lifecycle.viewModelScope
+import androidx.webkit.WebViewAssetLoader
 import com.facturador.facturapro.data.remote.dto.ContactDto
 import com.facturador.facturapro.data.remote.dto.CreateAppointmentRequest
 import com.facturador.facturapro.domain.model.Appointment
@@ -280,10 +281,48 @@ fun CreateAppointmentScreen(
                             ) {
                                 AndroidView(
                                     factory = { ctx ->
+                                        val assetLoader = WebViewAssetLoader.Builder()
+                                            .addPathHandler("/assets/", WebViewAssetLoader.AssetsPathHandler(ctx))
+                                            .build()
+
                                         android.webkit.WebView(ctx).apply {
                                             settings.javaScriptEnabled = true
                                             settings.domStorageEnabled = true
-                                            webViewClient = WebViewClient()
+                                            settings.allowFileAccess = true
+                                            settings.allowContentAccess = true
+                                            tag = false
+                                            webViewClient = object : android.webkit.WebViewClient() {
+                                                override fun shouldInterceptRequest(
+                                                    view: android.webkit.WebView?,
+                                                    request: android.webkit.WebResourceRequest?,
+                                                ): android.webkit.WebResourceResponse? {
+                                                    return request?.url?.let(assetLoader::shouldInterceptRequest)
+                                                }
+
+                                                override fun onPageFinished(view: android.webkit.WebView?, url: String?) {
+                                                    android.util.Log.d("WebViewConsole", "onPageFinished: $url")
+                                                    view?.tag = true
+                                                    view?.evaluateJavascript(
+                                                        "window.setMapLocation($displayLat, $displayLng)",
+                                                    ) { result ->
+                                                        android.util.Log.d("WebViewConsole", "setMapLocation: $result")
+                                                    }
+                                                }
+
+                                                override fun onReceivedError(
+                                                    view: android.webkit.WebView?,
+                                                    request: android.webkit.WebResourceRequest?,
+                                                    error: android.webkit.WebResourceError?
+                                                ) {
+                                                    android.util.Log.e("WebViewConsole", "onReceivedError: ${error?.description} (code: ${error?.errorCode}) for ${request?.url}")
+                                                }
+                                            }
+                                            webChromeClient = object : android.webkit.WebChromeClient() {
+                                                override fun onConsoleMessage(consoleMessage: android.webkit.ConsoleMessage?): Boolean {
+                                                    android.util.Log.d("WebViewConsole", consoleMessage?.message() ?: "")
+                                                    return true
+                                                }
+                                            }
                                             addJavascriptInterface(object {
                                                 @android.webkit.JavascriptInterface
                                                 fun onMarkerMoved(lat: Double, lng: Double) {
@@ -300,13 +339,15 @@ fun CreateAppointmentScreen(
                                                 }
                                             }, "AndroidBridge")
 
-                                            val html = getLeafletMapHtml(displayLat, displayLng)
-                                            loadDataWithBaseURL("https://openstreetmap.org", html, "text/html", "UTF-8", null)
+                                            loadUrl("https://appassets.androidplatform.net/assets/map.html")
                                         }
                                     },
                                     update = { webView ->
-                                        if (locationLat != null && locationLng != null) {
-                                            webView.evaluateJavascript("updateMarker($locationLat, $locationLng)", null)
+                                        if (webView.tag == true) {
+                                            webView.evaluateJavascript(
+                                                "window.setMapLocation($displayLat, $displayLng)",
+                                                null,
+                                            )
                                         }
                                     },
                                     modifier = Modifier.fillMaxSize()
@@ -614,52 +655,6 @@ private suspend fun reverseGeocode(lat: Double, lng: Double): String? = withCont
     } catch (e: Exception) {
         null
     }
-}
-
-private fun getLeafletMapHtml(lat: Double, lng: Double): String {
-    return """
-        <!DOCTYPE html>
-        <html>
-        <head>
-            <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
-            <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
-            <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
-            <style>
-                html, body { margin: 0; padding: 0; width: 100%; height: 100%; }
-                #map { height: 100%; width: 100%; }
-            </style>
-        </head>
-        <body>
-            <div id="map"></div>
-            <script>
-                var map = L.map('map', { zoomControl: false }).setView([$lat, $lng], 16);
-                L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-                    maxZoom: 19,
-                    attribution: '&copy; OpenStreetMap'
-                }).addTo(map);
-                var marker = L.marker([$lat, $lng], { draggable: true }).addTo(map);
-
-                marker.on('dragend', function() {
-                    var pos = marker.getLatLng();
-                    AndroidBridge.onMarkerMoved(pos.lat, pos.lng);
-                });
-
-                map.on('click', function(e) {
-                    marker.setLatLng(e.latlng);
-                    AndroidBridge.onMarkerMoved(e.latlng.lat, e.latlng.lng);
-                });
-
-                function updateMarker(lat, lng) {
-                    if (typeof marker !== 'undefined') {
-                        var latlng = L.latLng(lat, lng);
-                        marker.setLatLng(latlng);
-                        map.setView(latlng, map.getZoom());
-                    }
-                }
-            </script>
-        </body>
-        </html>
-    """.trimIndent()
 }
 
 private suspend fun searchNominatim(query: String): List<NominatimResult> = withContext(Dispatchers.IO) {

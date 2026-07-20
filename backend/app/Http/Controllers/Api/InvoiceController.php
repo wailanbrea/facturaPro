@@ -106,7 +106,7 @@ class InvoiceController extends Controller
 
     public function preview(Invoice $invoice): Response
     {
-        return $this->previewResponse($invoice->load(['items', 'paymentTerm', 'bankAccount.currency', 'fiscalProfile']));
+        return $this->previewResponse($invoice->load(['items', 'paymentTerm', 'bankAccount.currency', 'fiscalProfile', 'warranty']));
     }
 
     public function previewIssue(Invoice $invoice): Response|JsonResponse
@@ -115,7 +115,7 @@ class InvoiceController extends Controller
             return response()->json(['message' => 'Cancelled invoices cannot be issued.'], 409);
         }
 
-        $invoice->load(['items', 'paymentTerm', 'bankAccount.currency', 'fiscalProfile']);
+        $invoice->load(['items', 'paymentTerm', 'bankAccount.currency', 'fiscalProfile', 'warranty']);
         $preview = clone $invoice;
         $preview->status = InvoiceStatusService::ISSUED;
         $preview->invoice_number = $invoice->invoice_number ?? 'PROVISIONAL';
@@ -539,7 +539,8 @@ class InvoiceController extends Controller
             'seller_city' => $fiscalProfile?->city,
             'bank_account_id' => $bankAccount?->id,
             'warranty_id' => $warranty?->id,
-            'warranty_text' => $data['warranty_text'] ?? $warranty?->full_text,
+            // The catalog entry is canonical; clients must not replace it with the legal footer.
+            'warranty_text' => $warranty?->full_text,
             'legal_text' => $data['legal_text'] ?? $invoice?->legal_text ?? $this->defaultLegalFooter(),
             'conformity_text' => $data['conformity_text'] ?? $invoice?->conformity_text ?? $this->defaultConformityText(),
             'observations' => $data['observations'] ?? null,

@@ -1,0 +1,81 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+    <link rel="stylesheet" href="leaflet.css" />
+    <script src="leaflet.js"></script>
+    <style>
+        html, body { margin: 0; padding: 0; width: 100%; overflow: hidden; }
+        #map { width: 100%; height: 48vw; min-height: 160px; max-height: 240px; background: #dbeafe; }
+        #map-status {
+            position: fixed;
+            z-index: 1000;
+            left: 8px;
+            bottom: 8px;
+            padding: 6px 8px;
+            background: rgba(255, 255, 255, 0.92);
+            border-radius: 4px;
+            color: #1f2937;
+            font: 12px sans-serif;
+            box-shadow: 0 1px 4px rgba(0, 0, 0, 0.2);
+        }
+    </style>
+</head>
+<body>
+    <div id="map"></div>
+    <div id="map-status">Toca el mapa o arrastra el pin</div>
+    <script>
+        var map;
+        var marker;
+        console.log('Mapa local cargado. Leaflet: ' + typeof L);
+
+        function ensureMarker() {
+            if (marker || !map) return;
+            marker = L.marker(map.getCenter(), { draggable: true }).addTo(map);
+            marker.on('dragend', function() {
+                var pos = marker.getLatLng();
+                AndroidBridge.onMarkerMoved(pos.lat, pos.lng);
+            });
+        }
+
+        window.setMapLocation = function(lat, lng) {
+            if (typeof L === 'undefined') {
+                console.error('Leaflet no se cargo desde los assets locales');
+                return;
+            }
+            if (map) {
+                var existingLatLng = L.latLng(lat, lng);
+                ensureMarker();
+                marker.setLatLng(existingLatLng);
+                map.setView(existingLatLng, map.getZoom());
+                map.invalidateSize();
+                refreshMapSize();
+                return;
+            }
+            map = L.map('map', { zoomControl: false }).setView([lat, lng], 16);
+            L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+                maxZoom: 19,
+                attribution: '&copy; OpenStreetMap'
+            }).addTo(map);
+            ensureMarker();
+
+            map.on('click', function(e) {
+                marker.setLatLng(e.latlng);
+                AndroidBridge.onMarkerMoved(e.latlng.lat, e.latlng.lng);
+            });
+            
+            setTimeout(function() {
+                map.invalidateSize();
+                refreshMapSize();
+            }, 500);
+        };
+
+        function refreshMapSize() {
+            if (!map) return;
+            map.invalidateSize(true);
+            var size = map.getSize();
+            document.getElementById('map-status').textContent = 'Toca el mapa o arrastra el pin';
+        }
+    </script>
+</body>
+</html>

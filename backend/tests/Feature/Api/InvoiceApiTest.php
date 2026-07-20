@@ -53,6 +53,30 @@ class InvoiceApiTest extends TestCase
         ]);
     }
 
+    public function test_selected_warranty_overrides_generic_warranty_text_from_client(): void
+    {
+        $warranty = Warranty::query()->where('duration_months', 6)->firstOrFail();
+        $invoice = $this->createInvoice([
+            'warranty_id' => $warranty->id,
+            'warranty_text' => 'La garantia aplica segun las condiciones indicadas en esta factura.',
+        ]);
+
+        $invoice->assertCreated()
+            ->assertJsonPath('data.warranty_id', $warranty->id)
+            ->assertJsonPath('data.warranty_text', $warranty->full_text);
+
+        $invoiceId = $invoice->json('data.id');
+        $this->assertDatabaseHas('invoices', [
+            'id' => $invoiceId,
+            'warranty_text' => $warranty->full_text,
+        ]);
+
+        $this->get("/api/invoices/{$invoiceId}/preview")
+            ->assertOk()
+            ->assertSee($warranty->full_text)
+            ->assertDontSee('La garantia aplica segun las condiciones indicadas en esta factura.');
+    }
+
     public function test_invoice_can_be_created_with_inline_client_payload(): void
     {
         $payload = $this->invoicePayload();

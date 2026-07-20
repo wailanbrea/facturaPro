@@ -1423,7 +1423,7 @@ private fun InvoiceFormPane(
                 optionLabel = { it.title },
                 onSelected = { 
                     selectedWarrantyId = it
-                    warrantyText = ""
+                    warrantyText = bootstrap.warranties.firstOrNull { warranty -> warranty.id == it }?.title.orEmpty()
                 },
                 allowEmpty = false,
             )
@@ -2427,7 +2427,7 @@ private data class InvoiceFormDefaults(
                     ?: bootstrap?.fiscalProfiles?.firstOrNull()?.logoPath,
                 bankAccountId = bootstrap?.bankAccounts?.firstOrNull { it.isDefault }?.id ?: bootstrap?.bankAccounts?.firstOrNull()?.id,
                 warrantyId = warranty?.id,
-                warrantyText = legalText?.warrantyText ?: warranty?.title.orEmpty(),
+                warrantyText = warranty?.title.orEmpty(),
                 legalText = legalText?.legalFooter.orEmpty(),
                 conformityText = legalText?.conformityText ?: "CONFORMIDAD DEL CLIENTE",
                 observations = "",

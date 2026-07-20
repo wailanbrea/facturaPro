@@ -11,6 +11,10 @@
     ];
 
     $isQuotation = $invoice->document_type === 'quotation';
+    // Prefer the catalog warranty to repair legacy documents that saved the generic legal text.
+    $warrantyText = $invoice->warranty?->full_text
+        ?: $invoice->warranty_text
+        ?: 'GARANTIA SEGUN CONDICIONES DEL FABRICANTE';
     $documentTitle = $isQuotation ? 'PRESUPUESTO' : 'FACTURA';
     $dateLabel = 'FECHA:';
     $numberLabel = $isQuotation ? 'PRESUPUESTO NO.' : 'FACTURA NO.';
@@ -595,7 +599,7 @@
             <section class="middle-grid">
                 <table class="quotation-bottom">
                     <tr>
-                        <td class="blue-row warranty" colspan="2">{{ $invoice->warranty_text ?: 'GARANTIA SEGUN CONDICIONES DEL FABRICANTE' }}</td>
+                        <td class="blue-row warranty" colspan="2">{{ $warrantyText }}</td>
                     </tr>
                     <tr>
                         <td class="blue-row" colspan="2">OBSERVACIONES</td>
@@ -663,7 +667,7 @@
                 <table class="notes-table">
                     <tr>
                         <td class="blue warranty-row">
-                            {{ $invoice->warranty_text ?: 'GARANTIA SEGUN CONDICIONES DEL FABRICANTE' }}
+                            {{ $warrantyText }}
                         </td>
                     </tr>
                     <tr>
