@@ -3,6 +3,7 @@ package com.facturador.facturapro.ui.calendar
 import android.content.Context
 import android.content.Intent
 import android.net.Uri
+import android.webkit.WebViewClient
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
@@ -87,6 +88,11 @@ fun CreateAppointmentScreen(
 
     // Debounced Nominatim search
     LaunchedEffect(locationText) {
+        if (selectedLocation != null && locationText == selectedLocation?.displayName) {
+            locationSuggestions = emptyList()
+            showSuggestions = false
+            return@LaunchedEffect
+        }
         val parsedCoords = parseGoogleMaps(locationText)
         if (parsedCoords != null) {
             locationLat = parsedCoords.first
@@ -194,6 +200,23 @@ fun CreateAppointmentScreen(
                         leadingIcon = { Icon(Icons.Outlined.LocationOn, null, tint = Color(0xFFef4444)) },
                         trailingIcon = {
                             if (isSearching) CircularProgressIndicator(modifier = Modifier.size(18.dp), strokeWidth = 2.dp)
+                            else if (locationText.length >= 3) IconButton(onClick = {
+                                coroutineScope.launch {
+                                    isSearching = true
+                                    runCatching { searchNominatim(locationText).firstOrNull() }
+                                        .getOrNull()
+                                        ?.let { result ->
+                                            locationText = result.displayName
+                                            locationLat = result.lat
+                                            locationLng = result.lon
+                                            selectedLocation = result
+                                            showSuggestions = false
+                                        }
+                                    isSearching = false
+                                }
+                            }) {
+                                Icon(Icons.Outlined.Search, contentDescription = "Ubicar direccion")
+                            }
                             else if (locationText.isNotEmpty()) IconButton(onClick = { 
                                 locationText = ""
                                 locationLat = null
@@ -258,13 +281,14 @@ fun CreateAppointmentScreen(
                                             android.webkit.WebView(ctx).apply {
                                                 settings.javaScriptEnabled = true
                                                 settings.domStorageEnabled = true
+                                                webViewClient = WebViewClient()
                                                 addJavascriptInterface(object {
                                                     @android.webkit.JavascriptInterface
                                                     fun onMarkerMoved(lat: Double, lng: Double) {
                                                         post {
                                                             locationLat = lat
                                                             locationLng = lng
-                                                            viewModel.viewModelScope.launch {
+                                                            coroutineScope.launch {
                                                                 val newAddr = reverseGeocode(lat, lng)
                                                                 if (newAddr != null) {
                                                                     locationText = newAddr
@@ -429,6 +453,10 @@ fun CreateAppointmentScreen(
                         Button(
                             onClick = {
                                 if (title.isBlank()) { errorMsg = "El título es obligatorio"; return@Button }
+                                if (!endDate.isAfter(startDate)) {
+                                    errorMsg = "La fecha de fin debe ser posterior al inicio"
+                                    return@Button
+                                }
                                 isSubmitting = true
                                 errorMsg = null
                                 
@@ -579,7 +607,7 @@ private suspend fun reverseGeocode(lat: Double, lng: Double): String? = withCont
         conn.setRequestProperty("Accept-Language", "es")
         val json = conn.getInputStream().bufferedReader().readText()
         val obj = org.json.JSONObject(json)
-        obj.optString("display_name", null)
+        obj.optString("display_name").ifBlank { null }
     } catch (e: Exception) {
         null
     }
@@ -594,8 +622,8 @@ private fun getLeafletMapHtml(lat: Double, lng: Double): String {
             <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
             <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
             <style>
-                body { margin: 0; padding: 0; }
-                #map { height: 100vh; width: 100vw; }
+                html, body { margin: 0; padding: 0; width: 100%; height: 100%; }
+                #map { height: 100%; width: 100%; }
             </style>
         </head>
         <body>
@@ -619,9 +647,11 @@ private fun getLeafletMapHtml(lat: Double, lng: Double): String {
                 });
 
                 function updateMarker(lat, lng) {
-                    var latlng = L.latLng(lat, lng);
-                    marker.setLatLng(latlng);
-                    map.setView(latlng, map.getZoom());
+                    if (typeof marker !== 'undefined') {
+                        var latlng = L.latLng(lat, lng);
+                        marker.setLatLng(latlng);
+                        map.setView(latlng, map.getZoom());
+                    }
                 }
             </script>
         </body>
@@ -641,8 +671,8 @@ private suspend fun searchNominatim(query: String): List<NominatimResult> = with
         val obj = arr.getJSONObject(i)
         NominatimResult(
             displayName = obj.getString("display_name"),
-            lat = obj.getDouble("lat"),
-            lon = obj.getDouble("lon"),
+            lat = obj.optString("lat").toDoubleOrNull() ?: obj.optDouble("lat", 0.0),
+            lon = obj.optString("lon").toDoubleOrNull() ?: obj.optDouble("lon", 0.0),
         )
     }
 }
