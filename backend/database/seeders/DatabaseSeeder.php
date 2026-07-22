@@ -168,8 +168,8 @@ class DatabaseSeeder extends Seeder
 
         collect([
             ['title' => 'GARANTIA DE 6 MESES EN PIEZAS Y SERVICIOS DEL FABRICANTE', 'duration_months' => 6, 'is_default' => true],
-            ['title' => 'GARANTIA DE 1 ANO EN PIEZAS Y SERVICIOS DEL FABRICANTE', 'duration_months' => 12, 'is_default' => false],
-            ['title' => 'GARANTIA DE 3 ANOS EN PIEZAS Y SERVICIOS DEL FABRICANTE', 'duration_months' => 36, 'is_default' => false],
+            ['title' => 'GARANTIA DE 1 AÑO EN PIEZAS Y SERVICIOS DEL FABRICANTE', 'duration_months' => 12, 'is_default' => false],
+            ['title' => 'GARANTIA DE 3 AÑOS EN PIEZAS Y SERVICIOS DEL FABRICANTE', 'duration_months' => 36, 'is_default' => false],
         ])->each(function (array $warranty): void {
             Warranty::query()->updateOrCreate(
                 ['title' => $warranty['title']],

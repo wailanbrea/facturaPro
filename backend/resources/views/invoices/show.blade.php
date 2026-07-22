@@ -135,7 +135,6 @@
                         <option value="efectivo">Efectivo</option>
                         <option value="transferencia">Transferencia</option>
                         <option value="tarjeta">Tarjeta</option>
-                        <option value="cheque">Cheque</option>
                     </select>
                 </div>
                 <div class="field">

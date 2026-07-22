@@ -345,7 +345,7 @@ fun InvoicesScreen(
 
     if (showPaymentDialog && state.selectedInvoice != null) {
         val invoice = state.selectedInvoice
-        val maxAmount = invoice.balanceDue ?: "0.0"
+        val maxAmount = formatPaymentAmount(invoice.balanceDue)
         LaunchedEffect(showPaymentDialog) {
             paymentAmount = maxAmount
         }
@@ -367,8 +367,7 @@ fun InvoicesScreen(
                     val methods = listOf(
                         "efectivo" to "Efectivo",
                         "transferencia" to "Transferencia",
-                        "tarjeta" to "Tarjeta",
-                        "cheque" to "Cheque"
+                        "tarjeta" to "Tarjeta"
                     )
                     Row(
                         modifier = Modifier.fillMaxWidth(),
@@ -2558,3 +2557,9 @@ private data class InvoiceFormDefaults(
 private fun String.toBigDecimalOrZero(): BigDecimal = runCatching {
     trim().ifBlank { "0" }.toBigDecimal()
 }.getOrDefault(BigDecimal.ZERO)
+
+private fun formatPaymentAmount(amount: String?): String = amount
+    ?.toBigDecimalOrZero()
+    ?.setScale(2, RoundingMode.HALF_UP)
+    ?.toPlainString()
+    ?: "0.00"
