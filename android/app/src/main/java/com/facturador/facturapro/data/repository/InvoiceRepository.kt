@@ -23,8 +23,16 @@ class InvoiceRepository(
 ) : InvoiceRepositoryContract {
     private val appContext = context.applicationContext
 
-    override suspend fun list(search: String?): Result<List<InvoiceSummary>> = runCatching {
-        api.invoices(search = search?.trim().takeUnless { it.isNullOrEmpty() }).data
+    override suspend fun list(
+        search: String?,
+        documentType: String?,
+        fiscalProfileId: Long?,
+    ): Result<List<InvoiceSummary>> = runCatching {
+        api.invoices(
+            search = search?.trim().takeUnless { it.isNullOrEmpty() },
+            documentType = documentType,
+            fiscalProfileId = fiscalProfileId,
+        ).data
             .map { it.toSummary() }
     }.fold(
         onSuccess = { Result.success(it) },

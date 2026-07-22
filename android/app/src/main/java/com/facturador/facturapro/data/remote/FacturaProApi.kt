@@ -106,6 +106,8 @@ interface FacturaProApi {
     @GET("invoices")
     suspend fun invoices(
         @Query("search") search: String? = null,
+        @Query("document_type") documentType: String? = null,
+        @Query("fiscal_profile_id") fiscalProfileId: Long? = null,
         @Query("per_page") perPage: Int = 50,
     ): PaginatedResponseDto<InvoiceDto>
 

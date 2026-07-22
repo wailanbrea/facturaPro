@@ -15,6 +15,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
@@ -66,6 +67,7 @@ import com.facturador.facturapro.domain.model.TechnicalReportDraft
 import com.facturador.facturapro.domain.model.TechnicalReportSetting
 import com.facturador.facturapro.domain.model.TechnicalReportSummary
 import com.facturador.facturapro.ui.common.IsoDatePickerField
+import com.facturador.facturapro.ui.common.RemoteLogoPreview
 import com.facturador.facturapro.ui.invoices.PdfViewerScreen
 import androidx.activity.compose.BackHandler
 import java.time.LocalDate
@@ -968,6 +970,15 @@ private fun LogoSelectorField(
                 .menuAnchor(ExposedDropdownMenuAnchorType.PrimaryNotEditable, true)
                 .fillMaxWidth(),
             label = { Text(label) },
+            leadingIcon = selectedOption?.let { option ->
+                {
+                    RemoteLogoPreview(
+                        previewUrl = option.previewUrl,
+                        contentDescription = option.label,
+                        modifier = Modifier.size(32.dp),
+                    )
+                }
+            },
             trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = expanded) },
             colors = ExposedDropdownMenuDefaults.outlinedTextFieldColors(),
         )
@@ -983,7 +994,17 @@ private fun LogoSelectorField(
             }
             options.forEach { option ->
                 DropdownMenuItem(
-                    text = { Text(option.label) },
+                    text = {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            RemoteLogoPreview(
+                                previewUrl = option.previewUrl,
+                                contentDescription = option.label,
+                                modifier = Modifier.size(32.dp),
+                            )
+                            Spacer(Modifier.width(10.dp))
+                            Text(option.label)
+                        }
+                    },
                     onClick = {
                         expanded = false
                         onSelected(option.path)

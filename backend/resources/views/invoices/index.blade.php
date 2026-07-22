@@ -15,6 +15,11 @@
             <option value="{{ $status }}" @selected(request('status') === $status)>{{ \App\Support\InvoiceStatusLabel::label($status) }}</option>
         @endforeach
     </select>
+    <select name="document_type" style="border:1px solid var(--line);border-radius:5px;padding:10px">
+        <option value="">Facturas y presupuestos</option>
+        <option value="invoice" @selected(request('document_type') === 'invoice')>Facturas</option>
+        <option value="quotation" @selected(request('document_type') === 'quotation')>Presupuestos</option>
+    </select>
     <select name="fiscal_profile_id" style="border:1px solid var(--line);border-radius:5px;padding:10px">
         <option value="">Todos los emisores</option>
         @foreach($fiscalProfiles as $profile)

@@ -188,7 +188,11 @@ private class FakeInvoiceRepository(
     var lastCreatedDraft: InvoiceDraft? = null
         private set
 
-    override suspend fun list(search: String?): Result<List<InvoiceSummary>> = listResult
+    override suspend fun list(
+        search: String?,
+        documentType: String?,
+        fiscalProfileId: Long?,
+    ): Result<List<InvoiceSummary>> = listResult
 
     override suspend fun detail(invoiceId: Long): Result<InvoiceDetail> = detailResult
 

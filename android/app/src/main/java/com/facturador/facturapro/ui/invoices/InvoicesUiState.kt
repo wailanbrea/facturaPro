@@ -6,6 +6,8 @@ import com.facturador.facturapro.domain.model.InvoiceSummary
 data class InvoicesUiState(
     val invoices: List<InvoiceSummary> = emptyList(),
     val searchQuery: String = "",
+    val documentTypeFilter: String? = null,
+    val fiscalProfileIdFilter: Long? = null,
     val isLoading: Boolean = false,
     val isSaving: Boolean = false,
     val isDetailLoading: Boolean = false,

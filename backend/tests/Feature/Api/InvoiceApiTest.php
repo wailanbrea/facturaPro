@@ -104,6 +104,26 @@ class InvoiceApiTest extends TestCase
         ]);
     }
 
+    public function test_invoice_index_filters_by_document_type_and_fiscal_profile(): void
+    {
+        $profile = FiscalProfile::query()->firstOrFail();
+        $invoiceId = $this->createInvoice(['fiscal_profile_id' => $profile->id])->json('data.id');
+        $quotationId = $this->createInvoice([
+            'document_type' => 'quotation',
+            'fiscal_profile_id' => $profile->id,
+        ])->json('data.id');
+
+        $this->getJson("/api/invoices?document_type=invoice&fiscal_profile_id={$profile->id}")
+            ->assertOk()
+            ->assertJsonPath('data.0.id', $invoiceId)
+            ->assertJsonMissing(['id' => $quotationId]);
+
+        $this->getJson("/api/invoices?document_type=quotation&fiscal_profile_id={$profile->id}")
+            ->assertOk()
+            ->assertJsonPath('data.0.id', $quotationId)
+            ->assertJsonMissing(['id' => $invoiceId]);
+    }
+
     public function test_inline_client_payload_reuses_existing_client_by_tax_id(): void
     {
         $existing = Client::query()->create([

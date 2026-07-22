@@ -20,6 +20,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
@@ -95,6 +96,7 @@ import com.facturador.facturapro.ui.common.IsoDatePickerField
 import com.facturador.facturapro.ui.common.SectionCard
 import com.facturador.facturapro.ui.common.SectionTitle
 import com.facturador.facturapro.ui.common.StatusBadge
+import com.facturador.facturapro.ui.common.RemoteLogoPreview
 import com.facturador.facturapro.ui.common.formatMoney
 import com.facturador.facturapro.ui.common.invoiceStatusLabel
 import com.facturador.facturapro.ui.common.statusColors
@@ -117,6 +119,8 @@ fun InvoicesScreen(
     openRequestedInvoiceForEdit: Boolean,
     onSearchChanged: (String) -> Unit,
     onRefresh: () -> Unit,
+    onDocumentTypeFilterChanged: (String?) -> Unit,
+    onFiscalProfileFilterChanged: (Long?) -> Unit,
     onSelectInvoice: (Long) -> Unit,
     onClearSelection: () -> Unit,
     onCreateInvoice: (InvoiceDraft) -> Unit,
@@ -224,8 +228,11 @@ fun InvoicesScreen(
     when (pane) {
         InvoicePane.List -> InvoiceListPane(
             state = state,
+            bootstrap = bootstrap,
             onSearchChanged = onSearchChanged,
             onRefresh = onRefresh,
+            onDocumentTypeFilterChanged = onDocumentTypeFilterChanged,
+            onFiscalProfileFilterChanged = onFiscalProfileFilterChanged,
             onNewInvoice = {
                 pane = InvoicePane.Create
                 editingInvoiceId = null
@@ -439,16 +446,23 @@ private fun InvoiceLoadingPane(
 @Composable
 private fun InvoiceListPane(
     state: InvoicesUiState,
+    bootstrap: BootstrapCatalogs?,
     onSearchChanged: (String) -> Unit,
     onRefresh: () -> Unit,
+    onDocumentTypeFilterChanged: (String?) -> Unit,
+    onFiscalProfileFilterChanged: (Long?) -> Unit,
     onNewInvoice: () -> Unit,
     onSelectInvoice: (Long) -> Unit,
     modifier: Modifier = Modifier,
 ) {
     var statusFilter by rememberSaveable { mutableStateOf<String?>(null) }
-    val filteredInvoices = remember(state.invoices, statusFilter) {
-        if (statusFilter == null) state.invoices
-        else state.invoices.filter { matchesFilter(it.status, statusFilter!!) }
+    var documentFilter by rememberSaveable { mutableStateOf(DocumentFilter.All) }
+    val filteredInvoices = remember(state.invoices, statusFilter, documentFilter, state.fiscalProfileIdFilter) {
+        state.invoices.filter { invoice ->
+            (statusFilter == null || matchesFilter(invoice.status, statusFilter!!))
+                && documentFilter.matches(invoice.documentType, invoice.status)
+                && (state.fiscalProfileIdFilter == null || invoice.fiscalProfileId == state.fiscalProfileIdFilter)
+        }
     }
 
     LazyColumn(
@@ -479,6 +493,26 @@ private fun InvoiceListPane(
                 selected = statusFilter,
                 onSelect = { statusFilter = it },
             )
+        }
+
+        item {
+            DocumentFilterChips(
+                selected = documentFilter,
+                onSelect = {
+                    documentFilter = it
+                    onDocumentTypeFilterChanged(it.queryValue)
+                },
+            )
+        }
+
+        if (!bootstrap?.fiscalProfiles.isNullOrEmpty()) {
+            item {
+                FiscalProfileFilterChips(
+                    profiles = bootstrap.fiscalProfiles,
+                    selectedId = state.fiscalProfileIdFilter,
+                    onSelect = onFiscalProfileFilterChanged,
+                )
+            }
         }
 
         if (state.isLoading) {
@@ -567,6 +601,61 @@ private fun FilterChips(
 }
 
 private data class FilterChipDef(val value: String?, val label: String)
+
+private enum class DocumentFilter(val label: String, val queryValue: String?) {
+    All("Todos", null),
+    Invoices("Facturas", "invoice"),
+    Quotations("Presupuestos", "quotation"),
+    Converted("Convertidos", "quotation");
+
+    fun matches(documentType: String, status: String): Boolean = when (this) {
+        All -> true
+        Invoices -> documentType == "invoice"
+        Quotations -> documentType == "quotation"
+        Converted -> documentType == "quotation" && status == "converted"
+    }
+
+}
+
+@Composable
+private fun DocumentFilterChips(
+    selected: DocumentFilter,
+    onSelect: (DocumentFilter) -> Unit,
+) {
+    LazyRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+        items(DocumentFilter.entries) { filter ->
+            FilterChip(
+                selected = selected == filter,
+                onClick = { onSelect(filter) },
+                label = { Text(filter.label) },
+            )
+        }
+    }
+}
+
+@Composable
+private fun FiscalProfileFilterChips(
+    profiles: List<com.facturador.facturapro.domain.model.FiscalProfileCatalogItem>,
+    selectedId: Long?,
+    onSelect: (Long?) -> Unit,
+) {
+    LazyRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+        item {
+            FilterChip(
+                selected = selectedId == null,
+                onClick = { onSelect(null) },
+                label = { Text("Empresas") },
+            )
+        }
+        items(profiles, key = { it.id }) { profile ->
+            FilterChip(
+                selected = selectedId == profile.id,
+                onClick = { onSelect(profile.id) },
+                label = { Text(profile.name) },
+            )
+        }
+    }
+}
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -2115,6 +2204,15 @@ private fun LogoSelectorField(
                 .fillMaxWidth(),
             readOnly = true,
             label = { Text(label) },
+            leadingIcon = selectedOption?.let { option ->
+                {
+                    RemoteLogoPreview(
+                        previewUrl = option.previewUrl,
+                        contentDescription = option.label,
+                        modifier = Modifier.size(32.dp),
+                    )
+                }
+            },
             trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = expanded) },
             colors = ExposedDropdownMenuDefaults.outlinedTextFieldColors(),
         )
@@ -2133,7 +2231,17 @@ private fun LogoSelectorField(
             }
             options.forEach { option ->
                 DropdownMenuItem(
-                    text = { Text(option.label) },
+                    text = {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            RemoteLogoPreview(
+                                previewUrl = option.previewUrl,
+                                contentDescription = option.label,
+                                modifier = Modifier.size(32.dp),
+                            )
+                            Spacer(Modifier.width(10.dp))
+                            Text(option.label)
+                        }
+                    },
                     onClick = {
                         expanded = false
                         onSelected(option.path)

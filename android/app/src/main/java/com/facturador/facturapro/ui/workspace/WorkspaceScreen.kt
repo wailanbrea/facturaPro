@@ -209,6 +209,8 @@ fun WorkspaceScreen(
                     openRequestedInvoiceForEdit = false,
                     onSearchChanged = invoicesViewModel::onSearchChanged,
                     onRefresh = invoicesViewModel::refresh,
+                    onDocumentTypeFilterChanged = invoicesViewModel::onDocumentTypeFilterChanged,
+                    onFiscalProfileFilterChanged = invoicesViewModel::onFiscalProfileFilterChanged,
                     onSelectInvoice = invoicesViewModel::loadDetail,
                     onClearSelection = invoicesViewModel::clearSelectedInvoice,
                     onCreateInvoice = invoicesViewModel::createInvoice,

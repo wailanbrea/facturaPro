@@ -89,6 +89,8 @@ data class FiscalProfileDto(
 data class FiscalProfileLogoDto(
     val path: String,
     val label: String? = null,
+    @SerializedName("preview_url")
+    val previewUrl: String? = null,
     @SerializedName("is_default")
     val isDefault: Boolean = false,
 )
@@ -171,6 +173,7 @@ fun BootstrapDto.toDomain(): BootstrapCatalogs = BootstrapCatalogs(
                 FiscalProfileLogoCatalogItem(
                     path = logo.path,
                     label = logo.label ?: logo.path.substringAfterLast('/'),
+                    previewUrl = logo.previewUrl,
                     isDefault = logo.isDefault,
                 )
             },

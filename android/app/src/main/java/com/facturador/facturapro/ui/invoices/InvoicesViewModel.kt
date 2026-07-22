@@ -31,7 +31,11 @@ class InvoicesViewModel(
     fun refresh() {
         viewModelScope.launch {
             _uiState.update { it.copy(isLoading = true, errorMessage = null) }
-            repository.list(_uiState.value.searchQuery).fold(
+            repository.list(
+                search = _uiState.value.searchQuery,
+                documentType = _uiState.value.documentTypeFilter,
+                fiscalProfileId = _uiState.value.fiscalProfileIdFilter,
+            ).fold(
                 onSuccess = { invoices ->
                     _uiState.update {
                         it.copy(
@@ -50,6 +54,16 @@ class InvoicesViewModel(
                 },
             )
         }
+    }
+
+    fun onDocumentTypeFilterChanged(documentType: String?) {
+        _uiState.update { it.copy(documentTypeFilter = documentType) }
+        refresh()
+    }
+
+    fun onFiscalProfileFilterChanged(fiscalProfileId: Long?) {
+        _uiState.update { it.copy(fiscalProfileIdFilter = fiscalProfileId) }
+        refresh()
     }
 
     fun loadDetail(invoiceId: Long) {

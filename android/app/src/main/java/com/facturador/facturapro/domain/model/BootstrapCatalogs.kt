@@ -58,6 +58,7 @@ data class FiscalProfileCatalogItem(
 data class FiscalProfileLogoCatalogItem(
     val path: String,
     val label: String,
+    val previewUrl: String? = null,
     val isDefault: Boolean,
 )
 

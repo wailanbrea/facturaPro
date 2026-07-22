@@ -61,6 +61,10 @@ class InvoiceController extends Controller
         $invoices = Invoice::query()
             ->with('items')
             ->when(request('status'), fn ($query, string $status) => $query->where('status', $status))
+            ->when(
+                in_array(request('document_type'), [Invoice::DOCUMENT_TYPE_INVOICE, Invoice::DOCUMENT_TYPE_QUOTATION], true),
+                fn ($query) => $query->where('document_type', request('document_type')),
+            )
             ->when(request('client_id'), fn ($query, string $clientId) => $query->where('client_id', $clientId))
             ->when(request('fiscal_profile_id'), fn ($query, string $profileId) => $query->where('fiscal_profile_id', $profileId))
             ->when(request('search'), function ($query, string $search): void {

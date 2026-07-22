@@ -73,7 +73,9 @@ fun CreateAppointmentScreen(
     var status by remember { mutableStateOf(existingAppointment?.status ?: AppointmentStatus.PENDING) }
     
     var startDate by remember { mutableStateOf(parseDateTime(existingAppointment?.startAt)) }
-    var endDate by remember { mutableStateOf(parseDateTime(existingAppointment?.endAt).let { if (it.isAfter(startDate)) it else startDate.plusHours(1) }) }
+    var endDate by remember {
+        mutableStateOf(normalizedAppointmentEnd(startDate, parseDateTime(existingAppointment?.endAt)))
+    }
     var observations by remember { mutableStateOf(existingAppointment?.observations ?: "") }
     var serviceDescription by remember { mutableStateOf(existingAppointment?.serviceDescription ?: "") }
     val contactsList = remember { 
@@ -165,9 +167,7 @@ fun CreateAppointmentScreen(
                             value = startDate,
                             onValueChange = {
                                 startDate = it
-                                if (endDate.isBefore(it)) {
-                                    endDate = it.plusHours(1)
-                                }
+                                endDate = normalizedAppointmentEnd(it, endDate)
                             },
                             modifier = Modifier.weight(1f)
                         )
@@ -175,9 +175,7 @@ fun CreateAppointmentScreen(
                             label = "Fin",
                             value = endDate,
                             onValueChange = {
-                                if (it.isAfter(startDate)) {
-                                    endDate = it
-                                }
+                                endDate = normalizedAppointmentEnd(startDate, it)
                             },
                             modifier = Modifier.weight(1f)
                         )
@@ -497,10 +495,8 @@ fun CreateAppointmentScreen(
                         Button(
                             onClick = {
                                 if (title.isBlank()) { errorMsg = "El título es obligatorio"; return@Button }
-                                if (!endDate.isAfter(startDate)) {
-                                    errorMsg = "La fecha de fin debe ser posterior al inicio"
-                                    return@Button
-                                }
+                                val requestEndDate = normalizedAppointmentEnd(startDate, endDate)
+                                endDate = requestEndDate
                                 isSubmitting = true
                                 errorMsg = null
                                 
@@ -508,7 +504,7 @@ fun CreateAppointmentScreen(
                                     title = title,
                                     clientId = existingAppointment?.clientId,
                                     startAt = startDate.format(fmt),
-                                    endAt = endDate.format(fmt),
+                                    endAt = requestEndDate.format(fmt),
                                     location = locationText.ifBlank { null },
                                     locationLat = locationLat,
                                     locationLng = locationLng,
@@ -622,6 +618,9 @@ private fun parseDateTime(dateStr: String?): LocalDateTime {
         LocalDateTime.now().withMinute(0).plusHours(1)
     }
 }
+
+internal fun normalizedAppointmentEnd(start: LocalDateTime, end: LocalDateTime): LocalDateTime =
+    if (end.isAfter(start)) end else start.plusHours(1)
 
 private fun parseGoogleMaps(text: String): Pair<Double, Double>? {
     val patterns = listOf(

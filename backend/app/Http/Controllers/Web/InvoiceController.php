@@ -47,10 +47,16 @@ class InvoiceController extends Controller
     public function index(): View
     {
         $fiscalProfiles = auth()->user()->availableFiscalProfiles();
+        $fiscalProfileIds = $fiscalProfiles->pluck('id');
 
         $invoices = Invoice::query()
             ->with('fiscalProfile')
+            ->whereIn('fiscal_profile_id', $fiscalProfileIds)
             ->when(request('status'), fn ($query, string $status) => $query->where('status', $status))
+            ->when(
+                in_array(request('document_type'), [Invoice::DOCUMENT_TYPE_INVOICE, Invoice::DOCUMENT_TYPE_QUOTATION], true),
+                fn ($query) => $query->where('document_type', request('document_type')),
+            )
             ->when(request('fiscal_profile_id'), fn ($query, string $profileId) => $query->where('fiscal_profile_id', $profileId))
             ->when(request('search'), function ($query, string $search): void {
                 $query->where(function ($query) use ($search): void {

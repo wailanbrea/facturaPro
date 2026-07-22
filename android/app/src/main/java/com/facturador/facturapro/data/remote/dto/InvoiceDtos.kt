@@ -154,6 +154,7 @@ fun InvoiceDto.toSummary(): InvoiceSummary = InvoiceSummary(
     balanceDue = balanceDue,
     status = status,
     pdfPath = pdfPath,
+    fiscalProfileId = fiscalProfileId,
 )
 
 fun InvoiceDto.toDetail(): InvoiceDetail = InvoiceDetail(

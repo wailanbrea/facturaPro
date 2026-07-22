@@ -12,16 +12,8 @@ class InvoiceNumberSetting extends Model
         return $this->belongsTo(FiscalProfile::class);
     }
 
-    public function user(): BelongsTo
-    {
-        return $this->belongsTo(User::class);
-    }
-
-
     protected $fillable = [
         'fiscal_profile_id',
-        'user_id',
-        'logo_path',
         'document_type',
         'prefix',
         'next_number',

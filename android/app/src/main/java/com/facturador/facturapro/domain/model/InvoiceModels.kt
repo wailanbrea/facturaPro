@@ -12,6 +12,7 @@ data class InvoiceSummary(
     val balanceDue: String,
     val status: String,
     val pdfPath: String?,
+    val fiscalProfileId: Long? = null,
 )
 
 data class InvoiceDetail(

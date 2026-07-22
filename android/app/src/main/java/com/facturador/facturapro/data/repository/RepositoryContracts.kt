@@ -43,7 +43,11 @@ interface DashboardRepositoryContract {
 }
 
 interface InvoiceRepositoryContract {
-    suspend fun list(search: String? = null): Result<List<InvoiceSummary>>
+    suspend fun list(
+        search: String? = null,
+        documentType: String? = null,
+        fiscalProfileId: Long? = null,
+    ): Result<List<InvoiceSummary>>
 
     suspend fun detail(invoiceId: Long): Result<InvoiceDetail>
 
