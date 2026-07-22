@@ -30,7 +30,7 @@ return new class extends Migration
                 }
 
                 DB::table('invoice_number_settings')
-                    ->whereKey($primary->id)
+                    ->where('id', $primary->id)
                     ->update([
                         'next_number' => max(1, (int) $settings->max('next_number')),
                         'user_id' => null,
