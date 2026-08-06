@@ -892,12 +892,14 @@ class AdminPanelTest extends TestCase
         $this->get(route('web.invoices.preview', $invoice))
             ->assertOk()
             ->assertSee('FACTURA')
-            ->assertSee('CUENTAS BANCARIAS')
-            ->assertSee('ORIGINAL: CLIENTE')
-            ->assertSee('COPIA: VENDEDOR')
+            ->assertSee('Formas de pago')
             ->assertSee('Cliente Preview')
             ->assertSee('RD$ 265.50')
-            ->assertSee('CONFORMIDAD DEL CLIENTE');
+            ->assertSee('Aceptaci')
+            // El diseno nuevo no imprime copias ni la caja de efectivo.
+            ->assertDontSee('ORIGINAL: CLIENTE')
+            ->assertDontSee('COPIA: VENDEDOR')
+            ->assertDontSee('Efectivo');
     }
 
     private function chromeAvailable(): bool

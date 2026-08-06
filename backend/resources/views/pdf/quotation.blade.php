@@ -160,9 +160,15 @@
 
                 <div class="note-box">
                     <span class="note-ico"><x-pdf-icon name="pen-line" :size="12" /></span>
-                    <div>
+                    <div style="flex:1">
                         <div class="note-title">Aceptación del presupuesto</div>
                         <div class="note-text muted">Para aceptar este presupuesto, firme y devuélvalo por email o WhatsApp. Este presupuesto no implica reserva del servicio.</div>
+                        @include('pdf.partials.signatures', [
+                            'leftRole' => 'Aceptado por (cliente)',
+                            'leftName' => $invoice->received_by,
+                            'rightRole' => 'Firma y sello del emisor',
+                            'rightName' => $invoice->prepared_by,
+                        ])
                     </div>
                 </div>
             </div>

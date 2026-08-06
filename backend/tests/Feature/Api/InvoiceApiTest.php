@@ -447,13 +447,18 @@ class InvoiceApiTest extends TestCase
         $this->get("/api/invoices/{$invoiceId}/preview")
             ->assertOk()
             ->assertHeader('content-type', 'text/html; charset=UTF-8')
+            // Las mayusculas del documento las pone el CSS, asi que se asserta
+            // sobre el texto tal cual aparece en el HTML.
             ->assertSee('FACTURA')
-            ->assertSee('CUENTAS BANCARIAS')
-            ->assertSee('ORIGINAL: CLIENTE')
-            ->assertSee('COPIA: VENDEDOR');
+            ->assertSee('Actuaciones')
+            ->assertSee('Resumen econ')
+            ->assertSee('Formas de pago')
+            // Espacio de firma y sello.
+            ->assertSee('Recibido por (cliente)')
+            ->assertSee('Firma y sello del emisor');
     }
 
-    public function test_quotation_preview_uses_quotation_labels(): void
+    public function test_quotation_preview_uses_the_quotation_template(): void
     {
         $invoiceId = $this->createInvoice([
             'document_type' => 'quotation',
@@ -464,16 +469,14 @@ class InvoiceApiTest extends TestCase
         $this->get("/api/invoices/{$invoiceId}/preview")
             ->assertOk()
             ->assertSee('PRESUPUESTO')
-            ->assertSee('FECHA:')
+            // La validez se fuerza a fecha de emision + 30 dias.
             ->assertSee('28/07/2026')
-            ->assertDontSee('FECHA DE PRESUPUESTO')
-            ->assertSee('PAGA Y SE&Ntilde;AL', false)
-            ->assertSee('CUENTA DE')
-            ->assertSee('SOMOS TECNICOS HOMOLOGOS')
-            ->assertSee('RECIBIDO POR')
-            ->assertSee('PREPARADO POR')
-            ->assertDontSee('ORIGINAL: CLIENTE')
-            ->assertDontSee('COPIA: VENDEDOR');
+            ->assertSee('Detalle de los trabajos')
+            ->assertSee('Resumen del presupuesto')
+            ->assertSee('Aceptado por (cliente)')
+            // El presupuesto no debe usar la plantilla de factura.
+            ->assertDontSee('Actuaciones')
+            ->assertDontSee('Resumen econ');
     }
 
     public function test_invoice_issue_preview_renders_as_final_invoice_without_persisting_issue(): void
