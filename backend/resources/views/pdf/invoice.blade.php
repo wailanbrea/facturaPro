@@ -1,6 +1,6 @@
 @inject('money', 'App\Services\CurrencyFormatterService')
-@inject('signature', 'App\Services\InvoiceSignatureService')
 @inject('qr', 'App\Services\QrCodeService')
+@inject('signature', 'App\Services\InvoiceSignatureService')
 @php
     $currency = [
         'symbol' => $invoice->currency_symbol,
@@ -12,14 +12,14 @@
 
     $isQuotation = $invoice->document_type === 'quotation';
     $documentTitle = $isQuotation ? 'PRESUPUESTO' : 'FACTURA';
-    $numberLabel = $isQuotation ? 'N.&ordm; PRESUPUESTO' : 'FACTURA N.&ordm;';
+    $documentSubtitle = $isQuotation ? '' : 'DE INTERVENCION TECNICA';
+    $numberLabel = $isQuotation ? 'N.° PRESUPUESTO' : 'FACTURA N.°';
     $totalLabel = $isQuotation ? 'TOTAL PRESUPUESTO' : 'TOTAL FACTURA';
     $payTotalLabel = $isQuotation ? 'TOTAL PRESUPUESTO' : 'TOTAL A PAGAR';
     $quotationValidUntil = $isQuotation
         ? $invoice->invoice_date?->copy()->addDays(30)
         : $invoice->due_date;
 
-    // Prefer the catalog warranty to repair legacy documents that saved the generic legal text.
     $warrantyText = $invoice->warranty?->full_text
         ?: $invoice->warranty_text
         ?: 'GARANTIA SEGUN CONDICIONES DEL FABRICANTE';
@@ -29,10 +29,8 @@
 
     $logoSrc = null;
     $logoPath = $invoice->logo_path ?? $invoice->fiscalProfile?->logo_path;
-
     if ($logoPath) {
         $absoluteLogoPath = storage_path('app/public/'.$logoPath);
-
         if (is_file($absoluteLogoPath)) {
             $mime = function_exists('mime_content_type') ? mime_content_type($absoluteLogoPath) : null;
             $mime = $mime ?: 'image/png';
@@ -44,11 +42,21 @@
     $sellerPhone = $invoice->fiscalProfile?->phone;
     $sellerEmail = $invoice->fiscalProfile?->email;
     $sellerAddress = trim(collect([$invoice->seller_address, $invoice->seller_city])->filter()->implode(', '));
+    $sellerTaxId = $invoice->seller_tax_id;
+    $sellerNif = $invoice->fiscalProfile?->tax_id ?? $invoice->seller_tax_id;
+    $sellerNifLabel = $invoice->fiscalProfile?->tax_label ?? 'NIF';
+
     $client = $invoice->client;
     $clientPhone = $client?->phone;
     $clientEmail = $client?->email;
+    $clientName = $invoice->client_name;
+    $clientTaxId = $invoice->client_tax_id;
+    $clientAddress = $invoice->client_address;
+    $clientCity = $invoice->client_city;
+
     $lineCount = $invoice->items->count();
     $fillerRows = max(0, min(4, 4 - $lineCount));
+
     $status = strtolower((string) $invoice->status);
     $watermark = match (true) {
         in_array($status, ['cancelled', 'anulada'], true) => 'ANULADA',
@@ -59,12 +67,10 @@
         in_array($status, ['paid', 'pagada'], true) => 'COBRAT',
         default => null,
     };
-    $conceptText = $invoice->observations
-        ?: $invoice->items->pluck('description')->filter()->implode("\n");
+
     $paymentTermName = $invoice->paymentTerm?->name ?: ' ';
     $dueText = $invoice->due_date?->format('d/m/Y') ?: ($paymentTermName !== ' ' ? $paymentTermName : 'CONTADO');
 
-    // Authenticity block: only rendered once the invoice is sealed (issued).
     $isSigned = filled($invoice->verification_code) && filled($invoice->verification_hash);
     $verificationCode = $invoice->verification_code;
     $verificationUrl = $isSigned ? $signature->verificationUrl($invoice) : null;
@@ -76,7 +82,7 @@
     <meta charset="utf-8">
     <title>{{ $documentTitle }} {{ $invoice->invoice_number ?? 'BORRADOR' }}</title>
     <style>
-        @page { size: A4; margin: 0; }
+        @page { size: A4 landscape; margin: 0; }
         * { box-sizing: border-box; }
         html, body {
             margin: 0;
@@ -84,38 +90,28 @@
             background: #fff;
             color: #111827;
             font-family: "DejaVu Sans", Arial, Helvetica, sans-serif;
-            font-size: 10px;
-            line-height: 1.25;
+            font-size: 8px;
+            line-height: 1.15;
         }
         body {
             -webkit-print-color-adjust: exact;
             print-color-adjust: exact;
         }
         .invoice-page {
-            width: 210mm;
-            min-height: 297mm;
+            width: 297mm;
+            min-height: 210mm;
             margin: 0 auto;
-            padding: 10mm 10mm 9mm;
+            padding: 3mm 5mm 2mm 5mm;
             background: #fff;
             position: relative;
             overflow: hidden;
         }
-        .invoice-page::after {
-            content: "";
-            position: absolute;
-            right: 0;
-            bottom: 0;
-            width: 34mm;
-            height: 24mm;
-            background: #062A55;
-            border-top-left-radius: 28mm;
-            z-index: 0;
-        }
         .document {
             position: relative;
             z-index: 1;
-            display: grid;
-            gap: 5mm;
+            display: flex;
+            flex-direction: column;
+            gap: 1.5mm;
         }
         table {
             border-collapse: collapse;
@@ -123,8 +119,8 @@
             width: 100%;
         }
         td, th {
-            border: 1px solid #AAB8C7;
-            padding: 2.2mm 2.6mm;
+            border: 0.5px solid #AAB8C7;
+            padding: 1.2mm 1.5mm;
             vertical-align: middle;
         }
         .right { text-align: right; }
@@ -132,209 +128,217 @@
         .bold { font-weight: 700; }
         .muted { color: #374151; }
         .nowrap { white-space: nowrap; }
-        .wrap {
-            overflow-wrap: anywhere;
-            word-break: normal;
-        }
-        .title-row {
+        .wrap { overflow-wrap: anywhere; word-break: normal; }
+
+        /* ===== HEADER ===== */
+        .header-top {
             display: grid;
-            grid-template-columns: minmax(0, 1fr) 88mm;
-            gap: 8mm;
-            align-items: start;
-        }
-        .brand {
-            display: grid;
-            grid-template-columns: 26mm minmax(0, 1fr);
-            gap: 6mm;
+            grid-template-columns: 25mm 1fr auto;
+            gap: 4mm;
             align-items: start;
         }
         .logo-box {
-            width: 26mm;
-            height: 24mm;
+            width: 25mm;
+            height: 22mm;
             display: flex;
             align-items: center;
             justify-content: center;
             overflow: hidden;
+            border: 1px solid #AAB8C7;
+            border-radius: 2px;
         }
         .logo-box img {
-            max-width: 26mm;
-            max-height: 24mm;
+            max-width: 25mm;
+            max-height: 22mm;
             object-fit: contain;
         }
         .logo-initial {
             width: 22mm;
             height: 22mm;
-            border: 1.2mm solid #062A55;
+            border: 1.5px solid #062A55;
             color: #062A55;
             display: flex;
             align-items: center;
             justify-content: center;
-            font-size: 20px;
+            font-size: 18px;
             font-weight: 800;
         }
-        .seller-name {
-            color: #062A55;
-            font-size: 24px;
-            line-height: 1;
-            font-weight: 800;
-            text-transform: uppercase;
-            overflow-wrap: anywhere;
-        }
-        .seller-subtitle {
-            margin-top: 3mm;
-            color: #062A55;
-            font-size: 9.5px;
-            letter-spacing: 1px;
-            font-weight: 700;
-            text-transform: uppercase;
-        }
-        .seller-list {
-            margin-top: 6mm;
+        .service-icons {
             display: grid;
-            gap: 2.2mm;
-            color: #111827;
-            font-size: 10.5px;
+            grid-template-columns: repeat(5, 1fr);
+            gap: 1mm;
+            padding-top: 1.5mm;
         }
-        .seller-line {
-            display: grid;
-            grid-template-columns: 7mm minmax(0, 1fr);
-            align-items: start;
-            gap: 2.3mm;
-        }
-        .icon {
-            color: #062A55;
-            font-weight: 800;
-            font-size: 10px;
-            line-height: 1;
+        .service-icon {
             text-align: center;
+            font-size: 5.5px;
+            color: #062A55;
+            font-weight: 700;
+            line-height: 1.1;
         }
-        .doc-side {
+        .service-icon .icon-symbol {
+            display: inline-block;
+            width: 7mm;
+            height: 7mm;
+            border: 0.8px solid #062A55;
+            border-radius: 50%;
+            line-height: 7mm;
+            font-size: 10px;
+            font-weight: 800;
+            color: #062A55;
+            margin-bottom: 0.3mm;
+        }
+        .doc-title-area {
             text-align: right;
         }
         .doc-title {
             color: #062A55;
-            font-size: 40px;
-            line-height: .95;
+            font-size: 24px;
+            line-height: .9;
             font-weight: 800;
-            letter-spacing: 0;
             text-transform: uppercase;
-            margin: 1mm 0 8mm;
         }
-        .doc-table {
-            table-layout: fixed;
-            font-size: 10.8px;
+        .doc-subtitle {
+            color: #062A55;
+            font-size: 8px;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            margin-top: 1mm;
         }
-        .doc-table td {
-            height: 10.2mm;
-            padding: 2mm 3mm;
+
+        /* ===== TOP INFO ROW (4 columns, landscape) ===== */
+        .top-info-row {
+            display: grid;
+            grid-template-columns: 1fr 1fr 1fr 1fr;
+            gap: 2mm;
         }
-        .doc-table .label {
-            width: 46%;
+        .info-box {
+            border: 0.5px solid #AAB8C7;
+            border-radius: 2px;
+            overflow: hidden;
+        }
+        .info-box-header {
             background: #062A55;
             color: #fff;
             font-weight: 800;
-            text-align: left;
+            font-size: 7px;
             text-transform: uppercase;
-        }
-        .doc-table .value {
-            background: #fff;
-            color: #111827;
-            font-weight: 600;
+            padding: 1mm 1.5mm;
             text-align: center;
         }
-        .section-title {
-            display: flex;
-            align-items: center;
-            gap: 2mm;
-            color: #062A55;
-            font-size: 12px;
-            font-weight: 800;
-            text-transform: uppercase;
-            margin-bottom: 2mm;
+        .info-box-body {
+            padding: 1.5mm;
+            font-size: 7.2px;
+            line-height: 1.25;
         }
-        .panel {
-            border: 1px solid #AAB8C7;
-            border-radius: 3px;
-            padding: 4mm;
-            min-height: 32mm;
-        }
-        .top-panels {
+        .info-row {
             display: grid;
-            grid-template-columns: 1fr 1fr;
-            gap: 10mm;
+            grid-template-columns: 18mm minmax(0, 1fr);
+            row-gap: 0.5mm;
+            column-gap: 1mm;
+            margin-bottom: 0.5mm;
         }
-        .top-panels.invoice-client-only {
-            grid-template-columns: 1fr;
-            gap: 0;
-        }
-        .data-grid {
-            display: grid;
-            grid-template-columns: 30mm minmax(0, 1fr);
-            row-gap: 2.4mm;
-            column-gap: 4mm;
-            font-size: 10.2px;
-        }
-        .invoice-client-only .data-grid {
-            grid-template-columns: 27mm minmax(0, 1fr) 28mm minmax(0, 1fr);
-        }
-        .label-text {
+        .info-row:last-child { margin-bottom: 0; }
+        .info-label {
             font-weight: 800;
             color: #111827;
+            font-size: 6.5px;
         }
-        .items {
+        .info-value {
+            font-size: 7.2px;
+        }
+
+        /* ===== ITEMS TABLE ===== */
+        .items-section {
+            display: grid;
+            grid-template-columns: 1fr 75mm;
+            gap: 2.5mm;
+            align-items: start;
+        }
+        .items-table {
             table-layout: fixed;
             page-break-inside: auto;
         }
-        .items th {
+        .items-table th {
             background: #062A55;
             color: #fff;
-            height: 9mm;
-            font-size: 10.3px;
+            height: 6mm;
+            font-size: 7px;
             font-weight: 800;
             text-align: center;
             text-transform: uppercase;
         }
-        .items td {
-            height: 10.5mm;
-            font-size: 9.8px;
+        .items-table td {
+            height: 5mm;
+            font-size: 6.5px;
         }
-        .items tr {
+        .items-table tr {
             page-break-inside: avoid;
             break-inside: avoid;
         }
-        .items .concept { width: 45%; }
-        .items .qty { width: 15%; text-align: center; }
-        .items .unit { width: 20%; text-align: right; }
-        .items .amount { width: 20%; text-align: right; }
+        .items-table .concept { width: 50%; }
+        .items-table .qty { width: 10%; text-align: center; }
+        .items-table .unit { width: 20%; text-align: right; }
+        .items-table .amount { width: 20%; text-align: right; }
+        .section-title {
+            display: flex;
+            align-items: center;
+            gap: 1mm;
+            color: #062A55;
+            font-size: 8px;
+            font-weight: 800;
+            text-transform: uppercase;
+            margin-bottom: 1mm;
+        }
+        .icon {
+            color: #062A55;
+            font-weight: 800;
+            font-size: 8px;
+            line-height: 1;
+            text-align: center;
+        }
+        .scope-panel {
+            border: 0.5px solid #AAB8C7;
+            border-radius: 2px;
+            padding: 1mm;
+            font-size: 6.5px;
+            line-height: 1.2;
+            min-height: 20mm;
+        }
+        .scope-panel .info-box-header {
+            margin: -1.5mm -1.5mm 1.5mm -1.5mm;
+            border-radius: 0;
+        }
+
+        /* ===== SUMMARY + PAY ROW ===== */
         .summary-row {
             display: grid;
-            grid-template-columns: minmax(0, 1fr) 82mm;
-            gap: 8mm;
+            grid-template-columns: 1fr 1fr;
+            gap: 2.5mm;
             align-items: start;
-            page-break-inside: avoid;
-            break-inside: avoid;
         }
-        .notes-panel {
-            min-height: 33mm;
+        .summary-left {
+            display: grid;
+            grid-template-columns: 1fr;
+            gap: 1.5mm;
         }
-        .notes-panel .section-title {
-            margin-bottom: 3mm;
-        }
-        .notes-text {
-            font-size: 9.5px;
-            line-height: 1.45;
-            white-space: pre-line;
+        .summary-card {
+            border: 0.5px solid #AAB8C7;
+            border-radius: 2px;
+            padding: 1.5mm;
+            min-height: 15mm;
         }
         .totals {
             table-layout: fixed;
-            font-size: 11px;
+            font-size: 8px;
         }
         .totals td {
-            height: 10.1mm;
-            padding: 2mm 4mm;
+            height: 4.5mm;
+            padding: 0.8mm 2mm;
         }
         .totals .label {
-            width: 52%;
+            width: 50%;
             font-weight: 700;
             text-transform: uppercase;
         }
@@ -343,124 +347,101 @@
             background: #062A55;
             color: #fff;
             font-weight: 800;
-            font-size: 12px;
+            font-size: 9px;
         }
         .totals .grand-value {
-            font-size: 18px;
+            font-size: 12px;
         }
+
+        /* ===== PAY BANNER ===== */
         .pay-banner {
-            margin-left: auto;
-            width: 140mm;
-            min-height: 16mm;
-            border: 1px solid #C5D0DC;
-            border-radius: 3px;
+            width: 100%;
+            min-height: 7mm;
+            border: 0.5px solid #C5D0DC;
+            border-radius: 2px;
             background: #EAF1F8;
             display: grid;
-            grid-template-columns: 20mm minmax(0, 1fr) 48mm;
-            gap: 2mm;
+            grid-template-columns: 10mm minmax(0, 1fr) 40mm;
+            gap: 1mm;
             align-items: center;
-            padding: 3mm 6mm;
+            padding: 1mm 2.5mm;
             page-break-inside: avoid;
             break-inside: avoid;
         }
         .pay-banner .pay-icon {
             color: #062A55;
-            font-size: 18px;
+            font-size: 10px;
             font-weight: 800;
             text-align: center;
         }
         .pay-banner .pay-label {
             color: #062A55;
-            font-size: 13px;
+            font-size: 7.5px;
             font-weight: 800;
             text-transform: uppercase;
         }
         .pay-banner .pay-sub {
             color: #374151;
-            font-size: 8.5px;
+            font-size: 5px;
             font-weight: 700;
             text-transform: uppercase;
         }
         .pay-banner .pay-amount {
             color: #062A55;
-            font-size: 23px;
+            font-size: 11px;
             font-weight: 800;
             text-align: right;
         }
-        .conditions {
-            page-break-inside: avoid;
-            break-inside: avoid;
-        }
-        .condition-grid {
+
+        /* ===== CONDITIONS COMPACT (single row) ===== */
+        .conditions-bar {
             display: grid;
-            grid-template-columns: repeat(3, 1fr);
-            gap: 5mm;
-            border-bottom: 1px solid #D3DCE6;
-            padding-bottom: 5mm;
+            grid-template-columns: repeat(10, 1fr);
+            gap: 1mm;
         }
-        .condition {
-            display: grid;
-            grid-template-columns: 7mm minmax(0, 1fr);
-            gap: 2mm;
-            font-size: 8.6px;
-            line-height: 1.35;
+        .condition-mini {
+            border: 0.5px solid #AAB8C7;
+            border-radius: 2px;
+            padding: 0.8mm;
+            text-align: center;
         }
-        .check {
-            width: 5mm;
-            height: 5mm;
-            border: 1.2px solid #062A55;
+        .condition-mini .cond-icon {
+            width: 4mm;
+            height: 4mm;
+            border: 0.6px solid #062A55;
             border-radius: 50%;
-            color: #062A55;
-            font-size: 9px;
-            line-height: 4.5mm;
-            text-align: center;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 8px;
             font-weight: 800;
-        }
-        .info-grid {
-            display: grid;
-            grid-template-columns: repeat(4, 1fr);
-            gap: 0;
-            border-bottom: 1px solid #D3DCE6;
-            page-break-inside: avoid;
-            break-inside: avoid;
-        }
-        .info-card {
-            padding: 3mm 5mm;
-            text-align: center;
-            min-height: 28mm;
-            border-right: 1px solid #D3DCE6;
-        }
-        .info-card:last-child {
-            border-right: 0;
-        }
-        .info-symbol {
             color: #062A55;
-            font-size: 19px;
-            font-weight: 800;
-            line-height: 1;
-            margin-bottom: 2mm;
+            margin-bottom: 0.2mm;
         }
-        .info-title {
+        .condition-mini .cond-title {
             color: #062A55;
-            font-size: 8.7px;
+            font-size: 5.2px;
             font-weight: 800;
             text-transform: uppercase;
-            margin-bottom: 1mm;
+            margin-bottom: 0.2mm;
         }
-        .info-text {
-            font-size: 8px;
-            line-height: 1.28;
+        .condition-mini .cond-text {
+            font-size: 4.8px;
+            line-height: 1.1;
+            color: #374151;
         }
+
+        /* ===== BANK + SIGNATURE ===== */
         .bank-signature {
             display: grid;
             grid-template-columns: 1fr 1fr;
-            gap: 8mm;
+            gap: 3mm;
             page-break-inside: avoid;
             break-inside: avoid;
         }
         .detail-table td {
-            height: 9mm;
-            font-size: 9.2px;
+            height: 4.5mm;
+            font-size: 6.5px;
         }
         .detail-table .heading {
             background: #062A55;
@@ -469,22 +450,16 @@
             text-align: center;
             text-transform: uppercase;
         }
-        .copy-badge {
-            background: #062A55;
-            color: #fff;
-            text-align: center;
-            font-weight: 800;
-        }
         .signature-grid {
             display: grid;
             grid-template-columns: 1fr 1fr;
-            gap: 4mm;
+            gap: 2.5mm;
         }
         .signature-box {
-            border: 1px solid #AAB8C7;
-            min-height: 24mm;
+            border: 0.5px solid #AAB8C7;
+            min-height: 10mm;
             display: grid;
-            grid-template-rows: 8mm 1fr;
+            grid-template-rows: 4mm 1fr;
         }
         .signature-title {
             background: #062A55;
@@ -494,18 +469,21 @@
             justify-content: center;
             font-weight: 800;
             text-transform: uppercase;
+            font-size: 7px;
         }
         .signature-name {
             display: flex;
             align-items: center;
             justify-content: center;
             text-align: center;
-            padding: 2mm;
+            padding: 1mm;
             font-weight: 700;
-            min-height: 16mm;
+            min-height: 9mm;
         }
+
+        /* ===== LEGAL BOX ===== */
         .legal-box {
-            border: 1px solid #AAB8C7;
+            border: 0.5px solid #AAB8C7;
             page-break-inside: avoid;
             break-inside: avoid;
         }
@@ -514,126 +492,86 @@
             color: #fff;
             font-weight: 800;
             text-align: center;
-            padding: 2mm;
+            padding: 1mm;
             text-transform: uppercase;
+            font-size: 7.5px;
         }
         .legal-text {
-            padding: 3mm 5mm;
-            font-size: 8.8px;
-            line-height: 1.38;
+            padding: 1.5mm 3mm;
+            font-size: 6.8px;
+            line-height: 1.2;
             text-align: center;
         }
-        .quotation-legacy {
-            border: 1px solid #AAB8C7;
-            page-break-inside: avoid;
-            break-inside: avoid;
-        }
-        .quotation-legacy .blue-row {
-            background: #062A55;
-            color: #fff;
-            text-align: center;
-            font-weight: 800;
-            padding: 2mm;
-            text-transform: uppercase;
-        }
-        .quotation-legacy .advance {
-            background: #d90000;
-            color: #fff;
-            text-align: center;
-            font-weight: 800;
-            padding: 2mm;
-        }
-        .quotation-bank {
-            display: grid;
-            grid-template-columns: 34mm minmax(0, 1fr);
-            min-height: 12mm;
-            border-top: 1px solid #AAB8C7;
-            border-bottom: 1px solid #AAB8C7;
-        }
-        .quotation-bank-label {
-            background: #062A55;
-            color: #fff;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            text-align: center;
-            font-size: 11px;
-            font-weight: 800;
-            text-transform: uppercase;
-        }
-        .quotation-bank-value {
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            text-align: center;
-            padding: 2mm;
-            font-size: 10px;
-            font-weight: 800;
-        }
+
+        /* ===== FOOTER ===== */
         .footer {
             display: grid;
             grid-template-columns: 1fr 1fr;
             align-items: end;
-            gap: 5mm;
-            min-height: 16mm;
+            gap: 4mm;
+            min-height: 8mm;
             page-break-inside: avoid;
             break-inside: avoid;
         }
         .thanks {
             color: #062A55;
-            font-size: 17px;
+            font-size: 10px;
             font-style: italic;
             line-height: 1;
         }
         .service-footer {
             color: #062A55;
             text-align: center;
-            font-size: 8.5px;
+            font-size: 6.5px;
             font-weight: 800;
             text-transform: uppercase;
-            line-height: 1.4;
+            line-height: 1.2;
         }
+
+        /* ===== WATERMARK ===== */
         .watermark {
             position: absolute;
-            left: 62mm;
-            top: 115mm;
+            left: 70mm;
+            top: 50mm;
             z-index: 5;
             transform: rotate(-25deg);
             color: rgba(198, 0, 0, .48);
             border: 2px solid rgba(198, 0, 0, .50);
-            padding: 2mm 9mm;
-            font-size: 24px;
+            padding: 1.5mm 7mm;
+            font-size: 18px;
             font-weight: 800;
             letter-spacing: 1.4px;
             pointer-events: none;
         }
+
+        /* ===== VERIFY TABLE ===== */
         .verify-table {
             width: 100%;
             page-break-inside: avoid;
             break-inside: avoid;
             display: flex;
             align-items: stretch;
-            border: 1px solid #062A55;
+            border: 0.5px solid #062A55;
         }
         .verify-cell {
-            padding: 1.2mm 1.8mm;
+            padding: 0.8mm 1.2mm;
             vertical-align: middle;
         }
         .verify-qr {
-            width: 17mm;
+            width: 12mm;
             text-align: center;
-            border-right: 1px solid #062A55;
-            flex: 0 0 17mm;
+            border-right: 0.5px solid #062A55;
+            flex: 0 0 12mm;
         }
         .verify-qr img {
-            width: 14mm;
-            height: 14mm;
+            width: 10mm;
+            height: 10mm;
             display: block;
             margin: 0 auto;
         }
         .verify-info {
-            font-size: 7.4px;
-            line-height: 1.16;
+            font-size: 6px;
+            line-height: 1.1;
             flex: 1;
         }
         .verify-badge {
@@ -641,17 +579,18 @@
             font-weight: 800;
             letter-spacing: 1px;
             color: #062A55;
-            border: 1px solid #062A55;
+            border: 0.5px solid #062A55;
             border-radius: 2px;
-            padding: .3mm 1.2mm;
+            padding: .3mm 1mm;
             margin-bottom: .3mm;
         }
         .verify-code {
             font-family: "Courier New", Courier, monospace;
             font-weight: 800;
-            font-size: 8px;
+            font-size: 6.5px;
             letter-spacing: 1px;
         }
+
         @media print {
             html, body { background: #fff; }
             .invoice-page { margin: 0; }
@@ -665,141 +604,292 @@
     @endif
 
     <main class="document">
-        <header class="title-row">
-            <section class="brand">
-                <div class="logo-box">
-                    @if($logoSrc)
-                        <img src="{{ $logoSrc }}" alt="Logo">
-                    @else
-                        <div class="logo-initial">{{ $sellerInitial }}</div>
-                    @endif
-                </div>
-                <div>
-                    <div class="seller-name">{{ $invoice->seller_name ?: 'FacturaPro' }}</div>
-                    <div class="seller-subtitle">Servicio tecnico especializado</div>
-                    <div class="seller-list">
-                        @if($sellerPhone)
-                            <div class="seller-line"><span class="icon">TEL</span><span class="wrap">{{ $sellerPhone }}</span></div>
-                        @endif
-                        @if($sellerEmail)
-                            <div class="seller-line"><span class="icon">MAIL</span><span class="wrap">{{ $sellerEmail }}</span></div>
-                        @endif
-                        @if($sellerAddress)
-                            <div class="seller-line"><span class="icon">DIR</span><span class="wrap">{{ $sellerAddress }}</span></div>
-                        @endif
-                        @if($invoice->seller_tax_id)
-                            <div class="seller-line"><span class="icon">ID</span><span class="wrap">NIF: {{ $invoice->seller_tax_id }}</span></div>
-                        @endif
+        <!-- HEADER -->
+        <header class="header-top">
+            <div class="logo-box">
+                @if($logoSrc)
+                    <img src="{{ $logoSrc }}" alt="Logo">
+                @else
+                    <div class="logo-initial">{{ $sellerInitial }}</div>
+                @endif
+            </div>
+
+            <div>
+                <div class="service-icons">
+                    <div class="service-icon">
+                        <span class="icon-symbol">✓</span><br>
+                        INTERVENCIONES<br>GARANTIZADAS
+                    </div>
+                    <div class="service-icon">
+                        <span class="icon-symbol">⚙</span><br>
+                        TECNICOS<br>CUALIFICADOS
+                    </div>
+                    <div class="service-icon">
+                        <span class="icon-symbol">✓</span><br>
+                        REPUESTOS<br>ORIGINAL
+                    </div>
+                    <div class="service-icon">
+                        <span class="icon-symbol">📞</span><br>
+                        ATENCION<br>24/7
+                    </div>
+                    <div class="service-icon">
+                        <span class="icon-symbol">+</span><br>
+                        SERVICIOS<br>COMPLETOS
                     </div>
                 </div>
-            </section>
+            </div>
 
-            <aside class="doc-side">
+            <div class="doc-title-area">
                 <div class="doc-title">{{ $documentTitle }}</div>
-                <table class="doc-table">
-                    <tr>
-                        <td class="label">{!! $numberLabel !!}</td>
-                        <td class="value">{{ $invoice->invoice_number ?? 'BORRADOR' }}</td>
-                    </tr>
-                    <tr>
-                        <td class="label">FECHA:</td>
-                        <td class="value">{{ $invoice->invoice_date?->format('d/m/Y') ?: 'N/A' }}</td>
-                    </tr>
-                    @if($isQuotation)
-                        <tr>
-                            <td class="label">VALIDEZ</td>
-                            <td class="value">30 DIAS{{ $quotationValidUntil ? ' - '.$quotationValidUntil->format('d/m/Y') : '' }}</td>
-                        </tr>
-                        <tr>
-                            <td class="label">TECNICO RESPONSABLE</td>
-                            <td class="value">{{ $invoice->prepared_by ?: $invoice->seller_name ?: 'Departamento Tecnico' }}</td>
-                        </tr>
-                    @else
-                        <tr>
-                            <td class="label">FORMA DE PAGO</td>
-                            <td class="value">{{ $paymentTermName }}</td>
-                        </tr>
-                        <tr>
-                            <td class="label">VENCIMIENTO</td>
-                            <td class="value">{{ $dueText }}</td>
-                        </tr>
-                    @endif
-                </table>
-            </aside>
+                @if(!$isQuotation)
+                    <div class="doc-subtitle">DE INTERVENCION TECNICA</div>
+                @endif
+            </div>
         </header>
 
-        <section class="top-panels {{ $isQuotation ? '' : 'invoice-client-only' }}">
-            <div>
-                <div class="section-title"><span class="icon">USR</span> DATOS DEL CLIENTE</div>
-                <div class="panel">
-                    <div class="data-grid">
-                        <div class="label-text">Cliente:</div>
-                        <div class="wrap">{{ $invoice->client_name ?: 'N/A' }}</div>
-                        <div class="label-text">NIF/CIF:</div>
-                        <div class="wrap">{{ $invoice->client_tax_id ?: 'N/A' }}</div>
-                        <div class="label-text">Direccion:</div>
-                        <div class="wrap">{{ $invoice->client_address ?: 'N/A' }}</div>
-                        <div class="label-text">Poblacion:</div>
-                        <div class="wrap">{{ $invoice->client_city ?: 'N/A' }}</div>
-                        <div class="label-text">Telefono:</div>
-                        <div class="wrap">{{ $clientPhone ?: ' ' }}</div>
-                        <div class="label-text">Email:</div>
-                        <div class="wrap">{{ $clientEmail ?: ' ' }}</div>
+        <!-- TOP INFO ROW (4 columns, landscape) -->
+        <section class="top-info-row">
+            <!-- Panel 1: Datos fiscales del emisor -->
+            <div class="info-box">
+                <div class="info-box-header">DATOS FISCALES DEL EMISOR</div>
+                <div class="info-box-body">
+                    <div class="info-row">
+                        <span class="info-label">Razon Social:</span>
+                        <span class="info-value">{{ $invoice->seller_name ?: 'N/A' }}</span>
                     </div>
+                    <div class="info-row">
+                        <span class="info-label">{{ $sellerNifLabel }}:</span>
+                        <span class="info-value">{{ $sellerNif ?: 'N/A' }}</span>
+                    </div>
+                    <div class="info-row">
+                        <span class="info-label">Direccion:</span>
+                        <span class="info-value">{{ $sellerAddress ?: 'N/A' }}</span>
+                    </div>
+                    <div class="info-row">
+                        <span class="info-label">Poblacion:</span>
+                        <span class="info-value">{{ $invoice->seller_city ?: 'N/A' }}</span>
+                    </div>
+                    @if($sellerPhone)
+                    <div class="info-row">
+                        <span class="info-label">Telefono:</span>
+                        <span class="info-value">{{ $sellerPhone }}</span>
+                    </div>
+                    @endif
+                    @if($sellerEmail)
+                    <div class="info-row">
+                        <span class="info-label">Email:</span>
+                        <span class="info-value">{{ $sellerEmail }}</span>
+                    </div>
+                    @endif
                 </div>
             </div>
 
-            @if($isQuotation)
-                <div>
-                    <div class="section-title"><span class="icon">DOC</span> CONCEPTO</div>
-                    <div class="panel">
-                        <div class="notes-text wrap">{{ $conceptText ?: ' ' }}</div>
+            <!-- Panel 2: Datos del cliente -->
+            <div class="info-box">
+                <div class="info-box-header">DATOS DEL CLIENTE</div>
+                <div class="info-box-body">
+                    <div class="info-row">
+                        <span class="info-label">Cliente:</span>
+                        <span class="info-value">{{ $clientName ?: 'N/A' }}</span>
+                    </div>
+                    <div class="info-row">
+                        <span class="info-label">NIF/CIF:</span>
+                        <span class="info-value">{{ $clientTaxId ?: 'N/A' }}</span>
+                    </div>
+                    <div class="info-row">
+                        <span class="info-label">Direccion:</span>
+                        <span class="info-value">{{ $clientAddress ?: 'N/A' }}</span>
+                    </div>
+                    <div class="info-row">
+                        <span class="info-label">Poblacion:</span>
+                        <span class="info-value">{{ $clientCity ?: 'N/A' }}</span>
+                    </div>
+                    @if($clientPhone)
+                    <div class="info-row">
+                        <span class="info-label">Telefono:</span>
+                        <span class="info-value">{{ $clientPhone }}</span>
+                    </div>
+                    @endif
+                    @if($clientEmail)
+                    <div class="info-row">
+                        <span class="info-label">Email:</span>
+                        <span class="info-value">{{ $clientEmail }}</span>
+                    </div>
+                    @endif
+                </div>
+            </div>
+
+            <!-- Panel 3: Detalles del presupuesto / factura -->
+            <div class="info-box">
+                <div class="info-box-header">{{ $isQuotation ? 'DETALLES DEL PRESUPUESTO' : 'DETALLES DE LA FACTURA' }}</div>
+                <div class="info-box-body">
+                    @if($isQuotation)
+                    <div class="info-row">
+                        <span class="info-label">Fecha emision:</span>
+                        <span class="info-value">{{ $invoice->invoice_date?->format('d/m/Y') ?: 'N/A' }}</span>
+                    </div>
+                    <div class="info-row">
+                        <span class="info-label">Validez:</span>
+                        <span class="info-value">{{ $quotationValidUntil?->format('d/m/Y') ?: 'N/A' }}</span>
+                    </div>
+                    <div class="info-row">
+                        <span class="info-label">Forma pago:</span>
+                        <span class="info-value">{{ $paymentTermName }}</span>
+                    </div>
+                    <div class="info-row">
+                        <span class="info-label">Modelo:</span>
+                        <span class="info-value">{{ $invoice->assigned_model ?: 'N/A' }}</span>
+                    </div>
+                    <div class="info-row">
+                        <span class="info-label">N° serie/Ref:</span>
+                        <span class="info-value">{{ $invoice->serial_number ?: $invoice->reference ?: 'N/A' }}</span>
+                    </div>
+                    <div class="info-row">
+                        <span class="info-label">Equipo:</span>
+                        <span class="info-value">{{ $invoice->equipment_type ?: 'N/A' }}</span>
+                    </div>
+                    <div class="info-row">
+                        <span class="info-label">Ubicacion:</span>
+                        <span class="info-value">{{ $invoice->work_location ?: 'N/A' }}</span>
+                    </div>
+                    @else
+                    <div class="info-row">
+                        <span class="info-label">Fecha emision:</span>
+                        <span class="info-value">{{ $invoice->invoice_date?->format('d/m/Y') ?: 'N/A' }}</span>
+                    </div>
+                    <div class="info-row">
+                        <span class="info-label">Vencimiento:</span>
+                        <span class="info-value">{{ $invoice->due_date?->format('d/m/Y') ?: 'N/A' }}</span>
+                    </div>
+                    <div class="info-row">
+                        <span class="info-label">Forma pago:</span>
+                        <span class="info-value">{{ $paymentTermName }}</span>
+                    </div>
+                    <div class="info-row">
+                        <span class="info-label">Modelo:</span>
+                        <span class="info-value">{{ $invoice->assigned_model ?: 'N/A' }}</span>
+                    </div>
+                    <div class="info-row">
+                        <span class="info-label">N° serie/Ref:</span>
+                        <span class="info-value">{{ $invoice->serial_number ?: $invoice->reference ?: 'N/A' }}</span>
+                    </div>
+                    <div class="info-row">
+                        <span class="info-label">Equipo:</span>
+                        <span class="info-value">{{ $invoice->equipment_type ?: 'N/A' }}</span>
+                    </div>
+                    @endif
+                </div>
+            </div>
+
+            <!-- Panel 4: Resumen -->
+            <div class="info-box">
+                <div class="info-box-header">{{ $isQuotation ? 'RESUMEN' : 'DATOS DE LA FACTURA' }}</div>
+                <div class="info-box-body">
+                    <div class="info-row">
+                        <span class="info-label">Subtotal:</span>
+                        <span class="info-value right nowrap">{{ $money->format($invoice->subtotal, $currency) }}</span>
+                    </div>
+                    @if($isQuotation)
+                    <div class="info-row">
+                        <span class="info-label">Desplazamiento:</span>
+                        <span class="info-value right nowrap">{{ $money->format($invoice->transport_cost ?? 0, $currency) }}</span>
+                    </div>
+                    <div class="info-row">
+                        <span class="info-label">Base imponible:</span>
+                        <span class="info-value right nowrap">{{ $money->format($invoice->taxable_base ?? $invoice->subtotal, $currency) }}</span>
+                    </div>
+                    <div class="info-row">
+                        <span class="info-label">IVA ({{ $invoice->tax_rate ?? 21 }}%):</span>
+                        <span class="info-value right nowrap">{{ $money->format($invoice->tax_total, $currency) }}</span>
+                    </div>
+                    <div class="info-row">
+                        <span class="info-label">IVA ({{ $invoice->tax2_rate ?? 10 }}%):</span>
+                        <span class="info-value right nowrap">{{ $money->format($invoice->tax2_total ?? 0, $currency) }}</span>
+                    </div>
+                    <div class="info-row">
+                        <span class="info-label">IVA ({{ $invoice->tax3_rate ?? 4 }}%):</span>
+                        <span class="info-value right nowrap">{{ $money->format($invoice->tax3_total ?? 0, $currency) }}</span>
+                    </div>
+                    @else
+                    <div class="info-row">
+                        <span class="info-label">Vencimiento:</span>
+                        <span class="info-value right nowrap">{{ $invoice->due_date?->format('d/m/Y') ?: 'N/A' }}</span>
+                    </div>
+                    @endif
+                    <div class="info-row" style="margin-top: 1mm;">
+                        <span class="info-label" style="font-size: 8.5px; font-weight: 900;">{{ $totalLabel }}:</span>
+                        <span class="info-value right nowrap" style="font-size: 10px; font-weight: 900; color: #062A55;">{{ $money->format($invoice->total, $currency) }}</span>
                     </div>
                 </div>
-            @endif
+            </div>
         </section>
 
-        <table class="items">
-            <thead>
-                <tr>
-                    <th class="concept">CONCEPTO</th>
-                    <th class="qty">CANT.</th>
-                    <th class="unit">PRECIO UNIT.</th>
-                    <th class="amount">IMPORTE</th>
-                </tr>
-            </thead>
-            <tbody>
-            @foreach($invoice->items as $item)
-                <tr>
-                    <td class="concept wrap">{{ $item->description }}</td>
-                    <td class="qty">{{ rtrim(rtrim(number_format((float) $item->quantity, 4, '.', ''), '0'), '.') }}</td>
-                    <td class="unit nowrap">{{ $money->format($item->unit_cost, $currency) }}</td>
-                    <td class="amount nowrap">{{ $money->format($item->line_subtotal, $currency) }}</td>
-                </tr>
-            @endforeach
-            @for($i = 0; $i < $fillerRows; $i++)
-                <tr>
-                    <td class="concept">&nbsp;</td>
-                    <td class="qty">&nbsp;</td>
-                    <td class="unit">&nbsp;</td>
-                    <td class="amount">&nbsp;</td>
-                </tr>
-            @endfor
-            </tbody>
-        </table>
-
-        <section class="summary-row">
-            <div class="notes-panel panel">
-                <div class="section-title"><span class="icon">OBS</span> OBSERVACIONES</div>
-                <div class="notes-text wrap">{{ $invoice->observations ?: ' ' }}</div>
+        <!-- ITEMS TABLE + SCOPE PANEL -->
+        <section class="items-section">
+            <div>
+                <div class="section-title"><span class="icon">✎</span> DETALLE DE LOS TRABAJOS Y SUMINISTROS</div>
+                <table class="items-table">
+                    <thead>
+                        <tr>
+                            <th class="concept">DESCRIPCION DE LA ACTUACION</th>
+                            <th class="qty">CANT.</th>
+                            <th class="unit">PRECIO UNIT.</th>
+                            <th class="amount">IMPORTE</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach($invoice->items as $item)
+                        <tr>
+                            <td class="concept wrap">{{ $item->description }}</td>
+                            <td class="qty">{{ rtrim(rtrim(number_format((float) $item->quantity, 4, '.', ''), '0'), '.') }}</td>
+                            <td class="unit nowrap">{{ $money->format($item->unit_cost, $currency) }}</td>
+                            <td class="amount nowrap">{{ $money->format($item->line_subtotal, $currency) }}</td>
+                        </tr>
+                        @endforeach
+                        @for($i = 0; $i < $fillerRows; $i++)
+                        <tr>
+                            <td class="concept">&nbsp;</td>
+                            <td class="qty">&nbsp;</td>
+                            <td class="unit">&nbsp;</td>
+                            <td class="amount">&nbsp;</td>
+                        </tr>
+                        @endfor
+                    </tbody>
+                </table>
             </div>
 
+            <!-- Scope panel -->
+            <div class="scope-panel">
+                <div class="info-box-header">ALCANCE DEL SERVICIO</div>
+                <div style="padding: 1.5mm;">
+                    <p class="wrap" style="font-size: 7px; line-height: 1.25;">
+                        {{ $invoice->observations ?: 'Este documento incluye los trabajos descritos en el detalle, materiales y desplazamiento dentro del area metropolitana de ' . ($invoice->seller_city ?: 'la ciudad.') }}
+                    </p>
+                    @if($invoice->diagnostic_summary)
+                    <div style="margin-top: 1.5mm; border-top: 0.5px solid #AAB8C7; padding-top: 1mm;">
+                        <div style="font-weight: 800; color: #062A55; font-size: 7px; margin-bottom: 0.5mm;">DIAGNOSTICO TECNICO</div>
+                        <p class="wrap" style="font-size: 6.8px; line-height: 1.2;">{{ $invoice->diagnostic_summary }}</p>
+                    </div>
+                    @endif
+                    @if($invoice->technical_conclusions)
+                    <div style="margin-top: 1mm; border-top: 0.5px solid #AAB8C7; padding-top: 1mm;">
+                        <div style="font-weight: 800; color: #062A55; font-size: 7px; margin-bottom: 0.5mm;">CONCLUSIONES TECNICAS</div>
+                        <p class="wrap" style="font-size: 6.8px; line-height: 1.2;">{{ $invoice->technical_conclusions }}</p>
+                    </div>
+                    @endif
+                </div>
+            </div>
+        </section>
+
+        <!-- SUMMARY ROW -->
+        <section class="summary-row">
+            <!-- Totals -->
             <table class="totals">
                 @if(! $isQuotation)
-                    <tr>
-                        <td class="label">IMP. RECIBIDO</td>
-                        <td class="right nowrap">{{ $money->format($invoice->amount_received, $currency) }}</td>
-                    </tr>
+                <tr>
+                    <td class="label">IMP. RECIBIDO</td>
+                    <td class="right nowrap">{{ $money->format($invoice->amount_received, $currency) }}</td>
+                </tr>
                 @endif
                 <tr>
                     <td class="label">SUBTOTAL</td>
@@ -810,18 +900,25 @@
                     <td class="right nowrap">{{ $money->format($invoice->tax_total, $currency) }}</td>
                 </tr>
                 @if(! $isQuotation && (float) $invoice->balance_due !== (float) $invoice->total)
-                    <tr>
-                        <td class="label">BALANCE PENDIENTE</td>
-                        <td class="right nowrap">{{ $money->format($invoice->balance_due, $currency) }}</td>
-                    </tr>
+                <tr>
+                    <td class="label">BALANCE PENDIENTE</td>
+                    <td class="right nowrap">{{ $money->format($invoice->balance_due, $currency) }}</td>
+                </tr>
                 @endif
                 <tr>
                     <td class="grand-label">{{ $totalLabel }}</td>
                     <td class="grand-value right nowrap">{{ $money->format($invoice->total, $currency) }}</td>
                 </tr>
             </table>
+
+            <!-- Observations -->
+            <div class="summary-card">
+                <div class="section-title"><span class="icon">OBS</span> OBSERVACIONES</div>
+                <div style="font-size: 7px; line-height: 1.25;">{{ $invoice->observations ?: ' ' }}</div>
+            </div>
         </section>
 
+        <!-- PAY BANNER -->
         <section class="pay-banner">
             <div class="pay-icon">{{ $isQuotation ? 'CALC' : 'PAY' }}</div>
             <div>
@@ -831,33 +928,142 @@
             <div class="pay-amount nowrap">{{ $money->format($invoice->total, $currency) }}</div>
         </section>
 
-        @if($isQuotation)
-            <section class="conditions">
-                <div class="section-title"><span class="icon">OK</span> CONDICIONES DEL PRESUPUESTO</div>
-                <div class="condition-grid">
-                    <div class="condition"><span class="check">✓</span><span>El presupuesto tiene una validez de 30 dias desde la fecha de emision.</span></div>
-                    <div class="condition"><span class="check">✓</span><span>El material podra requerir anticipo para su reserva.</span></div>
-                    <div class="condition"><span class="check">✓</span><span>La aceptacion del presente presupuesto implica conformidad con las condiciones indicadas.</span></div>
-                    <div class="condition"><span class="check">✓</span><span>El inicio de los trabajos queda sujeto a confirmacion del presupuesto y disponibilidad.</span></div>
-                    <div class="condition"><span class="check">✓</span><span>El importe restante se abonara a la finalizacion de los trabajos.</span></div>
-                    <div class="condition"><span class="check">✓</span><span>Cualquier trabajo adicional no contemplado sera comunicado y presupuestado previamente.</span></div>
-                </div>
-            </section>
+        <!-- MIDDLE SECTION: Acceptance + Payment Methods + Additional Info -->
+        <section class="items-section" style="grid-template-columns: 1fr 1fr 1fr; gap: 1.5mm;">
+            <div class="summary-card">
+                <div class="section-title"><span class="icon">✓</span> ACEPTACION</div>
+                <p class="wrap" style="font-size: 6.8px; line-height: 1.2;">
+                    @if($isQuotation)
+                        La aceptacion de este presupuesto implica conformidad con las condiciones descritas. Este presupuesto no implica reserva del servicio.
+                    @else
+                        La firma, aceptacion digital o pago del servicio confirma la conformidad del trabajo realizado. La garantia cubre exclusivamente la reparacion realizada y las piezas sustituidas.
+                    @endif
+                </p>
+            </div>
 
-            <section class="quotation-legacy">
-                <div class="blue-row">{{ $warrantyText }}</div>
-                <div class="advance">PAGA Y SE&Ntilde;AL EQUIPO Y MATERIALES AVANCE DE PAGO</div>
-                <div class="quotation-bank">
-                    <div class="quotation-bank-label">CUENTA DE<br>BANCO</div>
-                    <div class="quotation-bank-value">
-                        @if($invoice->bankAccount)
-                            {{ $invoice->bankAccount->bank_name }} - {{ $invoice->bankAccount->account_holder }}<br>
-                            {{ $invoice->bankAccount->iban ?: $invoice->bankAccount->account_number ?: ' ' }}
-                        @endif
+            <div class="summary-card">
+                <div class="section-title"><span class="icon">BANK</span> FORMAS DE PAGO</div>
+                <div style="font-size: 6.8px; line-height: 1.2;">
+                    @if($invoice->bankAccount)
+                    <div style="margin-bottom: 1mm;">
+                        <div style="font-weight: 800; color: #062A55;">Transferencia bancaria</div>
+                        <div>{{ $invoice->bankAccount->bank_name }} - {{ $invoice->bankAccount->account_holder }}</div>
+                        <div>{{ $invoice->bankAccount->iban ?: $invoice->bankAccount->account_number }}</div>
+                    </div>
+                    @endif
+                    <div>
+                        <div style="font-weight: 800; color: #062A55;">Efectivo</div>
+                        <div>Consulte condiciones</div>
                     </div>
                 </div>
-                <div class="advance">SOMOS TECNICOS HOMOLOGOS Y GARANTIZAMOS 100% NUESTROS SERVICIOS.</div>
-            </section>
+            </div>
+
+            <div class="summary-card">
+                <div class="section-title"><span class="icon">INFO</span> INFO ADICIONAL</div>
+                <div style="font-size: 6.8px; line-height: 1.2;">
+                    @if($isQuotation)
+                    <div style="margin-bottom: 1mm;">
+                        <div style="font-weight: 800; color: #062A55;">VALIDO HASTA:</div>
+                        <div style="font-weight: 800; color: #062A55; font-size: 9px;">{{ $quotationValidUntil?->format('d/m/Y') ?: '30 dias' }}</div>
+                    </div>
+                    @endif
+                    <div>
+                        <div style="font-weight: 800; color: #062A55;">ESTADO:</div>
+                        <div style="text-transform: uppercase;">{{ ucfirst($status) }}</div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- CONDITIONS COMPACT (2 rows x 5 columns) -->
+        <section class="conditions-bar">
+            <!-- 1. Garantia -->
+            <div class="condition-mini">
+                <div class="cond-icon">✓</div>
+                <div class="cond-title">1. GARANTIA</div>
+                <div class="cond-text">{{ $warrantyText }}</div>
+            </div>
+            <!-- 2. Exclusiones -->
+            <div class="condition-mini">
+                <div class="cond-icon">✗</div>
+                <div class="cond-title">2. EXCLUSIONES</div>
+                <div class="cond-text">No cubre danos por manipulacion externa, mal uso, desgaste natural o elementos ajenos.</div>
+            </div>
+            <!-- 3. Condiciones -->
+            <div class="condition-mini">
+                <div class="cond-icon">⚖</div>
+                <div class="cond-title">3. CONDICIONES</div>
+                <div class="cond-text">Sujeto a condiciones generales de la intervencion. Aceptacion implica conformidad.</div>
+            </div>
+            <!-- 4. Plazos -->
+            <div class="condition-mini">
+                <div class="cond-icon">!</div>
+                <div class="cond-title">4. PLAZOS</div>
+                <div class="cond-text">Plazos estimados, pueden variar segun disponibilidad de materiales.</div>
+            </div>
+            <!-- 5. Materiales -->
+            <div class="condition-mini">
+                <div class="cond-icon">⚙</div>
+                <div class="cond-title">5. MATERIALES</div>
+                <div class="cond-text">Materiales sustituidos pasan a propiedad del tecnico.</div>
+            </div>
+            <!-- 6. Modificaciones -->
+            <div class="condition-mini">
+                <div class="cond-icon">📄</div>
+                <div class="cond-title">6. MODIFICACIONES</div>
+                <div class="cond-text">Cambios en alcance deben ser comunicados y presupuestados.</div>
+            </div>
+            <!-- 7. Proteccion datos -->
+            <div class="condition-mini">
+                <div class="cond-icon">🔒</div>
+                <div class="cond-title">7. DATOS</div>
+                <div class="cond-text">RGPD (UE 2016/679). Datos conservados durante vigencia de garantia.</div>
+            </div>
+            <!-- 8. Cancelacion -->
+            <div class="condition-mini">
+                <div class="cond-icon">↺</div>
+                <div class="cond-title">8. CANCELACION</div>
+                <div class="cond-text">Cancelaciones con menos de 24h podran implicar coste de desplazamiento.</div>
+            </div>
+            <!-- 9. Aceptacion -->
+            <div class="condition-mini">
+                <div class="cond-icon">✓✓</div>
+                <div class="cond-title">9. ACEPTACION</div>
+                <div class="cond-text">La aceptacion implica conformidad. Firma o pago del documento.</div>
+            </div>
+            <!-- 10. Jurisdiccion -->
+            <div class="condition-mini">
+                <div class="cond-icon">🏛</div>
+                <div class="cond-title">10. JURISDICCION</div>
+                <div class="cond-text">Juzgados competentes: {{ $invoice->seller_city ?: 'la ciudad del emisor' }}.</div>
+            </div>
+        </section>
+
+        <!-- BANK + SIGNATURE -->
+        @if($isQuotation)
+        <section class="bank-signature">
+            <div>
+                <div style="border: 0.5px solid #AAB8C7; padding: 1mm; margin-bottom: 1mm; text-align: center; font-weight: 800; background: #062A55; color: #fff; font-size: 7px; text-transform: uppercase;">
+                    {{ $warrantyText }}
+                </div>
+                <div style="border: 0.5px solid #AAB8C7; padding: 1mm; text-align: center; font-weight: 800; background: #d90000; color: #fff; font-size: 7px; text-transform: uppercase;">
+                    PAGA Y SEÑAL / EQUIPO Y MATERIALES / AVANCE DE PAGO
+                </div>
+                @if($invoice->bankAccount)
+                <div style="border-top: 0.5px solid #AAB8C7; border-bottom: 0.5px solid #AAB8C7; padding: 1mm; display: grid; grid-template-columns: 25mm minmax(0, 1fr); align-items: center;">
+                    <div style="background: #062A55; color: #fff; display: flex; align-items: center; justify-content: center; text-align: center; font-size: 7.5px; font-weight: 800; text-transform: uppercase;">
+                        CUENTA DE<br>BANCO
+                    </div>
+                    <div style="display: flex; align-items: center; justify-content: center; text-align: center; padding: 1mm; font-size: 7px; font-weight: 700;">
+                        {{ $invoice->bankAccount->bank_name }} - {{ $invoice->bankAccount->account_holder }}<br>
+                        {{ $invoice->bankAccount->iban ?: $invoice->bankAccount->account_number ?: ' ' }}
+                    </div>
+                </div>
+                @endif
+                <div style="border: 0.5px solid #AAB8C7; padding: 1mm; text-align: center; font-weight: 800; font-size: 6px; margin-top: 1mm;">
+                    SOMOS TECNICOS HOMOLOGOS Y GARANTIZAMOS 100% NUESTROS SERVICIOS.
+                </div>
+            </div>
 
             <section class="signature-grid">
                 <div class="signature-box">
@@ -869,93 +1075,73 @@
                     <div class="signature-name wrap">{{ $invoice->prepared_by ?: ' ' }}</div>
                 </div>
             </section>
+        </section>
         @else
-            <section class="bank-signature">
-                <table class="detail-table">
-                    <tr>
-                        <td class="heading" colspan="2">CUENTAS BANCARIAS</td>
-                    </tr>
-                    <tr>
-                        <td class="bold" style="width: 30mm;">Banco</td>
-                        <td class="wrap">{{ $invoice->bankAccount?->bank_name ?: ' ' }}</td>
-                    </tr>
-                    <tr>
-                        <td class="bold">Titular</td>
-                        <td class="wrap">{{ $invoice->bankAccount?->account_holder ?: ' ' }}</td>
-                    </tr>
-                    <tr>
-                        <td class="bold">Cuenta</td>
-                        <td class="wrap">
-                            @if($invoice->bankAccount)
-                                {{ $invoice->bankAccount->iban ?: $invoice->bankAccount->account_number ?: ' ' }}
-                            @endif
-                        </td>
-                    </tr>
-                    <tr>
-                        <td class="copy-badge" colspan="2">ORIGINAL: CLIENTE&nbsp;&nbsp;&nbsp; COPIA: VENDEDOR</td>
-                    </tr>
-                </table>
+        <!-- INVOICE-SPECIFIC: Bank + Signature + Legal -->
+        <section class="bank-signature">
+            <table class="detail-table">
+                <tr>
+                    <td class="heading" colspan="2">CUENTAS BANCARIAS</td>
+                </tr>
+                <tr>
+                    <td class="bold" style="width: 25mm;">Banco</td>
+                    <td class="wrap">{{ $invoice->bankAccount?->bank_name ?: ' ' }}</td>
+                </tr>
+                <tr>
+                    <td class="bold">Titular</td>
+                    <td class="wrap">{{ $invoice->bankAccount?->account_holder ?: ' ' }}</td>
+                </tr>
+                <tr>
+                    <td class="bold">Cuenta</td>
+                    <td class="wrap">
+                        @if($invoice->bankAccount)
+                            {{ $invoice->bankAccount->iban ?: $invoice->bankAccount->account_number ?: ' ' }}
+                        @endif
+                    </td>
+                </tr>
+                <tr>
+                    <td class="copy-badge" colspan="2" style="background: #062A55; color: #fff; text-align: center; font-weight: 800;">ORIGINAL: CLIENTE &nbsp;&nbsp;&nbsp; COPIA: VENDEDOR</td>
+                </tr>
+            </table>
 
-                <section class="signature-grid">
-                    <div class="signature-box">
-                        <div class="signature-title">RECIBIDO POR</div>
-                        <div class="signature-name wrap">{{ $invoice->received_by ?: ' ' }}</div>
-                    </div>
-                    <div class="signature-box">
-                        <div class="signature-title">PREPARADO POR</div>
-                        <div class="signature-name wrap">{{ $invoice->prepared_by ?: ' ' }}</div>
-                    </div>
-                </section>
+            <section class="signature-grid">
+                <div class="signature-box">
+                    <div class="signature-title">RECIBIDO POR</div>
+                    <div class="signature-name wrap">{{ $invoice->received_by ?: ' ' }}</div>
+                </div>
+                <div class="signature-box">
+                    <div class="signature-title">PREPARADO POR</div>
+                    <div class="signature-name wrap">{{ $invoice->prepared_by ?: ' ' }}</div>
+                </div>
             </section>
-
-            <section class="legal-box">
-                <div class="legal-title">CONFORMIDAD DEL CLIENTE</div>
-                <div class="legal-text wrap">{{ $legalText }}</div>
-            </section>
-        @endif
-
-        <section class="info-grid">
-            <div class="info-card">
-                <div class="info-symbol">SH</div>
-                <div class="info-title">GARANTIA</div>
-                <div class="info-text">{{ $warrantyText }}</div>
-            </div>
-            <div class="info-card">
-                <div class="info-symbol">TL</div>
-                <div class="info-title">TRABAJOS REALIZADOS</div>
-                <div class="info-text">Los trabajos se han ejecutado conforme al documento aceptado y segun las condiciones acordadas.</div>
-            </div>
-            <div class="info-card">
-                <div class="info-symbol">EX</div>
-                <div class="info-title">EXCLUSIONES</div>
-                <div class="info-text">No quedan incluidas averias derivadas de elementos ajenos a la intervencion realizada.</div>
-            </div>
-            <div class="info-card">
-                <div class="info-symbol">ST</div>
-                <div class="info-title">SERVICIO TECNICO</div>
-                <div class="info-text">Para cualquier incidencia, contacte con nuestro servicio tecnico indicando el numero del documento.</div>
-            </div>
         </section>
 
-        @if ($isSigned)
-            <div class="verify-table">
-                @if ($verificationQr)
-                    <div class="verify-cell verify-qr">
-                        <img src="{{ $verificationQr }}" alt="Codigo de verificacion">
-                    </div>
-                @endif
-                <div class="verify-cell verify-info">
-                    <span class="verify-badge">DOCUMENTO ORIGINAL</span><br>
-                    Documento emitido y autenticado por el sistema. Verifique su autenticidad
-                    escaneando el codigo QR o consultando el codigo de seguridad en el sistema:
-                    <br>
-                    Codigo de seguridad: <span class="verify-code">{{ $verificationCode }}</span><br>
-                    Cualquier ejemplar cuyo total o datos no coincidan con los mostrados al verificar
-                    este codigo es una copia no autentica.
-                </div>
-            </div>
+        <section class="legal-box">
+            <div class="legal-title">CONFORMIDAD DEL CLIENTE</div>
+            <div class="legal-text wrap">{{ $legalText }}</div>
+        </section>
         @endif
 
+        <!-- VERIFICATION TABLE -->
+        @if ($isSigned)
+        <div class="verify-table">
+            @if ($verificationQr)
+            <div class="verify-cell verify-qr">
+                <img src="{{ $verificationQr }}" alt="Codigo de verificacion">
+            </div>
+            @endif
+            <div class="verify-cell verify-info">
+                <span class="verify-badge">DOCUMENTO ORIGINAL</span><br>
+                Documento emitido y autenticado por el sistema. Verifique su autenticidad
+                escaneando el codigo QR o consultando el codigo de seguridad en el sistema:<br>
+                Codigo de seguridad: <span class="verify-code">{{ $verificationCode }}</span><br>
+                Cualquier ejemplar cuyo total o datos no coincidan con los mostrados al verificar
+                este codigo es una copia no autentica.
+            </div>
+        </div>
+        @endif
+
+        <!-- FOOTER -->
         <footer class="footer">
             <div class="thanks">Gracias por confiar en nosotros</div>
             <div class="service-footer">
@@ -966,5 +1152,6 @@
         </footer>
     </main>
 </section>
+
 </body>
 </html>
