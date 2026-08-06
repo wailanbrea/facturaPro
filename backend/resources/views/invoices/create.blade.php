@@ -6,6 +6,10 @@
     $rows = $oldItems ? collect($oldItems)->map(fn ($item) => (object) $item) : $items;
     $selectedClientId = old('client_id', $invoice->client_id);
     $amountReceivedValue = number_format((float) old('amount_received', $invoice->amount_received ?? 0), 2, '.', '');
+    // Los importes se castean a decimal:4 en el modelo; en el formulario se
+    // muestran a 2 decimales para no arrastrar los ceros sobrantes.
+    $discountPercentValue = number_format((float) old('discount_percent', $invoice->discount_percent ?? 0), 2, '.', '');
+    $travelAmountValue = number_format((float) old('travel_amount', $invoice->travel_amount ?? 0), 2, '.', '');
     $legalTextsEditable = old('edit_legal_texts') === '1';
 @endphp
 
@@ -147,6 +151,27 @@
                     </select>
                 </div>
                 <div class="field" id="amount-received-field"><label>Importe recibido</label><input id="amount-received-input" name="amount_received" type="number" step="0.01" min="0" value="{{ $amountReceivedValue }}"></div>
+                <div class="field">
+                    <label>Descuento (%)</label>
+                    <input name="discount_percent" type="number" step="0.01" min="0" max="100" value="{{ $discountPercentValue }}">
+                </div>
+                <div class="field">
+                    <label>Desplazamiento</label>
+                    <input name="travel_amount" type="number" step="0.01" min="0" value="{{ $travelAmountValue }}">
+                </div>
+                <div class="field">
+                    <label>Tecnico asignado</label>
+                    <input name="technician_name" type="text" maxlength="255" value="{{ old('technician_name', $invoice->technician_name) }}">
+                </div>
+                <div class="field">
+                    <label>Referencia / obra</label>
+                    <input name="work_reference" type="text" maxlength="255" value="{{ old('work_reference', $invoice->work_reference) }}">
+                </div>
+                <div class="field span-2">
+                    <label>Lugar de intervencion</label>
+                    <input name="service_location" type="text" maxlength="255" value="{{ old('service_location', $invoice->service_location) }}"
+                           placeholder="Direccion donde se realiza el trabajo, si es distinta a la del cliente">
+                </div>
                 @php $lockedFields = $lockedFields ?? []; @endphp
                 <div class="field span-2" id="legal-texts-lock-panel">
                     <input type="hidden" id="edit-legal-texts-input" name="edit_legal_texts" value="{{ $legalTextsEditable ? '1' : '0' }}">
@@ -184,6 +209,7 @@
                 </div>
             </div>
         </section>
+
         <aside class="card">
             <h3>Acciones</h3>
             <p class="muted">Los totales se recalculan en backend. Cualquier subtotal enviado desde el navegador se ignora.</p>
@@ -193,6 +219,43 @@
             @endif
         </aside>
     </div>
+
+    @php $interv = $invoice->intervention; @endphp
+    {{-- Datos del equipo y del trabajo. Se muestran segun el tipo de documento
+         con el mismo patron que ya usa #amount-received-field. --}}
+    <section class="card form" id="intervention-card">
+            <h3>Equipo e intervencion tecnica</h3>
+            <p class="muted" style="margin:-6px 0 0;font-size:12px">Aparece en la factura: ficha del equipo, diagnostico y conclusiones.</p>
+            <div class="fields">
+                <div class="field"><label>Equipo</label><input name="intervention[equipment_type]" maxlength="255" value="{{ old('intervention.equipment_type', $interv?->equipment_type) }}" placeholder="Ej: Aire acondicionado"></div>
+                <div class="field"><label>Fabricante</label><input name="intervention[equipment_brand]" maxlength="255" value="{{ old('intervention.equipment_brand', $interv?->equipment_brand) }}"></div>
+                <div class="field"><label>Modelo</label><input name="intervention[equipment_model]" maxlength="255" value="{{ old('intervention.equipment_model', $interv?->equipment_model) }}"></div>
+                <div class="field"><label>Numero de serie</label><input name="intervention[equipment_serial]" maxlength="255" value="{{ old('intervention.equipment_serial', $interv?->equipment_serial) }}"></div>
+                <div class="field"><label>Ubicacion del equipo</label><input name="intervention[equipment_location]" maxlength="255" value="{{ old('intervention.equipment_location', $interv?->equipment_location) }}"></div>
+                <div class="field">
+                    <label>Unidades (interior / exterior)</label>
+                    <div style="display:flex;gap:10px">
+                        <input name="intervention[units_indoor]" type="number" min="0" max="255" value="{{ old('intervention.units_indoor', $interv?->units_indoor) }}" placeholder="Interior">
+                        <input name="intervention[units_outdoor]" type="number" min="0" max="255" value="{{ old('intervention.units_outdoor', $interv?->units_outdoor) }}" placeholder="Exterior">
+                    </div>
+                </div>
+                <div class="field span-2"><label>Diagnostico tecnico</label><textarea name="intervention[diagnostic_summary]" maxlength="1200">{{ old('intervention.diagnostic_summary', $interv?->diagnostic_summary) }}</textarea></div>
+                <div class="field span-2"><label>Conclusiones tecnicas</label><textarea name="intervention[technical_conclusions]" maxlength="1200">{{ old('intervention.technical_conclusions', $interv?->technical_conclusions) }}</textarea></div>
+            </div>
+        </section>
+
+        <section class="card form" id="quotation-card">
+            <h3>Alcance del presupuesto</h3>
+            <p class="muted" style="margin:-6px 0 0;font-size:12px">Aparece en el presupuesto, en la barra lateral del detalle.</p>
+            <div class="fields">
+                <div class="field span-2"><label>Alcance del servicio</label><textarea name="intervention[service_scope]" maxlength="1200">{{ old('intervention.service_scope', $interv?->service_scope) }}</textarea></div>
+                <div class="field span-2">
+                    <label>Incluye <span class="text-on-surface-variant font-normal">(un concepto por linea)</span></label>
+                    <textarea name="intervention[included_items]" rows="6" maxlength="1200" placeholder="Mano de obra cualificada&#10;Materiales y repuestos originales&#10;Desplazamiento">{{ old('intervention.included_items', $interv?->included_items) }}</textarea>
+                </div>
+            </div>
+        </section>
+
     <section class="card">
         <h3>Productos / servicios</h3>
         <div id="items">
@@ -222,6 +285,13 @@ function syncDocumentTypeFields(){
     const amountField = document.getElementById('amount-received-field');
     const amountInput = document.getElementById('amount-received-input');
     const isQuotation = documentType && documentType.value === 'quotation';
+
+    // Cada tipo de documento muestra solo su bloque tecnico. Se ocultan, no se
+    // eliminan: los campos se siguen enviando y el backend los valida opcionales.
+    const interventionCard = document.getElementById('intervention-card');
+    const quotationCard = document.getElementById('quotation-card');
+    if (interventionCard) interventionCard.style.display = isQuotation ? 'none' : '';
+    if (quotationCard) quotationCard.style.display = isQuotation ? '' : 'none';
 
     if (!amountField || !amountInput) {
         return;

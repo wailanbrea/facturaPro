@@ -115,6 +115,8 @@ class InvoiceController extends Controller
             $calculated = $this->calculator->calculate(
                 $this->hydrateTaxes($data['items']),
                 $this->amountReceivedForDocument($documentType, $data['amount_received'] ?? 0),
+                discountPercent: $data['discount_percent'] ?? '0',
+                travelAmount: $data['travel_amount'] ?? '0',
             );
 
             foreach ($calculated['items'] as $index => $item) {
@@ -127,10 +129,15 @@ class InvoiceController extends Controller
                     : $invoice->logo_path,
                 'amount_received' => $calculated['amount_received'],
                 'subtotal' => $calculated['subtotal'],
+                'discount_total' => $calculated['discount_total'],
+                'travel_amount' => $calculated['travel_amount'],
+                'taxable_base' => $calculated['taxable_base'],
                 'tax_total' => $calculated['tax_total'],
                 'total' => $calculated['total'],
                 'balance_due' => $calculated['balance_due'],
             ]);
+
+            $this->saveIntervention($invoice, $data);
 
             $this->activityLog->record('invoice.created', $invoice, ['invoice_id' => $invoice->id], auth()->user(), request());
 
@@ -147,8 +154,8 @@ class InvoiceController extends Controller
 
     public function preview(Invoice $invoice): View
     {
-        return view('pdf.invoice', [
-            'invoice' => $invoice->load(['items', 'paymentTerm', 'bankAccount.currency', 'fiscalProfile']),
+        return view($invoice->pdfView(), [
+            'invoice' => $invoice->load(Invoice::PDF_RELATIONS),
             'legalText' => $invoice->legal_text ?: $this->defaultLegalFooter(),
         ]);
     }
@@ -164,7 +171,7 @@ class InvoiceController extends Controller
         return view('invoices.create', [
             ...$this->catalogs(),
             'lockedFields' => $this->lockedFieldsForUser(),
-            'invoice' => $invoice->load('items'),
+            'invoice' => $invoice->load(['items', 'intervention']),
             'items' => $invoice->items,
             'action' => route('web.invoices.update', $invoice),
             'method' => 'PUT',
@@ -197,6 +204,8 @@ class InvoiceController extends Controller
             $calculated = $this->calculator->calculate(
                 $this->hydrateTaxes($data['items']),
                 $this->amountReceivedForDocument($data['document_type'], $data['amount_received'] ?? 0),
+                discountPercent: $data['discount_percent'] ?? '0',
+                travelAmount: $data['travel_amount'] ?? '0',
             );
 
             $invoice->items()->delete();
@@ -208,11 +217,16 @@ class InvoiceController extends Controller
             $invoice->update([
                 'amount_received' => $calculated['amount_received'],
                 'subtotal' => $calculated['subtotal'],
+                'discount_total' => $calculated['discount_total'],
+                'travel_amount' => $calculated['travel_amount'],
+                'taxable_base' => $calculated['taxable_base'],
                 'tax_total' => $calculated['tax_total'],
                 'total' => $calculated['total'],
                 'balance_due' => $calculated['balance_due'],
                 'updated_by' => auth()->id(),
             ]);
+
+            $this->saveIntervention($invoice, $data);
 
             $this->activityLog->record('invoice.updated', $invoice, ['invoice_id' => $invoice->id], auth()->user(), request());
         });
@@ -384,15 +398,32 @@ class InvoiceController extends Controller
                 'observations' => $invoice->observations,
                 'amount_received' => 0,
                 'subtotal' => $invoice->subtotal,
+                'discount_percent' => $invoice->discount_percent,
+                'discount_total' => $invoice->discount_total,
+                'travel_amount' => $invoice->travel_amount,
+                'taxable_base' => $invoice->taxable_base,
                 'tax_total' => $invoice->tax_total,
                 'total' => $invoice->total,
                 'balance_due' => $invoice->total,
                 'status' => InvoiceStatusService::ISSUED,
                 'prepared_by' => $invoice->prepared_by,
                 'received_by' => $invoice->received_by,
+                'technician_name' => $invoice->technician_name,
+                'work_reference' => $invoice->work_reference,
+                'service_location' => $invoice->service_location,
                 'created_by' => auth()->id(),
                 'updated_by' => auth()->id(),
             ]);
+
+            // Carry the technical intervention over, or the converted invoice
+            // would lose the equipment, diagnosis and conclusions.
+            if ($invoice->intervention !== null) {
+                $factura->intervention()->create($invoice->intervention->only([
+                    'equipment_type', 'equipment_brand', 'equipment_model', 'equipment_serial',
+                    'equipment_location', 'units_indoor', 'units_outdoor',
+                    'diagnostic_summary', 'technical_conclusions', 'service_scope', 'included_items',
+                ]));
+            }
 
             foreach ($invoice->items as $item) {
                 $factura->items()->create([
@@ -562,8 +593,28 @@ class InvoiceController extends Controller
             'edit_legal_texts' => ['nullable', 'boolean'],
             'observations' => ['nullable', 'string'],
             'amount_received' => ['nullable', 'numeric', 'min:0'],
+            'discount_percent' => ['nullable', 'numeric', 'min:0', 'max:100'],
+            'travel_amount' => ['nullable', 'numeric', 'min:0'],
             'prepared_by' => ['nullable', 'string', 'max:255'],
             'received_by' => ['nullable', 'string', 'max:255'],
+            'technician_name' => ['nullable', 'string', 'max:255'],
+            'work_reference' => ['nullable', 'string', 'max:255'],
+            'service_location' => ['nullable', 'string', 'max:255'],
+            // Datos tecnicos. Todos opcionales: el formulario oculta la seccion
+            // que no corresponde al tipo de documento pero sigue enviandola.
+            // Los max:1200 son el techo que cabe en las cajas del PDF.
+            'intervention' => ['nullable', 'array'],
+            'intervention.equipment_type' => ['nullable', 'string', 'max:255'],
+            'intervention.equipment_brand' => ['nullable', 'string', 'max:255'],
+            'intervention.equipment_model' => ['nullable', 'string', 'max:255'],
+            'intervention.equipment_serial' => ['nullable', 'string', 'max:255'],
+            'intervention.equipment_location' => ['nullable', 'string', 'max:255'],
+            'intervention.units_indoor' => ['nullable', 'integer', 'min:0', 'max:255'],
+            'intervention.units_outdoor' => ['nullable', 'integer', 'min:0', 'max:255'],
+            'intervention.diagnostic_summary' => ['nullable', 'string', 'max:1200'],
+            'intervention.technical_conclusions' => ['nullable', 'string', 'max:1200'],
+            'intervention.service_scope' => ['nullable', 'string', 'max:1200'],
+            'intervention.included_items' => ['nullable', 'string', 'max:1200'],
             'items' => ['required', 'array', 'min:1'],
             'items.*.description' => ['required', 'string'],
             'items.*.quantity' => ['required', 'numeric', 'gt:0'],
@@ -625,9 +676,37 @@ class InvoiceController extends Controller
             'status' => $invoice?->status ?? InvoiceStatusService::DRAFT,
             'prepared_by' => $data['prepared_by'] ?? null,
             'received_by' => $data['received_by'] ?? null,
+            'technician_name' => $data['technician_name'] ?? null,
+            'work_reference' => $data['work_reference'] ?? null,
+            'service_location' => $data['service_location'] ?? null,
+            'discount_percent' => $data['discount_percent'] ?? 0,
             'created_by' => $invoice?->created_by ?? auth()->id(),
             'updated_by' => auth()->id(),
         ];
+    }
+
+    /**
+     * Persist the technical intervention block that feeds the PDF.
+     *
+     * The form always posts the section, even when hidden for the other document
+     * type, so an all-empty payload deletes the row instead of storing noise.
+     *
+     * @param  array<string, mixed>  $data
+     */
+    private function saveIntervention(Invoice $invoice, array $data): void
+    {
+        $intervention = array_filter(
+            $data['intervention'] ?? [],
+            static fn ($value): bool => $value !== null && $value !== '',
+        );
+
+        if ($intervention === []) {
+            $invoice->intervention()->delete();
+
+            return;
+        }
+
+        $invoice->intervention()->updateOrCreate(['invoice_id' => $invoice->id], $intervention);
     }
 
     /**

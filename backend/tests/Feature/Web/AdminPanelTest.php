@@ -64,6 +64,61 @@ class AdminPanelTest extends TestCase
         $this->assertDatabaseHas('clients', ['name' => 'Cliente Web']);
     }
 
+    public function test_invoice_form_persists_commercial_amounts_and_intervention(): void
+    {
+        $this->seed();
+        $this->actingAs(User::query()->firstOrFail());
+
+        $client = Client::query()->create(['name' => 'Cliente Equipo']);
+        $currency = Currency::query()->where('code', 'EUR')->firstOrFail();
+        $term = PaymentTerm::query()->where('name', 'AL CONTADO')->firstOrFail();
+        $tax = Tax::query()->where('name', 'IVA 21%')->firstOrFail();
+        $profile = FiscalProfile::query()->firstOrFail();
+        $warranty = Warranty::query()->firstOrFail();
+
+        $this->post('/invoices', [
+            'document_type' => 'invoice',
+            'invoice_date' => '2026-08-05',
+            'payment_term_id' => $term->id,
+            'client_id' => $client->id,
+            'currency_id' => $currency->id,
+            'fiscal_profile_id' => $profile->id,
+            'warranty_id' => $warranty->id,
+            'amount_received' => 0,
+            'discount_percent' => 10,
+            'travel_amount' => 35,
+            'technician_name' => 'David Martinez',
+            'work_reference' => 'Vivienda Particular',
+            'service_location' => 'Calle Diputacio 456',
+            'intervention' => [
+                'equipment_type' => 'Aire acondicionado',
+                'equipment_model' => 'Split 1x1',
+                'equipment_serial' => 'WUAJ2866SXES',
+                'units_indoor' => 1,
+                'units_outdoor' => 1,
+                'diagnostic_summary' => 'Sobretension en la red electrica.',
+                'technical_conclusions' => 'Equipo reparado y verificado.',
+            ],
+            'items' => [
+                ['description' => 'Servicio', 'quantity' => 1, 'unit_cost' => 1000, 'tax_id' => $tax->id],
+            ],
+        ])->assertRedirect();
+
+        $invoice = Invoice::query()->latest('id')->firstOrFail();
+
+        // 1000 - 10% = 900, + 35 de desplazamiento = 935 de base imponible.
+        $this->assertSame('100.0000', $invoice->discount_total);
+        $this->assertSame('35.0000', $invoice->travel_amount);
+        $this->assertSame('935.0000', $invoice->taxable_base);
+        $this->assertSame('196.3500', $invoice->tax_total);
+        $this->assertSame('1131.3500', $invoice->total);
+        $this->assertSame('David Martinez', $invoice->technician_name);
+
+        $this->assertSame('Split 1x1', $invoice->intervention->equipment_model);
+        $this->assertSame(1, $invoice->intervention->units_outdoor);
+        $this->assertSame('Equipo reparado y verificado.', $invoice->intervention->technical_conclusions);
+    }
+
     public function test_user_without_permission_cannot_manage_clients(): void
     {
         $this->seed();

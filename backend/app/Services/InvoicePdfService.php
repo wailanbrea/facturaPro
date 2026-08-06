@@ -35,8 +35,8 @@ class InvoicePdfService
 
         $htmlPath = $tempDirectory.DIRECTORY_SEPARATOR.'invoice-'.$invoice->getKey().'-'.bin2hex(random_bytes(6)).'.html';
         $profileDirectory = $tempDirectory.DIRECTORY_SEPARATOR.'chrome-profile-'.bin2hex(random_bytes(6));
-        $html = view('pdf.invoice', [
-            'invoice' => $invoice->load(['items', 'paymentTerm', 'bankAccount.currency', 'fiscalProfile', 'warranty']),
+        $html = view($invoice->pdfView(), [
+            'invoice' => $invoice->load(Invoice::PDF_RELATIONS),
             'legalText' => $invoice->legal_text,
         ])->render();
 

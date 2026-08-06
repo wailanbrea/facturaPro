@@ -12,6 +12,7 @@ use App\Models\Client;
 use App\Models\Currency;
 use App\Models\FiscalProfile;
 use App\Models\Invoice;
+use App\Models\InvoiceIntervention;
 use App\Models\InvoiceItem;
 use App\Models\LegalText;
 use App\Models\PaymentTerm;
@@ -110,7 +111,7 @@ class InvoiceController extends Controller
 
     public function preview(Invoice $invoice): Response
     {
-        return $this->previewResponse($invoice->load(['items', 'paymentTerm', 'bankAccount.currency', 'fiscalProfile', 'warranty']));
+        return $this->previewResponse($invoice->load(Invoice::PDF_RELATIONS));
     }
 
     public function previewIssue(Invoice $invoice): Response|JsonResponse
@@ -119,7 +120,7 @@ class InvoiceController extends Controller
             return response()->json(['message' => 'Cancelled invoices cannot be issued.'], 409);
         }
 
-        $invoice->load(['items', 'paymentTerm', 'bankAccount.currency', 'fiscalProfile', 'warranty']);
+        $invoice->load(Invoice::PDF_RELATIONS);
         $preview = clone $invoice;
         $preview->status = InvoiceStatusService::ISSUED;
         $preview->invoice_number = $invoice->invoice_number ?? 'PROVISIONAL';
@@ -303,15 +304,32 @@ class InvoiceController extends Controller
                     'observations' => $invoice->observations,
                     'amount_received' => 0,
                     'subtotal' => $invoice->subtotal,
+                    'discount_percent' => $invoice->discount_percent,
+                    'discount_total' => $invoice->discount_total,
+                    'travel_amount' => $invoice->travel_amount,
+                    'taxable_base' => $invoice->taxable_base,
                     'tax_total' => $invoice->tax_total,
                     'total' => $invoice->total,
                     'balance_due' => $invoice->total,
                     'status' => InvoiceStatusService::ISSUED,
                     'prepared_by' => $invoice->prepared_by,
                     'received_by' => $invoice->received_by,
+                    'technician_name' => $invoice->technician_name,
+                    'work_reference' => $invoice->work_reference,
+                    'service_location' => $invoice->service_location,
                     'created_by' => $request->user()->id,
                     'updated_by' => $request->user()->id,
                 ]);
+
+                // Carry the technical intervention over, or the converted invoice
+                // would lose the equipment, diagnosis and conclusions.
+                if ($invoice->intervention !== null) {
+                    $factura->intervention()->create($invoice->intervention->only([
+                        'equipment_type', 'equipment_brand', 'equipment_model', 'equipment_serial',
+                        'equipment_location', 'units_indoor', 'units_outdoor',
+                        'diagnostic_summary', 'technical_conclusions', 'service_scope', 'included_items',
+                    ]));
+                }
 
                 foreach ($invoice->items as $item) {
                     $factura->items()->create([
@@ -568,12 +586,17 @@ class InvoiceController extends Controller
             $itemsForCalculation,
             $data['amount_received'] ?? '0',
             $this->pricesIncludeTax(),
+            discountPercent: $data['discount_percent'] ?? '0',
+            travelAmount: $data['travel_amount'] ?? '0',
         );
 
         $invoice = new Invoice([
             ...$payload,
             'amount_received' => $calculated['amount_received'],
             'subtotal' => $calculated['subtotal'],
+            'discount_total' => $calculated['discount_total'],
+            'travel_amount' => $calculated['travel_amount'],
+            'taxable_base' => $calculated['taxable_base'],
             'tax_total' => $calculated['tax_total'],
             'total' => $calculated['total'],
             'balance_due' => $calculated['balance_due'],
@@ -592,6 +615,26 @@ class InvoiceController extends Controller
         $invoice->setRelation('fiscalProfile', isset($payload['fiscal_profile_id'])
             ? FiscalProfile::query()->find($payload['fiscal_profile_id'])
             : null);
+        $invoice->setRelation('warranty', isset($payload['warranty_id'])
+            ? Warranty::query()->find($payload['warranty_id'])
+            : null);
+
+        // The draft is never persisted, so every relation the template reads has
+        // to be set by hand: a lazy load on an unsaved model silently yields null.
+        $invoice->setRelation('client', isset($data['client_id'])
+            ? Client::query()->find($data['client_id'])
+            : new Client([
+                'name' => $payload['client_name'] ?? null,
+                'tax_id' => $payload['client_tax_id'] ?? null,
+                'address' => $payload['client_address'] ?? null,
+                'city' => $payload['client_city'] ?? null,
+                'phone' => $data['client_phone'] ?? null,
+                'email' => $data['client_email'] ?? null,
+            ]));
+
+        // An empty model rather than null, so the template can read
+        // `$invoice->intervention->equipment_model` without special-casing drafts.
+        $invoice->setRelation('intervention', new InvoiceIntervention($data['intervention'] ?? []));
 
         return $invoice;
     }
@@ -599,7 +642,7 @@ class InvoiceController extends Controller
     private function previewResponse(Invoice $invoice): Response
     {
         return response()->make(
-            view('pdf.invoice', [
+            view($invoice->pdfView(), [
                 'invoice' => $invoice,
                 'legalText' => $invoice->legal_text,
             ])->render(),
