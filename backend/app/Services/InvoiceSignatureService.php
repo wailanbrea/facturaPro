@@ -25,6 +25,15 @@ class InvoiceSignatureService
     public const GENESIS = 'FACTURAPRO-GENESIS';
 
     /**
+     * Canonical layout used to sign documents from now on.
+     *
+     * Invoices signed before the commercial amounts existed carry a NULL
+     * signature_version and are verified with the v1 layout, so they keep
+     * validating byte for byte.
+     */
+    public const CANONICAL_VERSION = 'v2';
+
+    /**
      * Seal an invoice into the chain at issue time.
      *
      * Idempotent: an already-signed invoice is returned untouched so re-issuing
@@ -40,6 +49,10 @@ class InvoiceSignatureService
             throw new RuntimeException('An invoice must have a number before it can be signed.');
         }
 
+        // The version has to be on the model *before* hashing: canonicalString()
+        // reads it to decide the layout, so signing and verifying must agree.
+        $invoice->signature_version = self::CANONICAL_VERSION;
+
         $previousHash = $this->latestChainHash($invoice);
         $hash = $this->computeHash($invoice, $previousHash);
 
@@ -47,6 +60,7 @@ class InvoiceSignatureService
             'previous_hash' => $previousHash,
             'verification_hash' => $hash,
             'verification_code' => $this->codeFromHash($hash),
+            'signature_version' => self::CANONICAL_VERSION,
             'signed_at' => $invoice->signed_at ?? now(),
         ])->save();
 
@@ -81,6 +95,11 @@ class InvoiceSignatureService
      *
      * Deliberately excludes amount_received / balance_due / status so that
      * registering a payment never invalidates the signature.
+     *
+     * Versioned: `v2` also folds in the discount, travel fee and taxable base,
+     * so tampering with them is detectable. Documents signed before those
+     * columns existed report no version and keep the original `v1` layout —
+     * that is what makes this change backwards compatible.
      */
     public function canonicalString(Invoice $invoice, ?string $previousHash): string
     {
@@ -97,8 +116,10 @@ class InvoiceSignatureService
             ]))
             ->implode('||');
 
-        return implode("\n", [
-            'v1',
+        $version = $invoice->signature_version ?: 'v1';
+
+        $fields = [
+            $version,
             (string) $invoice->invoice_number,
             (string) $invoice->document_type,
             (string) ($invoice->seller_tax_id ?? ''),
@@ -107,11 +128,20 @@ class InvoiceSignatureService
             $invoice->invoice_date?->toDateString() ?? '',
             (string) $invoice->currency_code,
             (string) $invoice->subtotal,
-            (string) $invoice->tax_total,
-            (string) $invoice->total,
-            hash('sha256', $itemsFingerprint),
-            $previousHash ?? self::GENESIS,
-        ]);
+        ];
+
+        if ($version !== 'v1') {
+            $fields[] = (string) $invoice->discount_total;
+            $fields[] = (string) $invoice->travel_amount;
+            $fields[] = (string) $invoice->taxable_base;
+        }
+
+        $fields[] = (string) $invoice->tax_total;
+        $fields[] = (string) $invoice->total;
+        $fields[] = hash('sha256', $itemsFingerprint);
+        $fields[] = $previousHash ?? self::GENESIS;
+
+        return implode("\n", $fields);
     }
 
     /**

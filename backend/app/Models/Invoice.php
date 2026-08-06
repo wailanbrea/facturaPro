@@ -5,12 +5,31 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\Relations\HasOne;
 
 class Invoice extends Model
 {
     public const DOCUMENT_TYPE_INVOICE = 'invoice';
 
     public const DOCUMENT_TYPE_QUOTATION = 'quotation';
+
+    /**
+     * Relations every PDF template needs eager-loaded.
+     *
+     * Kept here so the six render/copy points cannot drift apart; `client` used
+     * to be missing everywhere even though the template reads it.
+     *
+     * @var list<string>
+     */
+    public const PDF_RELATIONS = [
+        'items',
+        'client',
+        'paymentTerm',
+        'bankAccount.currency',
+        'fiscalProfile',
+        'warranty',
+        'intervention',
+    ];
 
     protected $fillable = [
         'invoice_number',
@@ -47,12 +66,19 @@ class Invoice extends Model
         'observations',
         'amount_received',
         'subtotal',
+        'discount_percent',
+        'discount_total',
+        'travel_amount',
+        'taxable_base',
         'tax_total',
         'total',
         'balance_due',
         'status',
         'prepared_by',
         'received_by',
+        'technician_name',
+        'work_reference',
+        'service_location',
         'customer_signature_path',
         'customer_accepted_at',
         'pdf_path',
@@ -73,6 +99,10 @@ class Invoice extends Model
             'currency_decimal_places' => 'integer',
             'amount_received' => 'decimal:4',
             'subtotal' => 'decimal:4',
+            'discount_percent' => 'decimal:2',
+            'discount_total' => 'decimal:4',
+            'travel_amount' => 'decimal:4',
+            'taxable_base' => 'decimal:4',
             'tax_total' => 'decimal:4',
             'total' => 'decimal:4',
             'balance_due' => 'decimal:4',
@@ -132,6 +162,11 @@ class Invoice extends Model
         return $this->hasMany(InvoicePayment::class);
     }
 
+    public function intervention(): HasOne
+    {
+        return $this->hasOne(InvoiceIntervention::class);
+    }
+
     public function createdBy(): BelongsTo
     {
         return $this->belongsTo(User::class, 'created_by');
@@ -150,5 +185,25 @@ class Invoice extends Model
     public function isQuotation(): bool
     {
         return $this->document_type === self::DOCUMENT_TYPE_QUOTATION;
+    }
+
+    /**
+     * Blade view that renders this document as a PDF.
+     *
+     * Invoices and quotations have independent templates instead of one file
+     * branching on the document type.
+     */
+    public function pdfView(): string
+    {
+        return $this->isQuotation() ? 'pdf.quotation' : 'pdf.invoice';
+    }
+
+    /**
+     * The base imponible, falling back to the subtotal for documents issued
+     * before the column existed.
+     */
+    public function taxableBaseOrSubtotal(): string
+    {
+        return (string) ($this->taxable_base ?? $this->subtotal);
     }
 }

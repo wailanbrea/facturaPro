@@ -112,6 +112,64 @@ class InvoiceAuthenticityTest extends TestCase
         $this->artisan('invoices:verify-chain')->assertExitCode(1);
     }
 
+    public function test_documents_signed_before_the_commercial_columns_still_validate(): void
+    {
+        $signature = app(InvoiceSignatureService::class);
+
+        $id = $this->createInvoice()->json('data.id');
+        $this->postJson("/api/invoices/{$id}/issue")->assertOk();
+
+        // Rewind this invoice to how a pre-migration record looks: signed with the
+        // v1 canonical layout (no version recorded) and no commercial amounts.
+        $invoice = Invoice::query()->findOrFail($id);
+        $invoice->forceFill(['signature_version' => null])->save();
+        $invoice->refresh();
+
+        $legacyHash = $signature->computeHash($invoice, $invoice->previous_hash);
+        Invoice::query()->where('id', $id)->update([
+            'verification_hash' => $legacyHash,
+            'discount_percent' => 0,
+            'discount_total' => 0,
+            'travel_amount' => 0,
+            'taxable_base' => null,
+        ]);
+
+        $legacy = Invoice::query()->findOrFail($id);
+
+        $this->assertNull($legacy->signature_version);
+        $this->assertTrue(
+            $signature->matches($legacy),
+            'A v1 signature must keep validating after the commercial columns were added.',
+        );
+    }
+
+    public function test_newly_issued_invoices_are_signed_with_the_current_canonical_version(): void
+    {
+        $id = $this->createInvoice()->json('data.id');
+        $this->postJson("/api/invoices/{$id}/issue")->assertOk();
+
+        $invoice = Invoice::query()->findOrFail($id);
+
+        $this->assertSame(InvoiceSignatureService::CANONICAL_VERSION, $invoice->signature_version);
+        $this->assertTrue(app(InvoiceSignatureService::class)->matches($invoice));
+    }
+
+    public function test_tampering_with_the_discount_breaks_a_current_signature(): void
+    {
+        $id = $this->createInvoice()->json('data.id');
+        $this->postJson("/api/invoices/{$id}/issue")->assertOk();
+        $invoice = Invoice::query()->findOrFail($id);
+
+        // The discount is part of the v2 canonical string, so editing it in the
+        // database has to be detectable even though the total is untouched.
+        Invoice::query()->where('id', $id)->update(['discount_total' => '75.0000']);
+
+        $this->getJson('/api/invoices/verify?number='.urlencode($invoice->invoice_number).'&code='.$invoice->verification_code)
+            ->assertOk()
+            ->assertJsonPath('status', 'altered')
+            ->assertJsonPath('authentic', false);
+    }
+
     public function test_backfill_command_signs_pre_existing_issued_invoices(): void
     {
         // Create an issued invoice the "legacy" way: a number but no signature.
