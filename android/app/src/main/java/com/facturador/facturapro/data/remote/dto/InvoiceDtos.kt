@@ -1,5 +1,6 @@
 package com.facturador.facturapro.data.remote.dto
 
+import com.facturador.facturapro.domain.model.Intervention
 import com.facturador.facturapro.domain.model.InvoiceDetail
 import com.facturador.facturapro.domain.model.InvoiceDraft
 import com.facturador.facturapro.domain.model.InvoiceDraftItem
@@ -51,6 +52,14 @@ data class InvoiceDto(
     @SerializedName("amount_received")
     val amountReceived: String,
     val subtotal: String,
+    @SerializedName("discount_percent")
+    val discountPercent: String? = null,
+    @SerializedName("discount_total")
+    val discountTotal: String? = null,
+    @SerializedName("travel_amount")
+    val travelAmount: String? = null,
+    @SerializedName("taxable_base")
+    val taxableBase: String? = null,
     @SerializedName("tax_total")
     val taxTotal: String,
     val total: String,
@@ -61,6 +70,13 @@ data class InvoiceDto(
     val preparedBy: String? = null,
     @SerializedName("received_by")
     val receivedBy: String? = null,
+    @SerializedName("technician_name")
+    val technicianName: String? = null,
+    @SerializedName("work_reference")
+    val workReference: String? = null,
+    @SerializedName("service_location")
+    val serviceLocation: String? = null,
+    val intervention: InterventionDto? = null,
     @SerializedName("pdf_path")
     val pdfPath: String? = null,
     val items: List<InvoiceItemDto> = emptyList(),
@@ -130,7 +146,44 @@ data class InvoiceUpsertDto(
     val preparedBy: String? = null,
     @SerializedName("received_by")
     val receivedBy: String? = null,
+    @SerializedName("discount_percent")
+    val discountPercent: String? = null,
+    @SerializedName("travel_amount")
+    val travelAmount: String? = null,
+    @SerializedName("technician_name")
+    val technicianName: String? = null,
+    @SerializedName("work_reference")
+    val workReference: String? = null,
+    @SerializedName("service_location")
+    val serviceLocation: String? = null,
+    val intervention: InterventionDto? = null,
     val items: List<InvoiceItemUpsertDto>,
+)
+
+/** Datos tecnicos de la intervencion; viajan en ambos sentidos. */
+data class InterventionDto(
+    @SerializedName("equipment_type")
+    val equipmentType: String? = null,
+    @SerializedName("equipment_brand")
+    val equipmentBrand: String? = null,
+    @SerializedName("equipment_model")
+    val equipmentModel: String? = null,
+    @SerializedName("equipment_serial")
+    val equipmentSerial: String? = null,
+    @SerializedName("equipment_location")
+    val equipmentLocation: String? = null,
+    @SerializedName("units_indoor")
+    val unitsIndoor: Int? = null,
+    @SerializedName("units_outdoor")
+    val unitsOutdoor: Int? = null,
+    @SerializedName("diagnostic_summary")
+    val diagnosticSummary: String? = null,
+    @SerializedName("technical_conclusions")
+    val technicalConclusions: String? = null,
+    @SerializedName("service_scope")
+    val serviceScope: String? = null,
+    @SerializedName("included_items")
+    val includedItems: String? = null,
 )
 
 data class InvoiceItemUpsertDto(
@@ -187,6 +240,14 @@ fun InvoiceDto.toDetail(): InvoiceDetail = InvoiceDetail(
     status = status,
     preparedBy = preparedBy,
     receivedBy = receivedBy,
+    discountPercent = discountPercent,
+    discountTotal = discountTotal,
+    travelAmount = travelAmount,
+    taxableBase = taxableBase,
+    technicianName = technicianName,
+    workReference = workReference,
+    serviceLocation = serviceLocation,
+    intervention = intervention?.toDomain(),
     pdfPath = pdfPath,
     items = items.map { item ->
         InvoiceLine(
@@ -227,6 +288,14 @@ fun InvoiceDraft.toRemote(): InvoiceUpsertDto = InvoiceUpsertDto(
     amountReceived = amountReceived?.trim().takeUnless { it.isNullOrEmpty() },
     preparedBy = preparedBy?.trim().takeUnless { it.isNullOrEmpty() },
     receivedBy = receivedBy?.trim().takeUnless { it.isNullOrEmpty() },
+    discountPercent = discountPercent?.trim().takeUnless { it.isNullOrEmpty() },
+    travelAmount = travelAmount?.trim().takeUnless { it.isNullOrEmpty() },
+    technicianName = technicianName?.trim().takeUnless { it.isNullOrEmpty() },
+    workReference = workReference?.trim().takeUnless { it.isNullOrEmpty() },
+    serviceLocation = serviceLocation?.trim().takeUnless { it.isNullOrEmpty() },
+    // Una intervencion vacia no se envia: el backend borraria la fila igual,
+    // pero asi el payload de la app movil no crece sin necesidad.
+    intervention = intervention?.takeUnless { it.isEmpty() }?.toRemote(),
     items = items.map(InvoiceDraftItem::toRemote),
 )
 
@@ -235,4 +304,33 @@ fun InvoiceDraftItem.toRemote(): InvoiceItemUpsertDto = InvoiceItemUpsertDto(
     quantity = quantity.trim(),
     unitCost = unitCost.trim(),
     taxId = taxId,
+)
+
+
+fun InterventionDto.toDomain(): Intervention = Intervention(
+    equipmentType = equipmentType,
+    equipmentBrand = equipmentBrand,
+    equipmentModel = equipmentModel,
+    equipmentSerial = equipmentSerial,
+    equipmentLocation = equipmentLocation,
+    unitsIndoor = unitsIndoor,
+    unitsOutdoor = unitsOutdoor,
+    diagnosticSummary = diagnosticSummary,
+    technicalConclusions = technicalConclusions,
+    serviceScope = serviceScope,
+    includedItems = includedItems,
+)
+
+fun Intervention.toRemote(): InterventionDto = InterventionDto(
+    equipmentType = equipmentType?.trim().takeUnless { it.isNullOrEmpty() },
+    equipmentBrand = equipmentBrand?.trim().takeUnless { it.isNullOrEmpty() },
+    equipmentModel = equipmentModel?.trim().takeUnless { it.isNullOrEmpty() },
+    equipmentSerial = equipmentSerial?.trim().takeUnless { it.isNullOrEmpty() },
+    equipmentLocation = equipmentLocation?.trim().takeUnless { it.isNullOrEmpty() },
+    unitsIndoor = unitsIndoor,
+    unitsOutdoor = unitsOutdoor,
+    diagnosticSummary = diagnosticSummary?.trim().takeUnless { it.isNullOrEmpty() },
+    technicalConclusions = technicalConclusions?.trim().takeUnless { it.isNullOrEmpty() },
+    serviceScope = serviceScope?.trim().takeUnless { it.isNullOrEmpty() },
+    includedItems = includedItems?.trim().takeUnless { it.isNullOrEmpty() },
 )

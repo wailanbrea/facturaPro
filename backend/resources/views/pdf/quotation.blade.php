@@ -56,7 +56,7 @@
         @if($isFirst)
             <div class="cards-row">
                 @include('pdf.partials.issuer-card', ['invoice' => $invoice])
-                @include('pdf.partials.client-card', ['invoice' => $invoice, 'showContact' => false])
+                @include('pdf.partials.client-card', ['invoice' => $invoice, 'showContact' => true])
 
                 <section class="card-box">
                     <div class="card-head">
@@ -68,12 +68,8 @@
                             <div class="kv"><dt>Fecha de emisión</dt><dd>{{ $invoice->invoice_date?->format('d/m/Y') ?: '-' }}</dd></div>
                             <div class="kv"><dt>Fecha de validez</dt><dd>{{ $validUntil }}</dd></div>
                             <div class="kv"><dt>Forma de pago</dt><dd>Transferencia bancaria</dd></div>
-                            @if($invoice->technician_name)
-                                <div class="kv"><dt>Técnico asignado</dt><dd>{{ $invoice->technician_name }}</dd></div>
-                            @endif
-                            @if($invoice->work_reference)
-                                <div class="kv"><dt>Referencia / obra</dt><dd>{{ $invoice->work_reference }}</dd></div>
-                            @endif
+                            {{-- Tecnico asignado y referencia/obra se guardan pero no se
+                                 imprimen todavia. --}}
                             @if($invoice->service_location)
                                 <div class="kv"><dt>Lugar de intervención</dt><dd>{{ $invoice->service_location }}</dd></div>
                             @endif
@@ -88,18 +84,18 @@
                     </div>
                     <div class="card-body">
                         <dl style="margin:0">
-                            <div class="kv"><dt>Subtotal</dt><dd>{{ $money->format($invoice->subtotal, $currency) }}</dd></div>
+                            <div class="kv"><dt>Subtotal:</dt><dd>{{ $money->format($invoice->subtotal, $currency) }}</dd></div>
                             @if((float) $invoice->discount_total > 0)
                                 <div class="kv">
-                                    <dt>Descuento @if((float) $invoice->discount_percent > 0)({{ rtrim(rtrim(number_format((float) $invoice->discount_percent, 2, ',', '.'), '0'), ',') }}%)@endif</dt>
+                                    <dt>Descuento @if((float) $invoice->discount_percent > 0)({{ rtrim(rtrim(number_format((float) $invoice->discount_percent, 2, ',', '.'), '0'), ',') }}%)@endif:</dt>
                                     <dd>-{{ $money->format($invoice->discount_total, $currency) }}</dd>
                                 </div>
                             @endif
                             @if((float) $invoice->travel_amount > 0)
-                                <div class="kv"><dt>Desplazamiento</dt><dd>{{ $money->format($invoice->travel_amount, $currency) }}</dd></div>
+                                <div class="kv"><dt>Desplazamiento:</dt><dd>{{ $money->format($invoice->travel_amount, $currency) }}</dd></div>
                             @endif
-                            <div class="kv"><dt>Base imponible</dt><dd>{{ $money->format($invoice->taxableBaseOrSubtotal(), $currency) }}</dd></div>
-                            <div class="kv"><dt>{{ $ctx->taxLabel }}</dt><dd>{{ $money->format($invoice->tax_total, $currency) }}</dd></div>
+                            <div class="kv"><dt>Base imponible:</dt><dd>{{ $money->format($invoice->taxableBaseOrSubtotal(), $currency) }}</dd></div>
+                            <div class="kv"><dt>{{ $ctx->taxLabel }}:</dt><dd>{{ $money->format($invoice->tax_total, $currency) }}</dd></div>
                         </dl>
                         <div class="totals-highlight">
                             <div class="hl">
@@ -162,13 +158,7 @@
                     <span class="note-ico"><x-pdf-icon name="pen-line" :size="12" /></span>
                     <div style="flex:1">
                         <div class="note-title">Aceptación del presupuesto</div>
-                        <div class="note-text muted">Para aceptar este presupuesto, firme y devuélvalo por email o WhatsApp. Este presupuesto no implica reserva del servicio.</div>
-                        @include('pdf.partials.signatures', [
-                            'leftRole' => 'Aceptado por (cliente)',
-                            'leftName' => $invoice->received_by,
-                            'rightRole' => 'Firma y sello del emisor',
-                            'rightName' => $invoice->prepared_by,
-                        ])
+                        <div class="note-text muted">Para aceptar el presente presupuesto, comuníquese con la persona que le proporcionó este documento y confirme su aceptación antes de la fecha de vencimiento indicada. La aceptación dentro de este plazo permitirá gestionar oportunamente la reserva y programación del servicio.</div>
                     </div>
                 </div>
             </div>

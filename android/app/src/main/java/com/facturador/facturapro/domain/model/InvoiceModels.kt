@@ -45,9 +45,39 @@ data class InvoiceDetail(
     val status: String,
     val preparedBy: String?,
     val receivedBy: String?,
+    // Con valor por defecto: los documentos que no los traen (o los tests) no
+    // tienen que enumerarlos.
+    val discountPercent: String? = null,
+    val discountTotal: String? = null,
+    val travelAmount: String? = null,
+    val taxableBase: String? = null,
+    val technicianName: String? = null,
+    val workReference: String? = null,
+    val serviceLocation: String? = null,
+    val intervention: Intervention? = null,
     val pdfPath: String?,
     val items: List<InvoiceLine>,
 )
+
+/** Datos tecnicos del equipo y del trabajo asociados al documento. */
+data class Intervention(
+    val equipmentType: String? = null,
+    val equipmentBrand: String? = null,
+    val equipmentModel: String? = null,
+    val equipmentSerial: String? = null,
+    val equipmentLocation: String? = null,
+    val unitsIndoor: Int? = null,
+    val unitsOutdoor: Int? = null,
+    val diagnosticSummary: String? = null,
+    val technicalConclusions: String? = null,
+    val serviceScope: String? = null,
+    val includedItems: String? = null,
+) {
+    fun isEmpty(): Boolean = listOf(
+        equipmentType, equipmentBrand, equipmentModel, equipmentSerial, equipmentLocation,
+        diagnosticSummary, technicalConclusions, serviceScope, includedItems,
+    ).all { it.isNullOrBlank() } && unitsIndoor == null && unitsOutdoor == null
+}
 
 data class InvoiceLine(
     val id: Long,
@@ -85,6 +115,12 @@ data class InvoiceDraft(
     val amountReceived: String?,
     val preparedBy: String?,
     val receivedBy: String?,
+    val discountPercent: String? = null,
+    val travelAmount: String? = null,
+    val technicianName: String? = null,
+    val workReference: String? = null,
+    val serviceLocation: String? = null,
+    val intervention: Intervention? = null,
     val items: List<InvoiceDraftItem>,
 )
 

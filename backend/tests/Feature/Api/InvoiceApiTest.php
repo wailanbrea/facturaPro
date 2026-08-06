@@ -71,9 +71,11 @@ class InvoiceApiTest extends TestCase
             'warranty_text' => $warranty->full_text,
         ]);
 
+        // La garantia ya no se repite en la primera pagina: figura en las
+        // condiciones de la ultima hoja, con la duracion del catalogo.
         $this->get("/api/invoices/{$invoiceId}/preview")
             ->assertOk()
-            ->assertSee($warranty->full_text)
+            ->assertSee("de {$warranty->duration_months} meses en mano de obra")
             ->assertDontSee('La garantia aplica segun las condiciones indicadas en esta factura.');
     }
 
@@ -440,6 +442,60 @@ class InvoiceApiTest extends TestCase
         Storage::disk('public')->delete($path);
     }
 
+    public function test_api_accepts_and_returns_the_commercial_and_intervention_fields(): void
+    {
+        $response = $this->postJson('/api/invoices', [
+            ...$this->invoicePayload(),
+            'discount_percent' => 10,
+            'travel_amount' => 35,
+            'technician_name' => 'David Martinez',
+            'work_reference' => 'Vivienda Particular',
+            'service_location' => 'Calle Diputacio 456',
+            'intervention' => [
+                'equipment_type' => 'Aire acondicionado',
+                'equipment_model' => 'Split 1x1',
+                'equipment_serial' => 'WUAJ2866SXES',
+                'units_indoor' => 1,
+                'units_outdoor' => 1,
+                'diagnostic_summary' => 'Sobretension en la red electrica.',
+                'technical_conclusions' => 'Equipo reparado y verificado.',
+            ],
+        ])->assertCreated();
+
+        $id = $response->json('data.id');
+
+        $this->getJson("/api/invoices/{$id}")
+            ->assertOk()
+            ->assertJsonPath('data.technician_name', 'David Martinez')
+            ->assertJsonPath('data.work_reference', 'Vivienda Particular')
+            ->assertJsonPath('data.intervention.equipment_model', 'Split 1x1')
+            ->assertJsonPath('data.intervention.units_outdoor', 1);
+
+        // El fabricante se imprime siempre que haya ficha de equipo, aunque
+        // ese dato concreto venga vacio.
+        $this->get("/api/invoices/{$id}/preview")
+            ->assertOk()
+            ->assertSee('Fabricante')
+            ->assertSee('Split 1x1');
+
+        $invoice = Invoice::query()->findOrFail($id);
+        $this->assertTrue((float) $invoice->discount_total > 0);
+        $this->assertSame('35.0000', $invoice->travel_amount);
+    }
+
+    public function test_api_totals_are_unchanged_when_the_client_omits_the_new_fields(): void
+    {
+        // La app movil no envia descuento ni desplazamiento: sus totales deben
+        // seguir siendo exactamente los de antes de existir esos campos.
+        $id = $this->createInvoice()->assertCreated()->json('data.id');
+        $invoice = Invoice::query()->findOrFail($id);
+
+        $this->assertSame('0.0000', $invoice->discount_total);
+        $this->assertSame('0.0000', $invoice->travel_amount);
+        $this->assertSame($invoice->subtotal, $invoice->taxable_base);
+        $this->assertSame('236.0000', $invoice->total);
+    }
+
     public function test_invoice_preview_endpoint_returns_html_template(): void
     {
         $invoiceId = $this->createInvoice()->json('data.id');
@@ -452,10 +508,7 @@ class InvoiceApiTest extends TestCase
             ->assertSee('FACTURA')
             ->assertSee('Actuaciones')
             ->assertSee('Resumen econ')
-            ->assertSee('Formas de pago')
-            // Espacio de firma y sello.
-            ->assertSee('Recibido por (cliente)')
-            ->assertSee('Firma y sello del emisor');
+            ->assertSee('Formas de pago');
     }
 
     public function test_quotation_preview_uses_the_quotation_template(): void
@@ -473,7 +526,7 @@ class InvoiceApiTest extends TestCase
             ->assertSee('28/07/2026')
             ->assertSee('Detalle de los trabajos')
             ->assertSee('Resumen del presupuesto')
-            ->assertSee('Aceptado por (cliente)')
+            ->assertSee('confirme su aceptaci')
             // El presupuesto no debe usar la plantilla de factura.
             ->assertDontSee('Actuaciones')
             ->assertDontSee('Resumen econ');

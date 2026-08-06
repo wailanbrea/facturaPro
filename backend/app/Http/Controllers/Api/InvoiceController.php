@@ -93,7 +93,10 @@ class InvoiceController extends Controller
                 $invoice,
                 $data['items'],
                 $this->amountReceivedForDocument($invoice->document_type, $data['amount_received'] ?? '0'),
+                $data['discount_percent'] ?? '0',
+                $data['travel_amount'] ?? '0',
             );
+            $this->saveIntervention($invoice, $data);
             $invoice->refresh();
 
             $this->activityLog->record('invoice.created', $invoice, ['invoice_id' => $invoice->id], $request->user(), $request);
@@ -106,7 +109,7 @@ class InvoiceController extends Controller
 
     public function show(Invoice $invoice): InvoiceResource
     {
-        return new InvoiceResource($invoice->load(['items', 'payments']));
+        return new InvoiceResource($invoice->load(['items', 'payments', 'intervention']));
     }
 
     public function preview(Invoice $invoice): Response
@@ -177,7 +180,11 @@ class InvoiceController extends Controller
                 $invoice,
                 $items,
                 $this->amountReceivedForDocument($merged['document_type'] ?? $invoice->document_type, $merged['amount_received'] ?? $invoice->amount_received),
+                $merged['discount_percent'] ?? $invoice->discount_percent ?? '0',
+                $merged['travel_amount'] ?? $invoice->travel_amount ?? '0',
             );
+
+            $this->saveIntervention($invoice, $data);
 
             if ($invoice->status !== InvoiceStatusService::DRAFT) {
                 $invoice->update([
@@ -570,6 +577,10 @@ class InvoiceController extends Controller
             'status' => $status,
             'prepared_by' => $data['prepared_by'] ?? null,
             'received_by' => $data['received_by'] ?? null,
+            'technician_name' => $data['technician_name'] ?? $invoice?->technician_name,
+            'work_reference' => $data['work_reference'] ?? $invoice?->work_reference,
+            'service_location' => $data['service_location'] ?? $invoice?->service_location,
+            'discount_percent' => $data['discount_percent'] ?? $invoice?->discount_percent ?? 0,
             'created_by' => $invoice?->created_by ?? request()->user()?->id,
             'updated_by' => request()->user()?->id,
         ];
@@ -654,13 +665,20 @@ class InvoiceController extends Controller
     /**
      * @param  array<int, array<string, mixed>>  $items
      */
-    private function syncItemsAndTotals(Invoice $invoice, array $items, string|int|float $amountReceived): void
-    {
+    private function syncItemsAndTotals(
+        Invoice $invoice,
+        array $items,
+        string|int|float $amountReceived,
+        string|int|float $discountPercent = '0',
+        string|int|float $travelAmount = '0',
+    ): void {
         $itemsForCalculation = $this->hydrateTaxes($items);
         $calculated = $this->calculator->calculate(
             $itemsForCalculation,
             $amountReceived,
             $this->pricesIncludeTax(),
+            discountPercent: $discountPercent,
+            travelAmount: $travelAmount,
         );
 
         $invoice->items()->delete();
@@ -675,10 +693,40 @@ class InvoiceController extends Controller
         $invoice->update([
             'amount_received' => $calculated['amount_received'],
             'subtotal' => $calculated['subtotal'],
+            'discount_total' => $calculated['discount_total'],
+            'travel_amount' => $calculated['travel_amount'],
+            'taxable_base' => $calculated['taxable_base'],
             'tax_total' => $calculated['tax_total'],
             'total' => $calculated['total'],
             'balance_due' => $calculated['balance_due'],
         ]);
+    }
+
+    /**
+     * Persist the technical intervention sent by the client, if any.
+     *
+     * An all-empty payload removes the row rather than storing a blank record.
+     *
+     * @param  array<string, mixed>  $data
+     */
+    private function saveIntervention(Invoice $invoice, array $data): void
+    {
+        if (! array_key_exists('intervention', $data)) {
+            return;
+        }
+
+        $intervention = array_filter(
+            $data['intervention'] ?? [],
+            static fn ($value): bool => $value !== null && $value !== '',
+        );
+
+        if ($intervention === []) {
+            $invoice->intervention()->delete();
+
+            return;
+        }
+
+        $invoice->intervention()->updateOrCreate(['invoice_id' => $invoice->id], $intervention);
     }
 
     /**
@@ -783,8 +831,13 @@ class InvoiceController extends Controller
             'conformity_text' => array_key_exists('conformity_text', $data) ? $data['conformity_text'] : $invoice->conformity_text,
             'observations' => array_key_exists('observations', $data) ? $data['observations'] : $invoice->observations,
             'amount_received' => $data['amount_received'] ?? $invoice->amount_received,
+            'discount_percent' => $data['discount_percent'] ?? $invoice->discount_percent,
+            'travel_amount' => $data['travel_amount'] ?? $invoice->travel_amount,
             'prepared_by' => array_key_exists('prepared_by', $data) ? $data['prepared_by'] : $invoice->prepared_by,
             'received_by' => array_key_exists('received_by', $data) ? $data['received_by'] : $invoice->received_by,
+            'technician_name' => array_key_exists('technician_name', $data) ? $data['technician_name'] : $invoice->technician_name,
+            'work_reference' => array_key_exists('work_reference', $data) ? $data['work_reference'] : $invoice->work_reference,
+            'service_location' => array_key_exists('service_location', $data) ? $data['service_location'] : $invoice->service_location,
         ];
     }
 
@@ -793,7 +846,10 @@ class InvoiceController extends Controller
      */
     private function requestChangesAmounts(array $data): bool
     {
-        return collect(['items', 'amount_received', 'currency_id', 'payment_term_id', 'client_id', 'client_name', 'client_tax_id', 'client_address', 'client_city', 'client_phone', 'client_email', 'invoice_date', 'due_date'])
+        // El descuento y el desplazamiento mueven la base imponible y el total,
+        // asi que cuentan como cambio monetario: una factura firmada no puede
+        // tocarlos sin invalidar su propia firma.
+        return collect(['items', 'amount_received', 'discount_percent', 'travel_amount', 'currency_id', 'payment_term_id', 'client_id', 'client_name', 'client_tax_id', 'client_address', 'client_city', 'client_phone', 'client_email', 'invoice_date', 'due_date'])
             ->contains(fn (string $field): bool => array_key_exists($field, $data));
     }
 

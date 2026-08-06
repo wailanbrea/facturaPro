@@ -68,9 +68,9 @@
                                 @if($intervention->equipment_type)
                                     <div class="kv"><dt>Equipo</dt><dd>{{ $intervention->equipment_type }}</dd></div>
                                 @endif
-                                @if($intervention->equipment_brand)
-                                    <div class="kv"><dt>Fabricante</dt><dd>{{ $intervention->equipment_brand }}</dd></div>
-                                @endif
+                                {{-- Fabricante siempre visible: forma parte de la ficha del
+                                     equipo aunque todavia no se haya rellenado. --}}
+                                <div class="kv"><dt>Fabricante</dt><dd>{{ $intervention->equipment_brand ?: '—' }}</dd></div>
                                 @if($intervention->equipment_model)
                                     <div class="kv"><dt>Modelo</dt><dd>{{ $intervention->equipment_model }}</dd></div>
                                 @endif
@@ -106,9 +106,7 @@
                             <div class="kv"><dt>Forma de pago</dt><dd>Transferencia bancaria</dd></div>
                             {{-- El estado va como texto simple, nunca como bloque destacado. --}}
                             <div class="kv"><dt>Estado de la factura</dt><dd class="{{ $isPaid ? 'paid' : 'strong' }}">{{ mb_strtoupper($statusLabel) }}</dd></div>
-                            @if($invoice->technician_name)
-                                <div class="kv"><dt>Técnico asignado</dt><dd>{{ $invoice->technician_name }}</dd></div>
-                            @endif
+                            {{-- El tecnico asignado se guarda pero no se imprime todavia. --}}
                         </dl>
                     </div>
                 </section>
@@ -145,18 +143,18 @@
                         </div>
                         <div class="card-body">
                             <dl style="margin:0">
-                                <div class="kv"><dt>Subtotal</dt><dd>{{ $money->format($invoice->subtotal, $currency) }}</dd></div>
+                                <div class="kv"><dt>Subtotal:</dt><dd>{{ $money->format($invoice->subtotal, $currency) }}</dd></div>
                                 @if((float) $invoice->discount_total > 0)
                                     <div class="kv">
-                                        <dt>Descuento @if((float) $invoice->discount_percent > 0)({{ rtrim(rtrim(number_format((float) $invoice->discount_percent, 2, ',', '.'), '0'), ',') }}%)@endif</dt>
+                                        <dt>Descuento @if((float) $invoice->discount_percent > 0)({{ rtrim(rtrim(number_format((float) $invoice->discount_percent, 2, ',', '.'), '0'), ',') }}%)@endif:</dt>
                                         <dd>-{{ $money->format($invoice->discount_total, $currency) }}</dd>
                                     </div>
                                 @endif
                                 @if((float) $invoice->travel_amount > 0)
-                                    <div class="kv"><dt>Desplazamiento</dt><dd>{{ $money->format($invoice->travel_amount, $currency) }}</dd></div>
+                                    <div class="kv"><dt>Desplazamiento:</dt><dd>{{ $money->format($invoice->travel_amount, $currency) }}</dd></div>
                                 @endif
-                                <div class="kv"><dt>Base imponible</dt><dd>{{ $money->format($invoice->taxableBaseOrSubtotal(), $currency) }}</dd></div>
-                                <div class="kv"><dt>{{ $ctx->taxLabel }}</dt><dd>{{ $money->format($invoice->tax_total, $currency) }}</dd></div>
+                                <div class="kv"><dt>Base imponible:</dt><dd>{{ $money->format($invoice->taxableBaseOrSubtotal(), $currency) }}</dd></div>
+                                <div class="kv"><dt>{{ $ctx->taxLabel }}:</dt><dd>{{ $money->format($invoice->tax_total, $currency) }}</dd></div>
                                 @if((float) $invoice->amount_received > 0)
                                     <div class="kv"><dt>Importe recibido</dt><dd>{{ $money->format($invoice->amount_received, $currency) }}</dd></div>
                                     <div class="kv"><dt>Balance pendiente</dt><dd class="strong">{{ $money->format($invoice->balance_due, $currency) }}</dd></div>
@@ -175,18 +173,14 @@
         </div>
 
         @if($isLastItemsSheet)
-            <div class="bottom-row cols-4">
+            {{-- La garantia no se repite aqui: ya figura en las condiciones de la
+                 ultima pagina. --}}
+            <div class="bottom-row cols-3">
                 <div class="note-box">
                     <span class="note-ico"><x-pdf-icon name="pen-line" :size="12" /></span>
                     <div style="flex:1">
                         <div class="note-title">Aceptación de la intervención</div>
                         <div class="note-text muted">{{ $invoice->conformity_text ?: 'La presente factura acredita los trabajos efectuados y el material suministrado. El pago de la factura constituye la aceptación de los servicios prestados.' }}</div>
-                        @include('pdf.partials.signatures', [
-                            'leftRole' => 'Recibido por (cliente)',
-                            'leftName' => $invoice->received_by,
-                            'rightRole' => 'Firma y sello del emisor',
-                            'rightName' => $invoice->prepared_by,
-                        ])
                     </div>
                 </div>
 
@@ -197,14 +191,6 @@
                     <div>
                         <div class="note-title">Condiciones</div>
                         <div class="note-text muted">La presente factura se complementa con las Condiciones Generales de Prestación del Servicio incluidas en la página {{ $ctx->totalPages }}, que forman parte integrante del presente documento.</div>
-                    </div>
-                </div>
-
-                <div class="note-box">
-                    <span class="note-ico"><x-pdf-icon name="shield-check" :size="12" /></span>
-                    <div>
-                        <div class="note-title">Garantía</div>
-                        <div class="note-text muted">{{ $invoice->warranty_text ?: $invoice->warranty?->full_text ?: 'Garantía según condiciones del fabricante.' }}</div>
                     </div>
                 </div>
             </div>

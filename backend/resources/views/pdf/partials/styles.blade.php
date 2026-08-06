@@ -337,17 +337,6 @@
 
     .iban { font-weight: 700; letter-spacing: .01em; }
 
-    /* --------------------------- Firmas y sello ------------------------ */
-    .sign-row { display: grid; grid-template-columns: 1fr 1fr; gap: 4mm; margin-top: 1.6mm; }
-
-    .sign-slot { display: flex; flex-direction: column; }
-
-    /* Espacio en blanco reservado para firmar o estampar el sello. */
-    .sign-space { height: 13mm; }
-
-    .sign-line { border-top: 0.3mm solid var(--line); padding-top: .9mm; }
-    .sign-name { font-weight: 700; min-height: 3.2mm; }
-    .sign-role { font-size: 5.4pt; color: var(--muted); text-transform: uppercase; letter-spacing: .04em; }
 
     /* --------------------------- Pagina legal -------------------------- */
     .legal-band {

@@ -84,6 +84,7 @@ import androidx.core.content.FileProvider
 import com.facturador.facturapro.domain.model.BootstrapCatalogs
 import com.facturador.facturapro.domain.model.ClientRecord
 import com.facturador.facturapro.domain.model.FiscalProfileLogoCatalogItem
+import com.facturador.facturapro.domain.model.Intervention
 import com.facturador.facturapro.domain.model.InvoiceDetail
 import com.facturador.facturapro.domain.model.InvoiceDraft
 import com.facturador.facturapro.domain.model.InvoiceDraftItem
@@ -1225,38 +1226,52 @@ private fun InvoiceFormPane(
     onClearPreview: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
+    // Clave de reinicio del formulario. Se calcula una vez: repetir
+    // 'existingInvoice?.id' en cada remember metia treinta llamadas seguras en la
+    // misma funcion y el analizador de flujo de Kotlin agotaba la memoria al compilar.
+    val formKey = existingInvoice?.id
+
     val defaults = remember(bootstrap, existingInvoice, clients) {
         InvoiceFormDefaults.from(bootstrap = bootstrap, existingInvoice = existingInvoice, clients = clients)
     }
-    var documentType by rememberSaveable(existingInvoice?.id) { mutableStateOf(defaults.documentType) }
-    var invoiceDate by rememberSaveable(existingInvoice?.id) { mutableStateOf(defaults.invoiceDate) }
-    var selectedClientId by rememberSaveable(existingInvoice?.id) { mutableStateOf(defaults.clientId) }
-    var clientName by rememberSaveable(existingInvoice?.id) { mutableStateOf(defaults.clientName) }
-    var clientTaxId by rememberSaveable(existingInvoice?.id) { mutableStateOf(defaults.clientTaxId) }
-    var clientAddress by rememberSaveable(existingInvoice?.id) { mutableStateOf(defaults.clientAddress) }
-    var clientCity by rememberSaveable(existingInvoice?.id) { mutableStateOf(defaults.clientCity) }
-    var clientPhone by rememberSaveable(existingInvoice?.id) { mutableStateOf(defaults.clientPhone) }
-    var clientEmail by rememberSaveable(existingInvoice?.id) { mutableStateOf(defaults.clientEmail) }
-    var selectedTermId by rememberSaveable(existingInvoice?.id) { mutableStateOf(defaults.paymentTermId) }
-    var selectedCurrencyId by rememberSaveable(existingInvoice?.id) { mutableStateOf(defaults.currencyId) }
-    var selectedFiscalProfileId by rememberSaveable(existingInvoice?.id) { mutableStateOf(defaults.fiscalProfileId) }
-    var selectedLogoPath by rememberSaveable(existingInvoice?.id) { mutableStateOf(defaults.logoPath) }
-    var selectedBankAccountId by rememberSaveable(existingInvoice?.id) { mutableStateOf(defaults.bankAccountId) }
-    var selectedWarrantyId by rememberSaveable(existingInvoice?.id) { mutableStateOf(defaults.warrantyId) }
-    var warrantyText by rememberSaveable(existingInvoice?.id) { mutableStateOf(defaults.warrantyText) }
-    var legalText by rememberSaveable(existingInvoice?.id) { mutableStateOf(defaults.legalText) }
-    var conformityText by rememberSaveable(existingInvoice?.id) { mutableStateOf(defaults.conformityText) }
+    var documentType by rememberSaveable(formKey) { mutableStateOf(defaults.documentType) }
+    var invoiceDate by rememberSaveable(formKey) { mutableStateOf(defaults.invoiceDate) }
+    var selectedClientId by rememberSaveable(formKey) { mutableStateOf(defaults.clientId) }
+    var clientName by rememberSaveable(formKey) { mutableStateOf(defaults.clientName) }
+    var clientTaxId by rememberSaveable(formKey) { mutableStateOf(defaults.clientTaxId) }
+    var clientAddress by rememberSaveable(formKey) { mutableStateOf(defaults.clientAddress) }
+    var clientCity by rememberSaveable(formKey) { mutableStateOf(defaults.clientCity) }
+    var clientPhone by rememberSaveable(formKey) { mutableStateOf(defaults.clientPhone) }
+    var clientEmail by rememberSaveable(formKey) { mutableStateOf(defaults.clientEmail) }
+    var selectedTermId by rememberSaveable(formKey) { mutableStateOf(defaults.paymentTermId) }
+    var selectedCurrencyId by rememberSaveable(formKey) { mutableStateOf(defaults.currencyId) }
+    var selectedFiscalProfileId by rememberSaveable(formKey) { mutableStateOf(defaults.fiscalProfileId) }
+    var selectedLogoPath by rememberSaveable(formKey) { mutableStateOf(defaults.logoPath) }
+    var selectedBankAccountId by rememberSaveable(formKey) { mutableStateOf(defaults.bankAccountId) }
+    var selectedWarrantyId by rememberSaveable(formKey) { mutableStateOf(defaults.warrantyId) }
+    var warrantyText by rememberSaveable(formKey) { mutableStateOf(defaults.warrantyText) }
+    var legalText by rememberSaveable(formKey) { mutableStateOf(defaults.legalText) }
+    var conformityText by rememberSaveable(formKey) { mutableStateOf(defaults.conformityText) }
     var editLegalTexts by rememberSaveable { mutableStateOf(false) }
-    var observations by rememberSaveable(existingInvoice?.id) { mutableStateOf(defaults.observations) }
-    var preparedBy by rememberSaveable(existingInvoice?.id) { mutableStateOf(defaults.preparedBy) }
-    var receivedBy by rememberSaveable(existingInvoice?.id) { mutableStateOf(defaults.receivedBy) }
-    var amountReceived by rememberSaveable(existingInvoice?.id) { mutableStateOf(defaults.amountReceived) }
+    var observations by rememberSaveable(formKey) { mutableStateOf(defaults.observations) }
+    var preparedBy by rememberSaveable(formKey) { mutableStateOf(defaults.preparedBy) }
+    var receivedBy by rememberSaveable(formKey) { mutableStateOf(defaults.receivedBy) }
+
+    // Datos comerciales y tecnicos que alimentan la factura y el presupuesto.
+    var discountPercent by rememberSaveable(formKey) { mutableStateOf(defaults.discountPercent) }
+    var travelAmount by rememberSaveable(formKey) { mutableStateOf(defaults.travelAmount) }
+    var technicianName by rememberSaveable(formKey) { mutableStateOf(defaults.technicianName) }
+    var workReference by rememberSaveable(formKey) { mutableStateOf(defaults.workReference) }
+    var serviceLocation by rememberSaveable(formKey) { mutableStateOf(defaults.serviceLocation) }
+
+    var intervention by remember(formKey) { mutableStateOf(defaults.intervention) }
+    var amountReceived by rememberSaveable(formKey) { mutableStateOf(defaults.amountReceived) }
     val items = remember(existingInvoice?.id, bootstrap) {
         mutableStateListOf<EditableInvoiceItem>().apply {
             addAll(defaults.items)
         }
     }
-    var showPreview by rememberSaveable(existingInvoice?.id) { mutableStateOf(false) }
+    var showPreview by rememberSaveable(formKey) { mutableStateOf(false) }
     val selectedProfile = bootstrap?.fiscalProfiles?.firstOrNull { it.id == selectedFiscalProfileId }
     val availableLogos = selectedProfile?.logos.orEmpty()
     val nextNumberPreview = if (documentType == "quotation") selectedProfile?.nextQuotationNumber else selectedProfile?.nextInvoiceNumber
@@ -1306,6 +1321,12 @@ private fun InvoiceFormPane(
             amountReceived = if (documentType == "quotation") null else amountReceived,
             preparedBy = preparedBy,
             receivedBy = receivedBy,
+            discountPercent = discountPercent,
+            travelAmount = travelAmount,
+            technicianName = technicianName,
+            workReference = workReference,
+            serviceLocation = serviceLocation,
+            intervention = intervention,
             items = items.map {
                 InvoiceDraftItem(
                     description = it.description,
@@ -1576,6 +1597,24 @@ private fun InvoiceFormPane(
                 label = { Text("Observaciones") },
             )
         }
+        commercialFields(
+            discountPercent = discountPercent,
+            onDiscountPercent = { discountPercent = it },
+            travelAmount = travelAmount,
+            onTravelAmount = { travelAmount = it },
+            technicianName = technicianName,
+            onTechnicianName = { technicianName = it },
+            workReference = workReference,
+            onWorkReference = { workReference = it },
+            serviceLocation = serviceLocation,
+            onServiceLocation = { serviceLocation = it },
+        )
+
+        interventionFields(
+            isQuotation = documentType == "quotation",
+            intervention = intervention,
+            onChange = { intervention = it },
+        )
         item {
             OutlinedTextField(
                 value = preparedBy,
@@ -2466,6 +2505,12 @@ private data class InvoiceFormDefaults(
     val preparedBy: String,
     val receivedBy: String,
     val amountReceived: String,
+    val discountPercent: String,
+    val travelAmount: String,
+    val technicianName: String,
+    val workReference: String,
+    val serviceLocation: String,
+    val intervention: Intervention,
     val items: List<EditableInvoiceItem>,
 ) {
     companion object {
@@ -2474,31 +2519,41 @@ private data class InvoiceFormDefaults(
             existingInvoice: InvoiceDetail?,
             clients: List<ClientRecord>,
         ): InvoiceFormDefaults {
-            if (existingInvoice != null) {
+            // Se ata a una variable no nula en vez de depender del smart cast:
+            // con mas de treinta accesos, el analizador de flujo de Kotlin
+            // acababa sin memoria al compilar.
+            val invoice: InvoiceDetail? = existingInvoice
+            if (invoice != null) {
                 return InvoiceFormDefaults(
-                    documentType = existingInvoice.documentType,
-                    invoiceDate = existingInvoice.invoiceDate,
-                    clientId = existingInvoice.clientId,
-                    clientName = existingInvoice.clientName,
-                    clientTaxId = existingInvoice.clientTaxId.orEmpty(),
-                    clientAddress = existingInvoice.clientAddress.orEmpty(),
+                    documentType = invoice.documentType,
+                    invoiceDate = invoice.invoiceDate,
+                    clientId = invoice.clientId,
+                    clientName = invoice.clientName,
+                    clientTaxId = invoice.clientTaxId.orEmpty(),
+                    clientAddress = invoice.clientAddress.orEmpty(),
                     clientCity = "",
                     clientPhone = "",
                     clientEmail = "",
-                    paymentTermId = existingInvoice.paymentTermId,
-                    currencyId = existingInvoice.currencyId,
-                    fiscalProfileId = existingInvoice.fiscalProfileId,
-                    logoPath = existingInvoice.logoPath,
-                    bankAccountId = existingInvoice.bankAccountId,
-                    warrantyId = existingInvoice.warrantyId,
-                    warrantyText = existingInvoice.warrantyText.orEmpty(),
-                    legalText = existingInvoice.legalText.orEmpty(),
-                    conformityText = existingInvoice.conformityText.orEmpty(),
-                    observations = existingInvoice.observations.orEmpty(),
-                    preparedBy = existingInvoice.preparedBy.orEmpty(),
-                    receivedBy = existingInvoice.receivedBy.orEmpty(),
-                    amountReceived = existingInvoice.amountReceived,
-                    items = existingInvoice.items.map {
+                    paymentTermId = invoice.paymentTermId,
+                    currencyId = invoice.currencyId,
+                    fiscalProfileId = invoice.fiscalProfileId,
+                    logoPath = invoice.logoPath,
+                    bankAccountId = invoice.bankAccountId,
+                    warrantyId = invoice.warrantyId,
+                    warrantyText = invoice.warrantyText.orEmpty(),
+                    legalText = invoice.legalText.orEmpty(),
+                    conformityText = invoice.conformityText.orEmpty(),
+                    observations = invoice.observations.orEmpty(),
+                    preparedBy = invoice.preparedBy.orEmpty(),
+                    receivedBy = invoice.receivedBy.orEmpty(),
+                    amountReceived = invoice.amountReceived,
+                    discountPercent = invoice.discountPercent.orEmpty(),
+                    travelAmount = invoice.travelAmount.orEmpty(),
+                    technicianName = invoice.technicianName.orEmpty(),
+                    workReference = invoice.workReference.orEmpty(),
+                    serviceLocation = invoice.serviceLocation.orEmpty(),
+                    intervention = invoice.intervention ?: Intervention(),
+                    items = invoice.items.map {
                         EditableInvoiceItem(
                             description = it.description,
                             quantity = it.quantity,
@@ -2541,6 +2596,12 @@ private data class InvoiceFormDefaults(
                 preparedBy = "",
                 receivedBy = "",
                 amountReceived = "0",
+                discountPercent = "",
+                travelAmount = "",
+                technicianName = "",
+                workReference = "",
+                serviceLocation = "",
+                intervention = Intervention(),
                 items = listOf(
                     EditableInvoiceItem(
                         description = "",
