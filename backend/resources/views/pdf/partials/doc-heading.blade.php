@@ -31,19 +31,19 @@
 
     <div class="trust-badges">
         <div class="badge">
-            <x-pdf-icon name="shield-check" :size="13" />
+            <x-pdf-icon name="shield-check" :size="16" />
             <span class="badge-text">Intervenciones<br>garantizadas</span>
         </div>
         <div class="badge">
-            <x-pdf-icon name="award" :size="13" />
+            <x-pdf-icon name="award" :size="16" />
             <span class="badge-text">Técnicos<br>cualificados</span>
         </div>
         <div class="badge">
-            <x-pdf-icon name="package" :size="13" />
+            <x-pdf-icon name="package" :size="16" />
             <span class="badge-text">Repuestos<br>originales</span>
         </div>
         <div class="badge">
-            <x-pdf-icon name="clock" :size="13" />
+            <x-pdf-icon name="clock" :size="16" />
             <span class="badge-text">Atención<br>24/7</span>
         </div>
     </div>

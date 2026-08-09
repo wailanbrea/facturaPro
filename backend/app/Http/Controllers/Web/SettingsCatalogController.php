@@ -10,7 +10,6 @@ use App\Models\InvoiceNumberSetting;
 use App\Models\LegalText;
 use App\Models\PaymentTerm;
 use App\Models\Tax;
-use App\Models\User;
 use App\Models\Warranty;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Http\RedirectResponse;
@@ -237,26 +236,9 @@ class SettingsCatalogController extends Controller
                         'type' => 'select',
                         'options' => fn () => \App\Models\FiscalProfile::query()->orderBy('name')->pluck('name', 'id')->prepend('Global (sin perfil)', '')->all(),
                     ],
-                    'user_id' => [
-                        'label' => 'Usuario que factura',
-                        'type' => 'select',
-                        'options' => fn () => User::query()->orderBy('name')->pluck('name', 'id')->prepend('Plantilla de empresa (sin usuario)', '')->all(),
-                    ],
-                    'logo_path' => [
-                        'label' => 'Logo',
-                        'type' => 'select',
-                        'options' => fn () => \App\Models\FiscalProfileLogo::query()
-                            ->with('fiscalProfile')
-                            ->orderBy('fiscal_profile_id')
-                            ->orderByDesc('is_default')
-                            ->orderBy('label')
-                            ->get()
-                            ->mapWithKeys(fn (\App\Models\FiscalProfileLogo $logo): array => [
-                                $logo->path => ($logo->fiscalProfile?->name ? $logo->fiscalProfile->name.' - ' : '').($logo->label ?: basename($logo->path)),
-                            ])
-                            ->prepend('Selecciona un logo', '')
-                            ->all(),
-                    ],
+                    // Ni usuario ni logo entran aqui: desde la migracion
+                    // 2026_07_21 la secuencia es una sola por perfil fiscal y
+                    // tipo de documento, y esas dos columnas ya no existen.
                     'document_type' => [
                         'label' => 'Tipo de documento',
                         'type' => 'select',
@@ -356,16 +338,11 @@ class SettingsCatalogController extends Controller
             ],
             'invoice-number' => [
                 'fiscal_profile_id' => ['nullable', 'exists:fiscal_profiles,id'],
-                'user_id' => ['nullable', 'exists:users,id'],
-                'logo_path' => ['nullable', 'string', 'max:255'],
                 'document_type' => [
                     'required',
                     Rule::in(['invoice', 'quotation']),
                     Rule::unique('invoice_number_settings', 'document_type')
-                        ->where(fn ($q) => $q
-                            ->where('fiscal_profile_id', $request->input('fiscal_profile_id') ?: null)
-                            ->where('user_id', $request->input('user_id') ?: null)
-                            ->where('logo_path', $request->input('logo_path') ?: null))
+                        ->where(fn ($q) => $q->where('fiscal_profile_id', $request->input('fiscal_profile_id') ?: null))
                         ->ignore($record?->id),
                 ],
                 'prefix' => ['required', 'string', 'max:255'],
@@ -381,19 +358,6 @@ class SettingsCatalogController extends Controller
         };
 
         $data = $request->validate($rules);
-
-        if ($catalog === 'invoice-number' && filled($data['logo_path'] ?? null)) {
-            $logoBelongsToProfile = \App\Models\FiscalProfileLogo::query()
-                ->where('fiscal_profile_id', $data['fiscal_profile_id'] ?? null)
-                ->where('path', $data['logo_path'])
-                ->exists();
-
-            if (! $logoBelongsToProfile) {
-                throw \Illuminate\Validation\ValidationException::withMessages([
-                    'logo_path' => 'El logo seleccionado no pertenece al perfil fiscal.',
-                ]);
-            }
-        }
 
         $fields = $this->config($catalog)['fields'];
 

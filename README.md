@@ -180,6 +180,73 @@ En Linux puede ser:
 CHROME_PATH=/usr/bin/chromium
 ```
 
+## Plantillas PDF
+
+Cada tipo de documento tiene su plantilla, en A4 apaisado a dos paginas:
+
+```text
+backend/resources/views/pdf/invoice.blade.php     factura
+backend/resources/views/pdf/quotation.blade.php   presupuesto
+backend/resources/views/pdf/report.blade.php      informe tecnico
+```
+
+Las tres comparten `backend/resources/views/pdf/partials/`: `styles.blade.php`
+concentra todo el CSS y los parciales (`doc-heading`, `issuer-card`,
+`client-card`, `items-table`, `bank-transfer`, `legal-grid`, `watermark`,
+`eco-notice`) son los bloques reutilizados. `App\Support\PdfDocumentContext`
+prepara moneda, logo embebido, QR, marca de agua y el reparto de lineas entre
+hojas; vive en PHP y no en un `@php` de Blade para poder testearlo.
+
+### Reglas de diseno
+
+Zona prohibida en los disenos actuales, cubierta por tests:
+
+- Bizum, tarjeta y efectivo. La unica forma de pago impresa es transferencia.
+- Telefono, email y web del emisor en la tarjeta fiscal.
+- Columna "Categoria" en la tabla de lineas.
+- Copias `ORIGINAL: CLIENTE` / `COPIA: VENDEDOR`.
+- Recursos remotos: fuentes, CDN o `<script>`. Todo va embebido en `data:`.
+- Glifos Unicode decorativos. Los iconos son SVG en linea (`x-pdf-icon`).
+
+Convencion: toda etiqueta en negrita termina en dos puntos. Un test recorre por
+regex todos los `<dt>` del HTML generado y falla si alguno no lo cumple.
+
+### Donde vive cada texto
+
+| Bloque | Origen | Editable |
+| --- | --- | --- |
+| Aceptacion de la intervencion | `invoices.conformity_text`, por defecto desde Configuracion -> Textos legales | Si, tras pulsar "Habilitar edicion" |
+| Texto legal | `invoices.legal_text`, mismo origen | Si, tras desbloquear |
+| Observaciones | `invoices.observations` | Si, tras desbloquear |
+| Condiciones (factura) | Plantilla | No |
+| Aceptacion del presupuesto | Plantilla | No |
+| Condiciones generales (pagina 2) | Array `$legalBlocks` en cada plantilla | No |
+| Forma de pago | Plantilla; la cuenta bancaria si se elige | Solo la cuenta |
+
+Los tres campos editables llegan bloqueados al abrir el formulario y exigen
+pulsar "Habilitar edicion". El backend descarta del payload lo que no venga
+desbloqueado, asi que el candado no depende del navegador. Ademas,
+Configuracion -> Campos bloqueados permite un candado firme que el boton no
+abre para usuarios sin permiso `configurar_sistema`.
+
+Aviso: los bloques de `$legalBlocks` son un borrador de trabajo redactado para
+dimensionar la maqueta. No tienen revision juridica.
+
+### Snapshot del cliente
+
+`invoices` guarda `client_name`, `client_tax_id`, `client_address`,
+`client_city`, `client_email` y `client_phone` en el momento de crear el
+documento. Editar despues la ficha del cliente no altera un PDF ya emitido.
+Antes de la migracion `2026_08_08_000000_add_client_contact_snapshot_to_invoices`
+el correo y el telefono se leian en vivo de `clients`, con lo que un cambio de
+contacto reescribia facturas antiguas.
+
+### Garantia
+
+El bloque "Garantia legal" usa `Warranty::durationLabelFor()`, que dice los
+multiplos de doce en anos: 6 meses, 1 ano, 3 anos. Imprimir "36 meses" donde se
+vendio "3 anos" confunde al cliente aunque sea el mismo plazo.
+
 ## Verificacion de Documentos
 
 Las facturas e informes emitidos quedan firmados con codigo de seguridad y QR. La verificacion publica usa:
@@ -198,59 +265,44 @@ php artisan invoices:verify-chain
 
 `invoices:sign-existing` solo debe usarse cuando ya esta definido `INVOICE_SIGNING_KEY`.
 
-## Numeracion por Perfil y Logo
+## Numeracion por Perfil Fiscal
 
-La numeracion actual funciona por:
+La numeracion funciona por:
 
 ```text
-perfil fiscal + logo + tipo de documento + usuario
+perfil fiscal + tipo de documento
 ```
 
-Debe existir una configuracion explicita para cada combinacion usada:
+El logo y el usuario ya no intervienen. La migracion
+`2026_07_21_000000_scope_invoice_numbers_by_fiscal_profile` elimino las columnas
+`user_id` y `logo_path` de `invoice_number_settings` y dejo una clave unica sobre
+`fiscal_profile_id + document_type`. Cambiar el logo de una factura no abre una
+serie nueva.
 
-- Perfil fiscal.
-- Logo.
-- Usuario que factura.
+Cada serie se administra en Configuracion -> Numeracion con:
+
+- Perfil fiscal (o global, sin perfil).
 - Tipo de documento: `invoice` o `quotation`.
 - Prefijo: `FAC-` o `PRES-`.
-- Serie: ejemplo `PA-AIR`, `PA-CAL`, `PA-TEC`, `LA-AIR`, `LR-CAL`, `LA-TEC`.
+- Serie: opcional, se intercala en el numero.
 - Proximo numero.
-- Longitud.
-
-Regla importante:
-
-- El sistema ya no crea series automaticamente por cambiar o previsualizar logos.
-- Si se intenta emitir con un logo sin numeracion configurada, devuelve error.
-- La opcion de crear factura/presupuesto/informe sin logo fue removida cuando el perfil tiene logos.
-
-Series operativas actuales:
-
-```text
-PA: AIR, CAL, TEC
-LR/LA: AIR, CAL, TEC
-```
+- Longitud (ceros a la izquierda).
+- Reinicio anual o mensual.
 
 Ejemplo:
 
 ```text
 Perfil: PAMELA MISHELL AVILA CELI
-Logo: Aire Acondicionado
 Tipo: Factura
 Prefijo: FAC-
-Serie: PA-AIR
+Serie: PA
 Proximo numero: 1
 Longitud: 6
-Resultado: FAC-PA-AIR-000001
+Resultado: FAC-PA-000001
 ```
 
-Para presupuesto del mismo logo:
-
-```text
-Tipo: Presupuesto
-Prefijo: PRES-
-Serie: PA-AIR
-Resultado: PRES-PA-AIR-000001
-```
+Con dos perfiles fiscales y dos tipos de documento salen cuatro series
+independientes, que es la configuracion prevista para PAMELA y LUIS A.
 
 ## App Android
 

@@ -119,6 +119,105 @@ class PdfTemplateTest extends TestCase
         $this->assertStringNotContainsString('Actuaciones', $html);
     }
 
+    public function test_bold_labels_end_with_a_colon(): void
+    {
+        $invoice = $this->makeInvoice(3);
+        $invoice->intervention()->create([
+            'equipment_type' => 'Aire acondicionado',
+            'equipment_model' => 'Split 1x1',
+            'equipment_serial' => 'WUAJ2866SXES',
+            'equipment_location' => 'Calle Diputacio, 456',
+            'units_indoor' => 1,
+            'units_outdoor' => 1,
+        ]);
+
+        $html = $this->previewHtml($invoice->fresh());
+
+        // Se comparan por el final de la etiqueta para no depender de como
+        // queden codificados los acentos ni el ordinal de "Nº".
+        foreach ([
+            'Equipo:</dt>', 'Fabricante:</dt>', 'Modelo:</dt>', 'de serie:</dt>', 'de unidades:</dt>',
+            'Fecha de vencimiento:</dt>', 'Forma de pago:</dt>', 'Estado de la factura:</dt>',
+        ] as $label) {
+            $this->assertStringContainsString($label, $html, "Falta la etiqueta {$label}");
+        }
+
+        $this->assertStringContainsString('Ubicaci', $html);
+
+        // Ninguna etiqueta de la lista de datos puede quedarse sin dos puntos.
+        preg_match_all('/<dt>([^<]*)<\/dt>/', $html, $matches);
+        $this->assertNotEmpty($matches[1]);
+        foreach ($matches[1] as $label) {
+            $this->assertStringEndsWith(':', trim($label), "La etiqueta \"{$label}\" no termina en dos puntos.");
+        }
+    }
+
+    public function test_quotation_details_labels_end_with_a_colon(): void
+    {
+        $invoice = $this->makeInvoice(3, 'quotation');
+        $invoice->update(['service_location' => 'Calle Diputacio, 456 - 08013 Barcelona']);
+
+        $html = $this->previewHtml($invoice->fresh());
+
+        foreach (['Fecha de validez:</dt>', 'Forma de pago:</dt>'] as $label) {
+            $this->assertStringContainsString($label, $html, "Falta la etiqueta {$label}");
+        }
+
+        $this->assertStringContainsString('Lugar de intervenci', $html);
+
+        preg_match_all('/<dt>([^<]*)<\/dt>/', $html, $matches);
+        foreach ($matches[1] as $label) {
+            $this->assertStringEndsWith(':', trim($label), "La etiqueta \"{$label}\" no termina en dos puntos.");
+        }
+    }
+
+    public function test_client_contact_is_labelled_and_frozen_in_the_document(): void
+    {
+        $invoice = $this->makeInvoice(3);
+        $invoice->update([
+            'client_email' => 'documento@example.com',
+            'client_phone' => '+34 600 123 456',
+        ]);
+
+        $html = $this->previewHtml($invoice->fresh());
+
+        $this->assertStringContainsString('Correo:</span> documento@example.com', $html);
+        $this->assertStringContainsString('Contacto:</span> +34 600 123 456', $html);
+
+        // Cambiar la ficha del cliente no puede alterar un documento ya emitido.
+        $invoice->client->update([
+            'email' => 'ficha-nueva@example.com',
+            'phone' => '+34 999 999 999',
+        ]);
+
+        $html = $this->previewHtml($invoice->fresh());
+
+        $this->assertStringContainsString('documento@example.com', $html);
+        $this->assertStringNotContainsString('ficha-nueva@example.com', $html);
+        $this->assertStringNotContainsString('+34 999 999 999', $html);
+    }
+
+    public function test_warranty_duration_is_written_in_years_when_it_is_a_whole_number_of_years(): void
+    {
+        $invoice = $this->makeInvoice(3);
+
+        $cases = [6 => 'Garantía de 6 meses', 12 => 'Garantía de 1 año', 36 => 'Garantía de 3 años'];
+
+        foreach ($cases as $months => $expected) {
+            $invoice->warranty->update(['duration_months' => $months]);
+
+            $html = $this->previewHtml($invoice->fresh());
+
+            $this->assertStringContainsString($expected, $html);
+
+            // "12 meses" o "36 meses" es el plazo correcto pero no es como se
+            // vendio la garantia al cliente.
+            if ($months % 12 === 0) {
+                $this->assertStringNotContainsString($months.' meses en mano de obra', $html);
+            }
+        }
+    }
+
     private function previewHtml(Invoice $invoice): string
     {
         return $this->get(route('web.invoices.preview', $invoice))

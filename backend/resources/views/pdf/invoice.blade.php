@@ -8,17 +8,32 @@
     $statusLabel = \App\Support\InvoiceStatusLabel::label($invoice->status);
     $isPaid = strtolower((string) $invoice->status) === 'paid';
 
+    /*
+     * BORRADOR. Estas condiciones son un texto de trabajo redactado para
+     * dimensionar la maqueta, NO tienen validez juridica revisada. Antes de
+     * emitir facturas reales con ellas deben pasar por asesoria.
+     */
     $legalBlocks = [
-        ['icon' => 'shield-check', 'tone' => 'navy', 'title' => 'Garantía legal', 'text' => 'Garantía de '.($invoice->warranty?->duration_months ?: 6).' meses en mano de obra y materiales suministrados, conforme a la normativa vigente.'],
+        ['icon' => 'shield-check', 'tone' => 'navy', 'title' => 'Garantía legal', 'text' => 'Garantía de '.\App\Models\Warranty::durationLabelFor($invoice->warranty?->duration_months).' en mano de obra y materiales suministrados, conforme a la normativa vigente.'],
         ['icon' => 'x-circle', 'tone' => 'accent', 'title' => 'Exclusiones', 'text' => 'No cubre daños por mal uso, manipulación de terceros, falta de mantenimiento, sobretensiones o causas externas.'],
         ['icon' => 'alert-triangle', 'tone' => 'navy', 'title' => 'Limitaciones', 'text' => 'Responsabilidad limitada al valor de la intervención realizada.'],
-        ['icon' => 'search', 'tone' => 'accent', 'title' => 'Daños ocultos', 'text' => 'Averías no visibles en el momento de la intervención.'],
+        ['icon' => 'search', 'tone' => 'accent', 'title' => 'Daños ocultos', 'text' => 'Averías no visibles en el momento de la intervención. Su reparación se presupuesta aparte.'],
         ['icon' => 'settings', 'tone' => 'navy', 'title' => 'Equipos antiguos', 'text' => 'En equipos con más de 10 años no se garantiza la disponibilidad de repuestos.'],
         ['icon' => 'file-text', 'tone' => 'accent', 'title' => 'Presupuestos', 'text' => 'Validez de 30 días naturales desde la fecha de emisión.'],
-        ['icon' => 'lock', 'tone' => 'navy', 'title' => 'Protección de datos', 'text' => 'Tratamiento de datos conforme al RGPD (UE 2016/679).'],
-        ['icon' => 'euro', 'tone' => 'accent', 'title' => 'Facturación y pago', 'text' => 'Pago en la forma y plazo indicados en la factura.'],
+        ['icon' => 'lock', 'tone' => 'navy', 'title' => 'Protección de datos', 'text' => 'Tratamiento de datos conforme al RGPD (UE 2016/679). Puede ejercer sus derechos ante el emisor.'],
+        ['icon' => 'euro', 'tone' => 'accent', 'title' => 'Facturación y pago', 'text' => 'Pago en la forma y plazo indicados en la factura. Los importes se expresan con impuestos desglosados.'],
         ['icon' => 'check-circle', 'tone' => 'navy', 'title' => 'Aceptación', 'text' => 'La aceptación implica conformidad con las condiciones del servicio.'],
         ['icon' => 'landmark', 'tone' => 'navy', 'title' => 'Jurisdicción', 'text' => 'Para cualquier controversia, serán competentes los juzgados de '.($invoice->seller_city ?: 'la sede del emisor').'.'],
+        ['icon' => 'clock', 'tone' => 'accent', 'title' => 'Plazo de reclamación', 'text' => 'Cualquier incidencia sobre la intervención debe comunicarse dentro de los 15 días naturales siguientes.'],
+        ['icon' => 'wrench', 'tone' => 'navy', 'title' => 'Piezas sustituidas', 'text' => 'Las piezas retiradas quedan a disposición del cliente durante 15 días; después se gestionan como residuo.'],
+        ['icon' => 'shield-check', 'tone' => 'accent', 'title' => 'Gases fluorados', 'text' => 'La manipulación de refrigerantes se realiza por personal certificado conforme al RD 115/2017.'],
+        ['icon' => 'user', 'tone' => 'navy', 'title' => 'Acceso al equipo', 'text' => 'El cliente facilita el acceso al equipo y las condiciones de seguridad necesarias para la intervención.'],
+        ['icon' => 'package', 'tone' => 'accent', 'title' => 'Desplazamientos', 'text' => 'El desplazamiento se factura por zona. Fuera del área metropolitana puede aplicarse un suplemento.'],
+        ['icon' => 'settings', 'tone' => 'navy', 'title' => 'Mantenimiento', 'text' => 'Se recomienda revisión anual para conservar el rendimiento y la garantía del fabricante.'],
+        ['icon' => 'x-circle', 'tone' => 'accent', 'title' => 'Cancelaciones', 'text' => 'Las visitas anuladas con menos de 24 horas de antelación podrán facturarse como desplazamiento.'],
+        ['icon' => 'file-text', 'tone' => 'navy', 'title' => 'Certificados', 'text' => 'Los certificados de instalación o puesta en marcha se emiten a petición del cliente.'],
+        ['icon' => 'euro', 'tone' => 'accent', 'title' => 'Anticipos', 'text' => 'En suministros bajo pedido puede solicitarse un anticipo, que se descuenta de la factura final.'],
+        ['icon' => 'award', 'tone' => 'navy', 'title' => 'Personal colaborador', 'text' => 'Determinados trabajos pueden ejecutarse por personal colaborador bajo supervisión del emisor.'],
     ];
 @endphp
 <!DOCTYPE html>
@@ -66,22 +81,22 @@
                         @if($intervention?->hasEquipmentData())
                             <dl style="margin:0">
                                 @if($intervention->equipment_type)
-                                    <div class="kv"><dt>Equipo</dt><dd>{{ $intervention->equipment_type }}</dd></div>
+                                    <div class="kv"><dt>Equipo:</dt><dd>{{ $intervention->equipment_type }}</dd></div>
                                 @endif
                                 {{-- Fabricante siempre visible: forma parte de la ficha del
                                      equipo aunque todavia no se haya rellenado. --}}
-                                <div class="kv"><dt>Fabricante</dt><dd>{{ $intervention->equipment_brand ?: '—' }}</dd></div>
+                                <div class="kv"><dt>Fabricante:</dt><dd>{{ $intervention->equipment_brand ?: '—' }}</dd></div>
                                 @if($intervention->equipment_model)
-                                    <div class="kv"><dt>Modelo</dt><dd>{{ $intervention->equipment_model }}</dd></div>
+                                    <div class="kv"><dt>Modelo:</dt><dd>{{ $intervention->equipment_model }}</dd></div>
                                 @endif
                                 @if($intervention->equipment_serial)
-                                    <div class="kv"><dt>Nº de serie</dt><dd>{{ $intervention->equipment_serial }}</dd></div>
+                                    <div class="kv"><dt>Nº de serie:</dt><dd>{{ $intervention->equipment_serial }}</dd></div>
                                 @endif
                                 @if($intervention->equipment_location)
-                                    <div class="kv"><dt>Ubicación</dt><dd>{{ $intervention->equipment_location }}</dd></div>
+                                    <div class="kv"><dt>Ubicación:</dt><dd>{{ $intervention->equipment_location }}</dd></div>
                                 @endif
                                 @if($intervention->units_indoor !== null || $intervention->units_outdoor !== null)
-                                    <div class="kv"><dt>Nº de unidades</dt><dd>
+                                    <div class="kv"><dt>Nº de unidades:</dt><dd>
                                         @if($intervention->units_indoor !== null)Interior: {{ $intervention->units_indoor }}@endif
                                         @if($intervention->units_indoor !== null && $intervention->units_outdoor !== null) &middot; @endif
                                         @if($intervention->units_outdoor !== null)Exterior: {{ $intervention->units_outdoor }}@endif
@@ -101,11 +116,11 @@
                     </div>
                     <div class="card-body">
                         <dl style="margin:0">
-                            <div class="kv"><dt>Fecha de emisión</dt><dd>{{ $invoice->invoice_date?->format('d/m/Y') ?: '-' }}</dd></div>
-                            <div class="kv"><dt>Fecha de vencimiento</dt><dd>{{ $invoice->due_date?->format('d/m/Y') ?: '-' }}</dd></div>
-                            <div class="kv"><dt>Forma de pago</dt><dd>Transferencia bancaria</dd></div>
+                            <div class="kv"><dt>Fecha de emisión:</dt><dd>{{ $invoice->invoice_date?->format('d/m/Y') ?: '-' }}</dd></div>
+                            <div class="kv"><dt>Fecha de vencimiento:</dt><dd>{{ $invoice->due_date?->format('d/m/Y') ?: '-' }}</dd></div>
+                            <div class="kv"><dt>Forma de pago:</dt><dd>Transferencia bancaria</dd></div>
                             {{-- El estado va como texto simple, nunca como bloque destacado. --}}
-                            <div class="kv"><dt>Estado de la factura</dt><dd class="{{ $isPaid ? 'paid' : 'strong' }}">{{ mb_strtoupper($statusLabel) }}</dd></div>
+                            <div class="kv"><dt>Estado de la factura:</dt><dd class="{{ $isPaid ? 'paid' : 'strong' }}">{{ mb_strtoupper($statusLabel) }}</dd></div>
                             {{-- El tecnico asignado se guarda pero no se imprime todavia. --}}
                         </dl>
                     </div>
@@ -156,8 +171,8 @@
                                 <div class="kv"><dt>Base imponible:</dt><dd>{{ $money->format($invoice->taxableBaseOrSubtotal(), $currency) }}</dd></div>
                                 <div class="kv"><dt>{{ $ctx->taxLabel }}:</dt><dd>{{ $money->format($invoice->tax_total, $currency) }}</dd></div>
                                 @if((float) $invoice->amount_received > 0)
-                                    <div class="kv"><dt>Importe recibido</dt><dd>{{ $money->format($invoice->amount_received, $currency) }}</dd></div>
-                                    <div class="kv"><dt>Balance pendiente</dt><dd class="strong">{{ $money->format($invoice->balance_due, $currency) }}</dd></div>
+                                    <div class="kv"><dt>Importe recibido:</dt><dd>{{ $money->format($invoice->amount_received, $currency) }}</dd></div>
+                                    <div class="kv"><dt>Balance pendiente:</dt><dd class="strong">{{ $money->format($invoice->balance_due, $currency) }}</dd></div>
                                 @endif
                             </dl>
                             <div class="totals-highlight single">

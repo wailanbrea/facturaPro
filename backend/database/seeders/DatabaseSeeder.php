@@ -245,7 +245,10 @@ class DatabaseSeeder extends Seeder
             [
                 'legal_footer' => 'La firma, aceptacion digital o pago del servicio confirma la conformidad del trabajo realizado. La garantia cubre exclusivamente la reparacion realizada y las piezas sustituidas, excluyendo averias derivadas de manipulacion externa, mal uso o desgaste natural.',
                 'warranty_text' => 'La garantia aplica segun las condiciones indicadas en esta factura.',
-                'conformity_text' => 'CONFORMIDAD DEL CLIENTE',
+                // En la plantilla antigua este campo era un titulo ("CONFORMIDAD
+                // DEL CLIENTE"). En el diseno nuevo es el cuerpo del recuadro
+                // "Aceptacion de la intervencion", asi que necesita el parrafo.
+                'conformity_text' => 'La presente factura acredita los trabajos efectuados y el material suministrado. El pago de la factura constituye la aceptación de los servicios prestados.',
                 'client_copy_text' => 'ORIGINAL: CLIENTE',
                 'seller_copy_text' => 'COPIA: VENDEDOR',
                 'is_default' => true,

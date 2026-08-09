@@ -93,24 +93,27 @@
         font-weight: 800;
     }
 
+    /* Los sellos ocupan toda la altura del logo para que la banda superior no
+       quede medio vacia; por eso min-height y align-content en vez de padding. */
     .trust-badges {
         display: grid;
         grid-template-columns: repeat(4, 1fr);
-        gap: 2mm;
-        padding-top: 3mm;
+        gap: 3mm 2.4mm;
+        min-height: 23mm;
+        align-content: center;
     }
 
     .badge {
         display: flex;
         align-items: center;
-        gap: 1.4mm;
+        gap: 1.8mm;
         color: var(--navy);
     }
 
     .badge-text {
-        font-size: 5.3pt;
+        font-size: 6.5pt;
         font-weight: 700;
-        line-height: 1.2;
+        line-height: 1.25;
         text-transform: uppercase;
         letter-spacing: .01em;
         color: var(--muted);
@@ -249,7 +252,12 @@
     .hl.green .hl-value { font-size: 9.6pt; }
 
     /* --------------------------- Zona de trabajo ----------------------- */
-    .work-row { display: grid; gap: 3mm; flex: 1; min-height: 0; align-items: start; }
+    /* Sin `flex: 1`: la zona de trabajo ocupa solo lo que necesita y los
+       recuadros inferiores suben detras de ella. Con `flex: 1` se estiraba
+       hasta el pie y en un documento de pocas lineas dejaba medio folio en
+       blanco en el centro. Sigue pudiendo encoger (`0 1 auto` + min-height)
+       para que una tabla llena no desborde la hoja. */
+    .work-row { display: grid; gap: 3mm; flex: 0 1 auto; min-height: 0; align-items: start; }
     .work-row.with-aside { grid-template-columns: minmax(0, 1fr) 62mm; }
     .work-row.with-two-asides { grid-template-columns: minmax(0, 1fr) 52mm 58mm; }
     .work-row.full { grid-template-columns: minmax(0, 1fr); }
@@ -352,18 +360,24 @@
         align-self: flex-start;
     }
 
+    /* Igual que la zona de trabajo de la primera hoja: el contenido se apoya
+       arriba y el blanco sobrante queda al final. Los bloques van mas grandes
+       que en el diseno original para llenar mejor el folio. */
     .legal-grid {
         display: grid;
         grid-template-columns: repeat(5, 1fr);
-        gap: 5mm 6mm;
-        margin-top: 4mm;
+        gap: 7mm 6mm;
+        margin-top: 5mm;
+        flex: 0 1 auto;
+        min-height: 0;
+        align-content: start;
     }
 
-    .legal-item { display: grid; grid-template-columns: 11mm minmax(0, 1fr); gap: 2.6mm; align-items: start; }
+    .legal-item { display: grid; grid-template-columns: 13mm minmax(0, 1fr); gap: 2.8mm; align-items: start; }
 
     .legal-ico {
-        width: 11mm;
-        height: 11mm;
+        width: 13mm;
+        height: 13mm;
         border-radius: 50%;
         border: 0.4mm solid currentColor;
         display: flex;
@@ -374,8 +388,8 @@
     .legal-ico.navy { color: var(--navy); }
     .legal-ico.accent { color: var(--accent); }
 
-    .legal-title { font-size: 7pt; font-weight: 800; text-transform: uppercase; color: var(--navy); margin-bottom: 1.1mm; }
-    .legal-text { color: var(--ink); line-height: 1.35; }
+    .legal-title { font-size: 8pt; font-weight: 800; text-transform: uppercase; color: var(--navy); margin-bottom: 1.3mm; }
+    .legal-text { font-size: 7.8pt; color: var(--ink); line-height: 1.4; }
 
     .eco-note {
         margin-top: auto;

@@ -59,15 +59,15 @@
                 </div>
                 <div class="field">
                     <label>Telefono</label>
-                    <input name="client_phone" id="client-phone-input" value="{{ old('client_phone') }}" maxlength="255">
+                    <input name="client_phone" id="client-phone-input" value="{{ old('client_phone', $invoice->client_phone) }}" maxlength="255">
                 </div>
                 <div class="field">
                     <label>Correo</label>
-                    <input name="client_email" id="client-email-input" type="email" value="{{ old('client_email') }}" maxlength="255">
+                    <input name="client_email" id="client-email-input" type="email" value="{{ old('client_email', $invoice->client_email) }}" maxlength="255">
                 </div>
                 <div class="field">
                     <label>Ciudad</label>
-                    <input name="client_city" id="client-city-input" value="{{ old('client_city') }}" maxlength="255">
+                    <input name="client_city" id="client-city-input" value="{{ old('client_city', $invoice->client_city) }}" maxlength="255">
                 </div>
                 <div class="field span-2">
                     <label>Direccion</label>
@@ -178,7 +178,7 @@
                     <div class="actions" style="justify-content:space-between;align-items:center;margin:0">
                         <div>
                             <strong>Textos de factura</strong>
-                            <p class="muted" style="margin:4px 0 0;font-size:12px">Texto legal y texto de conformidad estan bloqueados por defecto.</p>
+                            <p class="muted" style="margin:4px 0 0;font-size:12px">Texto legal, texto de conformidad y observaciones estan bloqueados por defecto.</p>
                         </div>
                         <button class="btn" id="enable-legal-texts-btn" type="button">{{ $legalTextsEditable ? 'Edicion habilitada' : 'Habilitar edicion' }}</button>
                     </div>
@@ -199,13 +199,22 @@
                     </label>
                     <textarea name="legal_text" data-legal-text-field @readonly(! $legalTextsEditable) @if(! $legalTextsEditable) style="background:#f3f2fe;cursor:not-allowed" @endif>{{ old('legal_text', $invoice->legal_text) }}</textarea>
                 </div>
+                @php
+                    // Dos candados distintos: el del administrador es firme y el
+                    // boton no lo abre; el del boton solo evita el borrado por error.
+                    $observationsAdminLocked = in_array('observations', $lockedFields, true);
+                    $observationsLocked = $observationsAdminLocked || ! $legalTextsEditable;
+                    // Compuesto aparte para que el atributo condicional no deje
+                    // espacios sueltos en el HTML.
+                    $observationsAttrs = 'data-legal-text-field'.($observationsAdminLocked ? ' data-admin-locked' : '');
+                @endphp
                 <div class="field span-2">
                     <label>Observaciones
-                        @if(in_array('observations', $lockedFields, true))
+                        @if($observationsAdminLocked)
                             <span class="text-on-surface-variant font-normal">🔒 Bloqueado por administración</span>
                         @endif
                     </label>
-                    <textarea name="observations" @readonly(in_array('observations', $lockedFields, true)) @if(in_array('observations', $lockedFields, true)) style="background:#f3f2fe;cursor:not-allowed" @endif>{{ old('observations', $invoice->observations) }}</textarea>
+                    <textarea name="observations" {!! $observationsAttrs !!} @readonly($observationsLocked) @if($observationsLocked) style="background:#f3f2fe;cursor:not-allowed" @endif>{{ old('observations', $invoice->observations) }}</textarea>
                 </div>
             </div>
         </section>
@@ -348,6 +357,11 @@ syncDocumentTypeFields();
         }
 
         fields.forEach(field => {
+            // Lo bloqueado por administracion no lo abre este boton.
+            if (field.hasAttribute('data-admin-locked')) {
+                return;
+            }
+
             field.readOnly = !enabled;
             field.style.background = enabled ? '' : '#f3f2fe';
             field.style.cursor = enabled ? '' : 'not-allowed';

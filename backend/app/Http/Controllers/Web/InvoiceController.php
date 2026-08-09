@@ -377,6 +377,8 @@ class InvoiceController extends Controller
                 'client_tax_id' => $invoice->client_tax_id,
                 'client_address' => $invoice->client_address,
                 'client_city' => $invoice->client_city,
+                'client_email' => $invoice->client_email,
+                'client_phone' => $invoice->client_phone,
                 'currency_id' => $invoice->currency_id,
                 'currency_code' => $invoice->currency_code,
                 'currency_symbol' => $invoice->currency_symbol,
@@ -651,6 +653,8 @@ class InvoiceController extends Controller
             'client_tax_id' => $client->tax_id,
             'client_address' => $client->address,
             'client_city' => $client->city,
+            'client_email' => $client->email,
+            'client_phone' => $client->phone,
             'currency_id' => $currency->id,
             'currency_code' => $currency->code,
             'currency_symbol' => $currency->symbol,
@@ -671,7 +675,9 @@ class InvoiceController extends Controller
             'warranty_text' => $warranty?->full_text,
             'legal_text' => $data['legal_text'] ?? $invoice?->legal_text ?? $this->defaultLegalFooter(),
             'conformity_text' => $data['conformity_text'] ?? $invoice?->conformity_text ?? $this->defaultConformityText(),
-            'observations' => $data['observations'] ?? null,
+            // Igual que los textos legales: si viene bloqueada, se conserva la
+            // que ya tenia el documento en vez de vaciarla.
+            'observations' => $data['observations'] ?? $invoice?->observations,
             'amount_received' => $this->amountReceivedForDocument($data['document_type'], $data['amount_received'] ?? 0),
             'status' => $invoice?->status ?? InvoiceStatusService::DRAFT,
             'prepared_by' => $data['prepared_by'] ?? null,
@@ -777,12 +783,17 @@ class InvoiceController extends Controller
      */
     private function stripLockedFields(array $data): array
     {
+        // Sin pulsar "Habilitar edicion" los tres textos conservan el valor que
+        // ya tenian. Observaciones entra aqui porque el cliente pidio que no se
+        // pudiera alterar ni borrar por error, pero si se pueda desbloquear.
         if (! (bool) ($data['edit_legal_texts'] ?? false)) {
-            unset($data['legal_text'], $data['conformity_text']);
+            unset($data['legal_text'], $data['conformity_text'], $data['observations']);
         }
 
         unset($data['edit_legal_texts']);
 
+        // El bloqueo administrativo pesa mas que el boton: si un campo esta
+        // marcado en Campos bloqueados, el boton no lo desbloquea.
         foreach ($this->lockedFieldsForUser() as $field) {
             if (in_array($field, ['legal_text', 'conformity_text'], true)) {
                 continue;

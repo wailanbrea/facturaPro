@@ -35,3 +35,6 @@ android/.cxx/
 
 # Playwright MCP artifacts
 .playwright-mcp/
+
+# Salida de graphify: se regenera desde el codigo, no se versiona
+graphify-out/

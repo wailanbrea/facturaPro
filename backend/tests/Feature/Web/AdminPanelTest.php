@@ -616,6 +616,61 @@ class AdminPanelTest extends TestCase
         $this->assertSame('CONFORMIDAD CAMBIADA', $invoice->conformity_text);
     }
 
+    /**
+     * Observaciones va con el mismo candado blando que los textos legales: el
+     * cliente pidió que no se pudiera borrar por error, pero que se pueda
+     * desbloquear a voluntad.
+     */
+    public function test_observations_need_the_unlock_button_before_they_can_change(): void
+    {
+        $this->seed();
+        $this->actingAs(User::query()->firstOrFail());
+
+        $client = Client::query()->create(['name' => 'Cliente Observaciones']);
+        $currency = Currency::query()->where('code', 'EUR')->firstOrFail();
+        $term = PaymentTerm::query()->where('name', 'AL CONTADO')->firstOrFail();
+        $tax = Tax::query()->where('name', 'IVA 21%')->firstOrFail();
+        $warranty = Warranty::query()->where('is_default', true)->firstOrFail();
+        $profile = FiscalProfile::query()->firstOrFail();
+
+        $base = [
+            'document_type' => 'quotation',
+            'invoice_date' => '2026-08-08',
+            'payment_term_id' => $term->id,
+            'client_id' => $client->id,
+            'currency_id' => $currency->id,
+            'fiscal_profile_id' => $profile->id,
+            'warranty_id' => $warranty->id,
+            'amount_received' => 0,
+            'items' => [
+                ['description' => 'Servicio', 'quantity' => 1, 'unit_cost' => 100, 'tax_id' => $tax->id],
+            ],
+        ];
+
+        $this->post('/invoices', [...$base, 'observations' => 'ORIGINAL', 'edit_legal_texts' => 1]);
+
+        $invoice = Invoice::query()->firstOrFail();
+        $this->assertSame('ORIGINAL', $invoice->observations);
+
+        // El formulario la pinta bloqueada y dentro del panel de desbloqueo.
+        $this->get(route('web.invoices.edit', $invoice))
+            ->assertOk()
+            ->assertSee('Texto legal, texto de conformidad y observaciones estan bloqueados por defecto.')
+            ->assertSee('name="observations" data-legal-text-field readonly', false);
+
+        // Sin pulsar el boton, no se toca.
+        $this->put(route('web.invoices.update', $invoice), [...$base, 'observations' => 'BORRADA POR ERROR', 'edit_legal_texts' => 0])
+            ->assertRedirect(route('web.invoices.show', $invoice));
+
+        $this->assertSame('ORIGINAL', $invoice->refresh()->observations);
+
+        // Con el boton pulsado, si.
+        $this->put(route('web.invoices.update', $invoice), [...$base, 'observations' => 'CAMBIADA A PROPOSITO', 'edit_legal_texts' => 1])
+            ->assertRedirect(route('web.invoices.show', $invoice));
+
+        $this->assertSame('CAMBIADA A PROPOSITO', $invoice->refresh()->observations);
+    }
+
     public function test_issued_invoice_cannot_be_edited_from_web(): void
     {
         $this->seed();
@@ -751,6 +806,72 @@ class AdminPanelTest extends TestCase
         $this->assertNotSame($deletedPath, $profile->logo_path);
         $this->assertTrue($profile->logos->contains('path', $profile->logo_path));
         Storage::disk('public')->assertMissing($deletedPath);
+    }
+
+    /**
+     * El catalogo de numeracion quedo apuntando a user_id y logo_path despues
+     * de que la migracion 2026_07_21 eliminara esas columnas. Este test cubre
+     * el alta de una segunda serie por perfil fiscal, que es justo lo que hace
+     * falta para tener numeraciones independientes por empresa.
+     */
+    public function test_numbering_catalog_creates_one_sequence_per_fiscal_profile(): void
+    {
+        $this->seed();
+        $this->actingAs(User::query()->firstOrFail());
+
+        $this->get(route('web.settings.catalog.create', 'invoice-number'))
+            ->assertOk()
+            ->assertDontSee('name="user_id"', false)
+            ->assertDontSee('name="logo_path"', false);
+
+        $profile = FiscalProfile::query()->create([
+            'name' => 'PAMELA DEMO',
+            'tax_id' => 'X0000000X',
+            'address' => 'Calle Demo 1',
+            'city' => 'Barcelona',
+            'is_default' => false,
+            'is_active' => true,
+        ]);
+
+        $this->post(route('web.settings.catalog.store', 'invoice-number'), [
+            'fiscal_profile_id' => $profile->id,
+            'document_type' => 'invoice',
+            'prefix' => 'PAM',
+            'next_number' => '1250',
+            'number_length' => '6',
+            'serie' => 'A',
+        ])->assertRedirect(route('web.settings.catalog.index', 'invoice-number'));
+
+        $this->assertDatabaseHas('invoice_number_settings', [
+            'fiscal_profile_id' => $profile->id,
+            'document_type' => 'invoice',
+            'prefix' => 'PAM',
+            'next_number' => 1250,
+        ]);
+
+        // La misma empresa puede tener ademas su propia serie de presupuestos.
+        $this->post(route('web.settings.catalog.store', 'invoice-number'), [
+            'fiscal_profile_id' => $profile->id,
+            'document_type' => 'quotation',
+            'prefix' => 'PAM-PRE',
+            'next_number' => '1',
+            'number_length' => '6',
+        ])->assertRedirect(route('web.settings.catalog.index', 'invoice-number'));
+
+        // Pero no dos secuencias del mismo tipo para la misma empresa.
+        $this->from(route('web.settings.catalog.create', 'invoice-number'))
+            ->post(route('web.settings.catalog.store', 'invoice-number'), [
+                'fiscal_profile_id' => $profile->id,
+                'document_type' => 'invoice',
+                'prefix' => 'OTRO',
+                'next_number' => '1',
+                'number_length' => '6',
+            ])->assertSessionHasErrors('document_type');
+
+        $this->assertSame(
+            2,
+            InvoiceNumberSetting::query()->where('fiscal_profile_id', $profile->id)->count(),
+        );
     }
 
     public function test_authenticated_user_can_manage_users_and_roles(): void

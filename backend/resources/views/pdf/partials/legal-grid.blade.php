@@ -9,7 +9,7 @@
     @foreach($blocks as $index => $block)
         <div class="legal-item">
             <div class="legal-ico {{ $block['tone'] ?? 'navy' }}">
-                <x-pdf-icon :name="$block['icon']" :size="15" />
+                <x-pdf-icon :name="$block['icon']" :size="18" />
             </div>
             <div>
                 <div class="legal-title">{{ $index + 1 }}. {{ $block['title'] }}</div>
