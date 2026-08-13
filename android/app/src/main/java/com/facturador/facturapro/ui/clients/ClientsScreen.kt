@@ -196,7 +196,7 @@ private fun ClientCard(client: ClientRecord, onClick: () -> Unit) {
                         fontWeight = FontWeight.Bold,
                         color = MaterialTheme.colorScheme.onSurface,
                     )
-                    val sub = client.taxId?.takeIf { it.isNotBlank() }?.let { "RNC · $it" }
+                    val sub = client.taxId?.takeIf { it.isNotBlank() }?.let { "NIF / CIF · $it" }
                         ?: client.email?.takeIf { it.isNotBlank() }
                         ?: client.phone?.takeIf { it.isNotBlank() }
                     if (sub != null) {
@@ -277,7 +277,7 @@ private fun ClientSearchField(
             onValueChange = onChange,
             placeholder = {
                 Text(
-                    text = "Buscar por nombre, email o RNC",
+                    text = "Buscar por nombre, email o NIF / CIF",
                     style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.8f),
                 )
@@ -371,7 +371,7 @@ private fun ClientFormScreen(
                 FormTextField(
                     value = taxId,
                     onValueChange = { taxId = it },
-                    label = "RNC / Cédula",
+                    label = "NIF / CIF",
                     icon = Icons.Outlined.Badge,
                 )
             }

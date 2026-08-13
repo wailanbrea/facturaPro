@@ -65,6 +65,7 @@ data class FiscalProfileLogoCatalogItem(
 data class BankAccountCatalogItem(
     val id: Long,
     val name: String,
+    val accountHolder: String,
     val accountType: String,
     val isDefault: Boolean,
 )

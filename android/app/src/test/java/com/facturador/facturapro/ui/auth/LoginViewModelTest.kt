@@ -138,7 +138,7 @@ private fun sampleBootstrap(): BootstrapCatalogs = BootstrapCatalogs(
     taxes = listOf(TaxCatalogItem(id = 1, name = "ITBIS 18%", rate = "18.0000", isDefault = true)),
     paymentTerms = listOf(PaymentTermCatalogItem(id = 1, name = "AL CONTADO", days = 0, isDefault = true)),
     warranties = listOf(WarrantyCatalogItem(id = 1, title = "Garantia base", durationMonths = 1, isDefault = true)),
-    bankAccounts = listOf(BankAccountCatalogItem(id = 1, name = "Cuenta principal", accountType = "official", isDefault = true)),
+    bankAccounts = listOf(BankAccountCatalogItem(id = 1, name = "Cuenta principal", accountHolder = "Titular prueba", accountType = "official", isDefault = true)),
     fiscalProfiles = listOf(
         FiscalProfileCatalogItem(
             id = 1,

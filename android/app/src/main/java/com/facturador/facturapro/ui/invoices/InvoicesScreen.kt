@@ -1519,7 +1519,17 @@ private fun InvoiceFormPane(
                 label = "Cuenta bancaria",
                 options = bootstrap.bankAccounts,
                 selectedId = selectedBankAccountId,
-                optionLabel = { "${if (it.accountType == "unofficial") "No oficial" else "Oficial"} - ${it.name}" },
+                optionLabel = {
+                    buildString {
+                        append(if (it.accountType == "unofficial") "No oficial" else "Oficial")
+                        append(" - ")
+                        append(it.name)
+                        if (it.accountHolder.isNotBlank()) {
+                            append(" - Titular: ")
+                            append(it.accountHolder)
+                        }
+                    }
+                },
                 onSelected = { selectedBankAccountId = it },
                 allowEmpty = true,
             )

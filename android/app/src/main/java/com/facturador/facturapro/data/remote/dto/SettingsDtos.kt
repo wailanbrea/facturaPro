@@ -69,6 +69,8 @@ data class NamedDto(
     val id: Long,
     val name: String? = null,
     val label: String? = null,
+    @SerializedName("account_holder")
+    val accountHolder: String? = null,
     @SerializedName("account_type")
     val accountType: String? = null,
     @SerializedName("is_default")
@@ -159,6 +161,7 @@ fun BootstrapDto.toDomain(): BootstrapCatalogs = BootstrapCatalogs(
         BankAccountCatalogItem(
             id = it.id,
             name = it.label ?: it.name.orEmpty(),
+            accountHolder = it.accountHolder.orEmpty(),
             accountType = it.accountType ?: "official",
             isDefault = it.isDefault,
         )
