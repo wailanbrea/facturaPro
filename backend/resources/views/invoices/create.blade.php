@@ -54,7 +54,7 @@
                     <input name="client_name" id="client-name-input" value="{{ old('client_name', $invoice->client_name) }}" maxlength="255">
                 </div>
                 <div class="field">
-                    <label>RNC / cedula</label>
+                    <label>NIF / CIF</label>
                     <input name="client_tax_id" id="client-tax-id-input" value="{{ old('client_tax_id', $invoice->client_tax_id) }}" maxlength="255">
                 </div>
                 <div class="field">

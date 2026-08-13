@@ -16,6 +16,9 @@
             @if($account?->bank_name)
                 <br>{{ $account->bank_name }}
             @endif
+            @if($account?->account_holder)
+                <br>Titular: {{ $account->account_holder }}
+            @endif
             @if($account?->iban)
                 <br><span class="iban">{{ $account->iban }}</span>
             @elseif($account?->account_number)
