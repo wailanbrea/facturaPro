@@ -28,6 +28,12 @@ data class InvoiceDto(
     val clientTaxId: String? = null,
     @SerializedName("client_address")
     val clientAddress: String? = null,
+    @SerializedName("client_city")
+    val clientCity: String? = null,
+    @SerializedName("client_phone")
+    val clientPhone: String? = null,
+    @SerializedName("client_email")
+    val clientEmail: String? = null,
     @SerializedName("currency_id")
     val currencyId: Long,
     @SerializedName("currency_code")
@@ -220,6 +226,9 @@ fun InvoiceDto.toDetail(): InvoiceDetail = InvoiceDetail(
     clientName = clientName,
     clientTaxId = clientTaxId,
     clientAddress = clientAddress,
+    clientCity = clientCity,
+    clientPhone = clientPhone,
+    clientEmail = clientEmail,
     currencyId = currencyId,
     currencyCode = currencyCode,
     currencySymbol = currencySymbol,

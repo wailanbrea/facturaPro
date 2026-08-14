@@ -144,6 +144,9 @@ interface FacturaProApi {
     @POST("invoices/{invoice}/issue")
     suspend fun issueInvoice(@Path("invoice") invoiceId: Long): SingleDataResponseDto<InvoiceDto>
 
+    @POST("invoices/{invoice}/cancel")
+    suspend fun cancelInvoice(@Path("invoice") invoiceId: Long): SingleDataResponseDto<InvoiceDto>
+
     @POST("invoices/{invoice}/generate-pdf")
     suspend fun generateInvoicePdf(@Path("invoice") invoiceId: Long): PdfGenerationResponseDto
 

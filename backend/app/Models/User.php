@@ -116,6 +116,12 @@ class User extends Authenticatable
         return array_intersect($permissions, $this->permissionSlugs()) !== [];
     }
 
+    /** @return array<int, string> */
+    public function grantedPermissions(): array
+    {
+        return $this->permissionSlugs();
+    }
+
     /**
      * Distinct permission slugs granted through the user's active roles.
      *

@@ -330,7 +330,18 @@ El endpoint de bootstrap entrega catalogos, perfiles, logos y previsualizaciones
 GET /api/settings/bootstrap
 ```
 
-La app debe enviar `logo_path` al crear o actualizar facturas, presupuestos e informes.
+El bootstrap tambien entrega los permisos efectivos del usuario y los campos de
+factura bloqueados. Android usa esos datos para mostrar solamente los modulos y
+acciones autorizados, igual que el panel web.
+
+La aplicacion movil cubre el flujo operativo de clientes, calendario, reportes
+financieros, informes tecnicos, facturas y presupuestos. En documentos permite
+crear, editar, emitir, anular, convertir presupuestos, registrar pagos, generar,
+visualizar, imprimir y compartir PDF, ademas de verificar el QR.
+
+Los catalogos, perfiles fiscales, numeraciones, usuarios, roles y auditoria se
+administran en el panel web. Android consume esa configuracion central y debe
+enviar `logo_path` al crear o actualizar facturas, presupuestos e informes.
 
 ## Comandos de Mantenimiento
 

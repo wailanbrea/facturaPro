@@ -7,6 +7,29 @@ use App\Models\Client;
 class InvoiceClientResolver
 {
     /**
+     * Build the immutable client snapshot stored on a document.
+     *
+     * A linked client remains the owner of the master record, but Web and
+     * Android may adjust contact data for one specific invoice/quotation.
+     * Explicit request values therefore win without modifying the client.
+     *
+     * @param  array<string, mixed>  $data
+     * @return array<string, mixed>
+     */
+    public function snapshot(Client $client, array $data): array
+    {
+        return [
+            'client_id' => $client->id,
+            'client_name' => filled($data['client_name'] ?? null) ? trim((string) $data['client_name']) : $client->name,
+            'client_tax_id' => array_key_exists('client_tax_id', $data) ? $this->nullableString($data['client_tax_id']) : $client->tax_id,
+            'client_address' => array_key_exists('client_address', $data) ? $this->nullableString($data['client_address']) : $client->address,
+            'client_city' => array_key_exists('client_city', $data) ? $this->nullableString($data['client_city']) : $client->city,
+            'client_phone' => array_key_exists('client_phone', $data) ? $this->nullableString($data['client_phone']) : $client->phone,
+            'client_email' => array_key_exists('client_email', $data) ? $this->nullableString($data['client_email']) : $client->email,
+        ];
+    }
+
+    /**
      * @param  array<string, mixed>  $data
      */
     public function resolve(array $data, bool $persist = true): Client

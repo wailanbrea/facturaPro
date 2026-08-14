@@ -27,7 +27,7 @@ class AuthApiTest extends TestCase
         ]);
 
         $login->assertOk()
-            ->assertJsonStructure(['access_token', 'token_type', 'user' => ['id', 'name', 'email']]);
+            ->assertJsonStructure(['access_token', 'token_type', 'user' => ['id', 'name', 'email', 'permissions']]);
 
         $this->withHeader('Authorization', 'Bearer '.$login->json('access_token'))
             ->getJson('/api/me')

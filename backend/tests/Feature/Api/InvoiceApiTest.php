@@ -106,6 +106,37 @@ class InvoiceApiTest extends TestCase
         ]);
     }
 
+    public function test_linked_client_can_have_document_specific_contact_snapshot(): void
+    {
+        $payload = $this->invoicePayload();
+        $client = Client::query()->findOrFail($payload['client_id']);
+        $originalEmail = $client->email;
+
+        $response = $this->postJson('/api/invoices', [...$payload,
+            'client_id' => $client->id,
+            'client_name' => 'Nombre solo para este documento',
+            'client_tax_id' => 'SNAPSHOT-NIF',
+            'client_address' => 'Direccion de intervencion 42',
+            'client_city' => 'Barcelona',
+            'client_phone' => '+34 600 111 222',
+            'client_email' => 'snapshot@example.com',
+        ]);
+
+        $response->assertCreated()
+            ->assertJsonPath('data.client_id', $client->id)
+            ->assertJsonPath('data.client_name', 'Nombre solo para este documento')
+            ->assertJsonPath('data.client_city', 'Barcelona')
+            ->assertJsonPath('data.client_phone', '+34 600 111 222')
+            ->assertJsonPath('data.client_email', 'snapshot@example.com');
+
+        $this->assertDatabaseHas('invoices', [
+            'id' => $response->json('data.id'),
+            'client_id' => $client->id,
+            'client_email' => 'snapshot@example.com',
+        ]);
+        $this->assertSame($originalEmail, $client->fresh()->email);
+    }
+
     public function test_invoice_index_filters_by_document_type_and_fiscal_profile(): void
     {
         $profile = FiscalProfile::query()->firstOrFail();

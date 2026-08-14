@@ -208,6 +208,31 @@ class InvoicesViewModel(
         }
     }
 
+    fun cancelSelectedInvoice() {
+        val invoiceId = _uiState.value.selectedInvoice?.id ?: return
+
+        viewModelScope.launch {
+            _uiState.update { it.copy(isSaving = true, errorMessage = null) }
+            repository.cancel(invoiceId).fold(
+                onSuccess = { invoice ->
+                    _uiState.update {
+                        it.copy(
+                            isSaving = false,
+                            selectedInvoice = invoice,
+                            invoices = (it.invoices.filterNot { summary -> summary.id == invoice.id } + invoice.toSummary())
+                                .sortedByDescending { summary -> summary.invoiceDate },
+                        )
+                    }
+                },
+                onFailure = { error ->
+                    _uiState.update {
+                        it.copy(isSaving = false, errorMessage = error.message ?: "No se pudo anular el documento.")
+                    }
+                },
+            )
+        }
+    }
+
     fun convertSelectedQuotation() {
         val invoiceId = _uiState.value.selectedInvoice?.id ?: return
 

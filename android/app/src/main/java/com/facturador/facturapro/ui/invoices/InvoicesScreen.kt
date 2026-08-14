@@ -114,6 +114,7 @@ fun InvoicesScreen(
     state: InvoicesUiState,
     clients: List<ClientRecord>,
     bootstrap: BootstrapCatalogs?,
+    permissions: Set<String>,
     openCreateRequest: Int,
     openInvoiceRequest: Int,
     requestedInvoiceId: Long?,
@@ -127,6 +128,7 @@ fun InvoicesScreen(
     onCreateInvoice: (InvoiceDraft) -> Unit,
     onUpdateInvoice: (Long, InvoiceDraft) -> Unit,
     onIssueInvoice: () -> Unit,
+    onCancelInvoice: () -> Unit,
     onLoadPreview: () -> Unit,
     onLoadIssuePreview: () -> Unit,
     onLoadDraftPreview: (InvoiceDraft) -> Unit,
@@ -148,6 +150,7 @@ fun InvoicesScreen(
     var pane by rememberSaveable { mutableStateOf(InvoicePane.List) }
     var editingInvoiceId by rememberSaveable { mutableStateOf<Long?>(null) }
     var showPaymentDialog by remember { mutableStateOf(false) }
+    var showCancelDialog by remember { mutableStateOf(false) }
     var paymentAmount by remember { mutableStateOf("") }
     var paymentMethod by remember { mutableStateOf("efectivo") }
     var paymentReference by remember { mutableStateOf("") }
@@ -179,7 +182,7 @@ fun InvoicesScreen(
     }
 
     LaunchedEffect(openCreateRequest) {
-        if (openCreateRequest > 0) {
+        if (openCreateRequest > 0 && "crear_factura" in permissions) {
             pane = InvoicePane.Create
             editingInvoiceId = null
             onClearSelection()
@@ -257,7 +260,9 @@ fun InvoicesScreen(
             onEdit = {
                 pane = InvoicePane.Edit
             },
+            permissions = permissions,
             onIssueInvoice = onIssueInvoice,
+            onCancelInvoice = { showCancelDialog = true },
             onViewPdf = onViewPdf,
             onGeneratePdf = onGeneratePdf,
             onDownloadPdf = onDownloadPdf,
@@ -422,6 +427,23 @@ fun InvoicesScreen(
                     Text("Cancelar")
                 }
             }
+        )
+    }
+
+    if (showCancelDialog && state.selectedInvoice != null) {
+        AlertDialog(
+            onDismissRequest = { showCancelDialog = false },
+            title = { Text("Anular documento") },
+            text = { Text("El documento quedará anulado y no podrá utilizarse para cobros o conversiones.") },
+            confirmButton = {
+                Button(onClick = {
+                    showCancelDialog = false
+                    onCancelInvoice()
+                }) { Text("Anular") }
+            },
+            dismissButton = {
+                TextButton(onClick = { showCancelDialog = false }) { Text("Volver") }
+            },
         )
     }
 }
@@ -707,9 +729,11 @@ private fun SearchField(
 @Composable
 private fun InvoiceDetailPane(
     state: InvoicesUiState,
+    permissions: Set<String>,
     onBack: () -> Unit,
     onEdit: () -> Unit,
     onIssueInvoice: () -> Unit,
+    onCancelInvoice: () -> Unit,
     onViewPdf: () -> Unit,
     onGeneratePdf: () -> Unit,
     onDownloadPdf: () -> Unit,
@@ -734,7 +758,7 @@ private fun InvoiceDetailPane(
                 title = invoice?.invoiceNumber ?: if (invoice?.documentType == "quotation") "Presupuesto" else "Factura",
                 onBack = onBack,
                 trailing = {
-                    if (invoice?.status == "draft") {
+                    if (invoice?.status == "draft" && "editar_factura" in permissions) {
                         IconButton(onClick = onEdit, enabled = !state.isSaving) {
                             Icon(
                                 imageVector = Icons.Outlined.Edit,
@@ -762,7 +786,9 @@ private fun InvoiceDetailPane(
                 InvoiceActionRow(
                     invoice = invoice,
                     isSaving = state.isSaving,
+                    permissions = permissions,
                     onIssueInvoice = onIssueInvoice,
+                    onCancelInvoice = onCancelInvoice,
                     onViewPdf = onViewPdf,
                     onDownloadPdf = onDownloadPdf,
                     onPrintPdf = onPrintPdf,
@@ -791,7 +817,9 @@ private fun InvoiceDetailPane(
 private fun InvoiceActionRow(
     invoice: InvoiceDetail,
     isSaving: Boolean,
+    permissions: Set<String>,
     onIssueInvoice: () -> Unit,
+    onCancelInvoice: () -> Unit,
     onViewPdf: () -> Unit,
     onDownloadPdf: () -> Unit,
     onPrintPdf: () -> Unit,
@@ -803,7 +831,7 @@ private fun InvoiceActionRow(
     val documentName = if (invoice.documentType == "quotation") "presupuesto" else "factura"
 
     Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
-        if (invoice.status == "draft") {
+        if (invoice.status == "draft" && "emitir_factura" in permissions) {
             PrimaryButton(
                 text = "Emitir $documentName y ver PDF",
                 icon = Icons.Outlined.PictureAsPdf,
@@ -833,7 +861,7 @@ private fun InvoiceActionRow(
                     onClick = { onIssueAndPreparePdf(InvoicePdfAction.WhatsApp) },
                 )
             }
-        } else {
+        } else if (invoice.status != "draft" && "descargar_pdf" in permissions) {
             PrimaryButton(
                 text = "Ver PDF",
                 icon = Icons.Outlined.PictureAsPdf,
@@ -866,7 +894,7 @@ private fun InvoiceActionRow(
         }
 
         // Convert Quotation button
-        if (invoice.documentType == "quotation" && invoice.status != "draft" && invoice.status != "cancelled" && invoice.status != "converted") {
+        if ("crear_factura" in permissions && invoice.documentType == "quotation" && invoice.status != "draft" && invoice.status != "cancelled" && invoice.status != "converted") {
             PrimaryButton(
                 text = "Convertir a factura",
                 icon = Icons.Outlined.Assignment,
@@ -878,13 +906,23 @@ private fun InvoiceActionRow(
 
         // Register payment button
         val balanceDue = runCatching { invoice.balanceDue?.toDouble() ?: 0.0 }.getOrElse { 0.0 }
-        if (invoice.documentType == "invoice" && invoice.status != "cancelled" && balanceDue > 0.0) {
+        if ("registrar_pagos" in permissions && invoice.documentType == "invoice" && invoice.status != "cancelled" && balanceDue > 0.0) {
             PrimaryButton(
                 text = "Registrar Pago",
                 icon = Icons.Outlined.Assignment, // Use Assignment/Wallet or simple default icon
                 isBusy = isSaving,
                 onClick = onRegisterPayment,
                 modifier = Modifier.fillMaxWidth()
+            )
+        }
+
+
+        if ("anular_factura" in permissions && invoice.status != "cancelled" && invoice.status != "converted") {
+            SecondaryButton(
+                text = "Anular documento",
+                modifier = Modifier.fillMaxWidth(),
+                enabled = !isSaving,
+                onClick = onCancelInvoice,
             )
         }
     }
@@ -1274,6 +1312,15 @@ private fun InvoiceFormPane(
     var showPreview by rememberSaveable(formKey) { mutableStateOf(false) }
     val selectedProfile = bootstrap?.fiscalProfiles?.firstOrNull { it.id == selectedFiscalProfileId }
     val availableLogos = selectedProfile?.logos.orEmpty()
+    val availableBankAccounts = bootstrap?.bankAccounts.orEmpty().filter { account ->
+        account.fiscalProfileId == null || account.fiscalProfileId == selectedFiscalProfileId
+    }
+    val adminLockedFields = bootstrap?.lockedInvoiceFields.orEmpty()
+    val legalTextEditable = editLegalTexts && "legal_text" !in adminLockedFields
+    val conformityTextEditable = editLegalTexts && "conformity_text" !in adminLockedFields
+    val observationsEditable = editLegalTexts && "observations" !in adminLockedFields
+    val hasUnlockableText = listOf("legal_text", "conformity_text", "observations")
+        .any { it !in adminLockedFields }
     val nextNumberPreview = if (documentType == "quotation") selectedProfile?.nextQuotationNumber else selectedProfile?.nextInvoiceNumber
 
     LaunchedEffect(selectedFiscalProfileId, bootstrap) {
@@ -1285,6 +1332,11 @@ private fun InvoiceFormPane(
             selectedLogoPath = profileLogos.firstOrNull { it.isDefault }?.path
                 ?: profileLogos.firstOrNull()?.path
                 ?: profile?.logoPath
+        }
+
+        if (availableBankAccounts.none { it.id == selectedBankAccountId }) {
+            selectedBankAccountId = availableBankAccounts.firstOrNull { it.isDefault }?.id
+                ?: availableBankAccounts.firstOrNull()?.id
         }
     }
 
@@ -1407,8 +1459,7 @@ private fun InvoiceFormPane(
                 allowEmpty = true,
             )
         }
-        if (selectedClientId == null) {
-            item {
+        item {
                 OutlinedTextField(
                     value = clientName,
                     onValueChange = { clientName = it },
@@ -1416,17 +1467,17 @@ private fun InvoiceFormPane(
                     label = { Text("Cliente") },
                     singleLine = true,
                 )
-            }
-            item {
+        }
+        item {
                 OutlinedTextField(
                     value = clientTaxId,
                     onValueChange = { clientTaxId = it },
                     modifier = Modifier.fillMaxWidth(),
-                    label = { Text("Identificacion fiscal") },
+                    label = { Text("NIF / CIF") },
                     singleLine = true,
                 )
-            }
-            item {
+        }
+        item {
                 OutlinedTextField(
                     value = clientAddress,
                     onValueChange = { clientAddress = it },
@@ -1434,8 +1485,8 @@ private fun InvoiceFormPane(
                     label = { Text("Direccion") },
                     minLines = 2,
                 )
-            }
-            item {
+        }
+        item {
                 OutlinedTextField(
                     value = clientCity,
                     onValueChange = { clientCity = it },
@@ -1443,25 +1494,24 @@ private fun InvoiceFormPane(
                     label = { Text("Ciudad") },
                     singleLine = true,
                 )
-            }
-            item {
+        }
+        item {
                 OutlinedTextField(
                     value = clientPhone,
                     onValueChange = { clientPhone = it },
                     modifier = Modifier.fillMaxWidth(),
-                    label = { Text("Telefono") },
+                    label = { Text("Contacto") },
                     singleLine = true,
                 )
-            }
-            item {
+        }
+        item {
                 OutlinedTextField(
                     value = clientEmail,
                     onValueChange = { clientEmail = it },
                     modifier = Modifier.fillMaxWidth(),
-                    label = { Text("Email") },
+                    label = { Text("Correo") },
                     singleLine = true,
                 )
-            }
         }
         item {
             SelectorField(
@@ -1517,7 +1567,7 @@ private fun InvoiceFormPane(
         item {
             SelectorField(
                 label = "Cuenta bancaria",
-                options = bootstrap.bankAccounts,
+                options = availableBankAccounts,
                 selectedId = selectedBankAccountId,
                 optionLabel = {
                     buildString {
@@ -1555,17 +1605,23 @@ private fun InvoiceFormPane(
             ) {
                 Column(modifier = Modifier.weight(1f)) {
                     Text("Textos de factura", fontWeight = FontWeight.Bold, fontSize = 14.sp)
-                    Text("Texto legal y de conformidad están bloqueados por defecto.", fontSize = 11.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    Text("Texto legal, conformidad y observaciones están bloqueados por defecto.", fontSize = 11.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
                 }
                 Button(
                     onClick = { editLegalTexts = !editLegalTexts },
+                    enabled = hasUnlockableText,
                     colors = ButtonDefaults.buttonColors(
                         containerColor = if (editLegalTexts) MaterialTheme.colorScheme.secondaryContainer else MaterialTheme.colorScheme.primaryContainer,
                         contentColor = if (editLegalTexts) MaterialTheme.colorScheme.onSecondaryContainer else MaterialTheme.colorScheme.onPrimaryContainer
                     ),
                     modifier = Modifier.padding(start = 8.dp)
                 ) {
-                    Text(if (editLegalTexts) "Habilitado" else "Habilitar edición", fontSize = 12.sp)
+                    Text(
+                        if (!hasUnlockableText) "Bloqueado por configuración"
+                        else if (editLegalTexts) "Habilitado"
+                        else "Habilitar edición",
+                        fontSize = 12.sp,
+                    )
                 }
             }
         }
@@ -1575,8 +1631,8 @@ private fun InvoiceFormPane(
                 onValueChange = { legalText = it },
                 modifier = Modifier.fillMaxWidth(),
                 label = { Text("Texto legal") },
-                readOnly = !editLegalTexts,
-                enabled = editLegalTexts,
+                readOnly = !legalTextEditable,
+                enabled = legalTextEditable,
                 colors = OutlinedTextFieldDefaults.colors(
                     disabledTextColor = MaterialTheme.colorScheme.onSurface,
                     disabledBorderColor = MaterialTheme.colorScheme.outline,
@@ -1590,8 +1646,8 @@ private fun InvoiceFormPane(
                 onValueChange = { conformityText = it },
                 modifier = Modifier.fillMaxWidth(),
                 label = { Text("Texto de conformidad") },
-                readOnly = !editLegalTexts,
-                enabled = editLegalTexts,
+                readOnly = !conformityTextEditable,
+                enabled = conformityTextEditable,
                 colors = OutlinedTextFieldDefaults.colors(
                     disabledTextColor = MaterialTheme.colorScheme.onSurface,
                     disabledBorderColor = MaterialTheme.colorScheme.outline,
@@ -1605,6 +1661,13 @@ private fun InvoiceFormPane(
                 onValueChange = { observations = it },
                 modifier = Modifier.fillMaxWidth(),
                 label = { Text("Observaciones") },
+                readOnly = !observationsEditable,
+                enabled = observationsEditable,
+                colors = OutlinedTextFieldDefaults.colors(
+                    disabledTextColor = MaterialTheme.colorScheme.onSurface,
+                    disabledBorderColor = MaterialTheme.colorScheme.outline,
+                    disabledLabelColor = MaterialTheme.colorScheme.onSurfaceVariant,
+                ),
             )
         }
         commercialFields(
@@ -1717,6 +1780,8 @@ private fun InvoiceFormPane(
                 items = items,
                 bootstrap = bootstrap,
                 currencySymbol = bootstrap.currencies.firstOrNull { it.id == selectedCurrencyId }?.symbol ?: "",
+                discountPercent = discountPercent,
+                travelAmount = travelAmount,
             )
         }
 
@@ -2108,18 +2173,34 @@ private fun LocalPreviewTotalsCard(
     items: List<EditableInvoiceItem>,
     bootstrap: BootstrapCatalogs,
     currencySymbol: String,
+    discountPercent: String,
+    travelAmount: String,
 ) {
     val subtotal = items.sumOf { item ->
         item.quantity.toBigDecimalOrZero().multiply(item.unitCost.toBigDecimalOrZero())
     }
-    val taxTotal = items.sumOf { item ->
-        val rate = bootstrap.taxes.firstOrNull { it.id == item.taxId }?.rate?.toBigDecimalOrZero() ?: BigDecimal.ZERO
+    val discountRate = discountPercent.toBigDecimalOrZero()
+        .max(BigDecimal.ZERO)
+        .min(BigDecimal("100"))
+        .divide(BigDecimal("100"), 6, RoundingMode.HALF_UP)
+    val remainingRate = BigDecimal.ONE.subtract(discountRate)
+    val discount = subtotal.multiply(discountRate)
+    val travel = travelAmount.toBigDecimalOrZero().max(BigDecimal.ZERO)
+    val itemTax = items.sumOf { item ->
+        val rate = bootstrap.taxes.firstOrNull { it.id == item.taxId }?.rate?.toBigDecimalOrZero()
+            ?: BigDecimal.ZERO
         item.quantity.toBigDecimalOrZero()
             .multiply(item.unitCost.toBigDecimalOrZero())
+            .multiply(remainingRate)
             .multiply(rate)
             .divide(BigDecimal("100"), 4, RoundingMode.HALF_UP)
     }
-    val total = subtotal + taxTotal
+    val highestRate = items.maxOfOrNull { item ->
+        bootstrap.taxes.firstOrNull { it.id == item.taxId }?.rate?.toBigDecimalOrZero() ?: BigDecimal.ZERO
+    } ?: BigDecimal.ZERO
+    val travelTax = travel.multiply(highestRate).divide(BigDecimal("100"), 4, RoundingMode.HALF_UP)
+    val taxTotal = itemTax + travelTax
+    val total = subtotal - discount + travel + taxTotal
 
     SectionCard {
         Column(modifier = Modifier.padding(18.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -2136,6 +2217,12 @@ private fun LocalPreviewTotalsCard(
             )
             Spacer(Modifier.height(4.dp))
             SummaryRow("Subtotal", formatMoney(subtotal.toPlainString(), currencySymbol))
+            if (discount.signum() > 0) {
+                SummaryRow("Descuento", "-${formatMoney(discount.toPlainString(), currencySymbol)}")
+            }
+            if (travel.signum() > 0) {
+                SummaryRow("Desplazamiento", formatMoney(travel.toPlainString(), currencySymbol))
+            }
             SummaryRow("Impuestos", formatMoney(taxTotal.toPlainString(), currencySymbol))
             HorizontalDivider(color = OutlineVariant.copy(alpha = 0.5f))
             Row(
@@ -2541,9 +2628,9 @@ private data class InvoiceFormDefaults(
                     clientName = invoice.clientName,
                     clientTaxId = invoice.clientTaxId.orEmpty(),
                     clientAddress = invoice.clientAddress.orEmpty(),
-                    clientCity = "",
-                    clientPhone = "",
-                    clientEmail = "",
+                    clientCity = invoice.clientCity.orEmpty(),
+                    clientPhone = invoice.clientPhone.orEmpty(),
+                    clientEmail = invoice.clientEmail.orEmpty(),
                     paymentTermId = invoice.paymentTermId,
                     currencyId = invoice.currencyId,
                     fiscalProfileId = invoice.fiscalProfileId,
@@ -2601,7 +2688,8 @@ private data class InvoiceFormDefaults(
                 warrantyId = warranty?.id,
                 warrantyText = warranty?.title.orEmpty(),
                 legalText = legalText?.legalFooter.orEmpty(),
-                conformityText = legalText?.conformityText ?: "CONFORMIDAD DEL CLIENTE",
+                conformityText = legalText?.conformityText
+                    ?: "La presente factura acredita los trabajos efectuados y el material suministrado. El pago de la factura constituye la aceptación de los servicios prestados.",
                 observations = "",
                 preparedBy = "",
                 receivedBy = "",

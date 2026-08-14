@@ -22,6 +22,7 @@ data class UserDto(
     val id: Long,
     val name: String,
     val email: String,
+    val permissions: List<String> = emptyList(),
 )
 
 fun LoginResponseDto.toDomain(): AuthSession = AuthSession(
@@ -30,4 +31,5 @@ fun LoginResponseDto.toDomain(): AuthSession = AuthSession(
     userId = user.id,
     userName = user.name,
     userEmail = user.email,
+    permissions = user.permissions.toSet(),
 )

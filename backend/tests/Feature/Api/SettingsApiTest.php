@@ -21,7 +21,9 @@ class SettingsApiTest extends TestCase
             ->assertJsonCount(1, 'data.currencies')
             ->assertJsonCount(2, 'data.taxes')
             ->assertJsonCount(2, 'data.payment_terms')
-            ->assertJsonCount(3, 'data.warranties');
+            ->assertJsonCount(3, 'data.warranties')
+            // El administrador puede desbloquear los textos, igual que en web.
+            ->assertJsonPath('data.invoice_locked_fields', []);
     }
 
     public function test_individual_settings_endpoints_return_active_catalogs(): void

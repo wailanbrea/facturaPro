@@ -6,6 +6,7 @@ import androidx.datastore.preferences.core.Preferences
 import androidx.datastore.preferences.core.edit
 import androidx.datastore.preferences.core.longPreferencesKey
 import androidx.datastore.preferences.core.stringPreferencesKey
+import androidx.datastore.preferences.core.stringSetPreferencesKey
 import androidx.datastore.preferences.preferencesDataStore
 import com.facturador.facturapro.data.repository.SessionStoreContract
 import com.facturador.facturapro.domain.model.AuthSession
@@ -31,6 +32,7 @@ class SessionStore(context: Context) : SessionStoreContract {
                 userId = userId,
                 userName = preferences[Keys.UserName].orEmpty(),
                 userEmail = preferences[Keys.UserEmail].orEmpty(),
+                permissions = preferences[Keys.Permissions].orEmpty(),
             )
         }
     }
@@ -42,6 +44,7 @@ class SessionStore(context: Context) : SessionStoreContract {
             preferences[Keys.UserId] = session.userId
             preferences[Keys.UserName] = session.userName
             preferences[Keys.UserEmail] = session.userEmail
+            preferences[Keys.Permissions] = session.permissions
         }
     }
 
@@ -61,5 +64,6 @@ class SessionStore(context: Context) : SessionStoreContract {
         val UserId = longPreferencesKey("user_id")
         val UserName = stringPreferencesKey("user_name")
         val UserEmail = stringPreferencesKey("user_email")
+        val Permissions = stringSetPreferencesKey("permissions")
     }
 }

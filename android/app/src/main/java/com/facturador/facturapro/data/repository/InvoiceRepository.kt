@@ -216,6 +216,13 @@ class InvoiceRepository(
         }
     }
 
+    override suspend fun cancel(invoiceId: Long): Result<InvoiceDetail> = runCatching {
+        api.cancelInvoice(invoiceId).data.toDetail()
+    }.fold(
+        onSuccess = { Result.success(it) },
+        onFailure = { Result.failure(IllegalStateException(ApiErrorMapper.message(it), it)) },
+    )
+
     private fun sanitizeFileName(fileName: String): String = buildString {
         fileName.forEach { char ->
             append(

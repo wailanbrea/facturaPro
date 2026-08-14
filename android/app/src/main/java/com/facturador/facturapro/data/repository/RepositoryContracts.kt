@@ -63,6 +63,8 @@ interface InvoiceRepositoryContract {
 
     suspend fun issue(invoiceId: Long): Result<InvoiceDetail>
 
+    suspend fun cancel(invoiceId: Long): Result<InvoiceDetail>
+
     suspend fun generatePdf(invoiceId: Long): Result<String>
 
     suspend fun downloadPdf(invoiceId: Long, fileName: String): Result<File>

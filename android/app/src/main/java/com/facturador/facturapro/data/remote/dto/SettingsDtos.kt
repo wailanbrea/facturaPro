@@ -29,6 +29,10 @@ data class BootstrapDto(
     val legalTexts: List<LegalTextDto> = emptyList(),
     @SerializedName("invoice_number_settings")
     val invoiceNumberSettings: List<InvoiceNumberSettingDto> = emptyList(),
+    @SerializedName("invoice_locked_fields")
+    val invoiceLockedFields: List<String> = emptyList(),
+    @SerializedName("user_permissions")
+    val userPermissions: List<String> = emptyList(),
 )
 
 data class CurrencyDto(
@@ -71,6 +75,8 @@ data class NamedDto(
     val label: String? = null,
     @SerializedName("account_holder")
     val accountHolder: String? = null,
+    @SerializedName("fiscal_profile_id")
+    val fiscalProfileId: Long? = null,
     @SerializedName("account_type")
     val accountType: String? = null,
     @SerializedName("is_default")
@@ -124,6 +130,7 @@ data class LegalTextDto(
 )
 
 fun BootstrapDto.toDomain(): BootstrapCatalogs = BootstrapCatalogs(
+    userPermissions = userPermissions.toSet(),
     currencies = currencies.map {
         CurrencyCatalogItem(
             id = it.id,
@@ -162,6 +169,7 @@ fun BootstrapDto.toDomain(): BootstrapCatalogs = BootstrapCatalogs(
             id = it.id,
             name = it.label ?: it.name.orEmpty(),
             accountHolder = it.accountHolder.orEmpty(),
+            fiscalProfileId = it.fiscalProfileId,
             accountType = it.accountType ?: "official",
             isDefault = it.isDefault,
         )
@@ -198,6 +206,7 @@ fun BootstrapDto.toDomain(): BootstrapCatalogs = BootstrapCatalogs(
             isDefault = it.isDefault,
         )
     },
+    lockedInvoiceFields = invoiceLockedFields.toSet(),
 )
 
 private fun InvoiceNumberSettingDto.previewNumber(): String {

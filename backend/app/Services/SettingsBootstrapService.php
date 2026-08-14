@@ -29,6 +29,10 @@ class SettingsBootstrapService
 
         $fiscalProfiles = $fiscalProfiles->load('logos');
         $invoiceNumberPreviews = $this->invoiceNumberPreviews($fiscalProfiles, auth()->id());
+        $lockedSetting = Setting::query()->where('key', 'invoice.locked_fields')->value('value');
+        $lockedInvoiceFields = auth()->user()?->hasPermission('configurar_sistema')
+            ? []
+            : array_values((array) ($lockedSetting['fields'] ?? ['conformity_text', 'legal_text']));
 
         return [
             'currencies' => Currency::query()->where('is_active', true)->orderByDesc('is_default')->orderBy('code')->get(),
@@ -40,6 +44,8 @@ class SettingsBootstrapService
             'legal_texts' => LegalText::query()->where('is_active', true)->orderByDesc('is_default')->orderBy('name')->get(),
             'invoice_number_settings' => InvoiceNumberSetting::query()->get(),
             'invoice_number_previews' => $invoiceNumberPreviews,
+            'invoice_locked_fields' => $lockedInvoiceFields,
+            'user_permissions' => auth()->user()?->grantedPermissions() ?? [],
             'settings' => Setting::query()->get()->groupBy('group')->map->pluck('value', 'key'),
         ];
     }

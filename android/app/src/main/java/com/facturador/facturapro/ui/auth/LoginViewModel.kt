@@ -40,6 +40,7 @@ class LoginViewModel(
                         isAuthenticated = session != null,
                         isSessionLoaded = true,
                         userName = session?.userName,
+                        permissions = session?.permissions.orEmpty(),
                         errorMessage = null,
                     )
                 }
@@ -163,6 +164,7 @@ class LoginViewModel(
                     _uiState.update {
                         it.copy(
                             bootstrap = bootstrap,
+                            permissions = bootstrap.userPermissions,
                             isBootstrapLoading = false,
                             errorMessage = null,
                         )

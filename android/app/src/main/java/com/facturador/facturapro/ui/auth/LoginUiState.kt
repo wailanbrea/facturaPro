@@ -13,10 +13,13 @@ data class LoginUiState(
     val isAuthenticated: Boolean = false,
     val isSessionLoaded: Boolean = false,
     val userName: String? = null,
+    val permissions: Set<String> = emptySet(),
     val bootstrap: BootstrapCatalogs? = null,
     val errorMessage: String? = null,
     val serverMessage: String? = null,
 ) {
     val canSubmit: Boolean
         get() = email.isNotBlank() && password.isNotBlank() && !isLoading && !isSavingServerUrl
+
+    fun can(permission: String): Boolean = permission in permissions
 }

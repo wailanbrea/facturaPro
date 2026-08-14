@@ -1,6 +1,7 @@
 package com.facturador.facturapro.domain.model
 
 data class BootstrapCatalogs(
+    val userPermissions: Set<String> = emptySet(),
     val currencies: List<CurrencyCatalogItem>,
     val taxes: List<TaxCatalogItem>,
     val paymentTerms: List<PaymentTermCatalogItem>,
@@ -8,6 +9,7 @@ data class BootstrapCatalogs(
     val bankAccounts: List<BankAccountCatalogItem>,
     val fiscalProfiles: List<FiscalProfileCatalogItem>,
     val legalTexts: List<LegalTextCatalogItem>,
+    val lockedInvoiceFields: Set<String> = emptySet(),
 )
 
 data class CurrencyCatalogItem(
@@ -66,6 +68,7 @@ data class BankAccountCatalogItem(
     val id: Long,
     val name: String,
     val accountHolder: String,
+    val fiscalProfileId: Long? = null,
     val accountType: String,
     val isDefault: Boolean,
 )

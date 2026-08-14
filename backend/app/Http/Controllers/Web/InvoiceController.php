@@ -642,19 +642,14 @@ class InvoiceController extends Controller
         $account = isset($data['bank_account_id']) ? BankAccount::query()->find($data['bank_account_id']) : null;
         $warranty = isset($data['warranty_id']) ? Warranty::query()->find($data['warranty_id']) : null;
         $invoiceDate = CarbonImmutable::parse($data['invoice_date']);
+        $clientSnapshot = $this->clientResolver->snapshot($client, $data);
 
         return [
             'document_type' => $data['document_type'],
             'invoice_date' => $invoiceDate->toDateString(),
             'due_date' => $this->dueDateFor($data['document_type'], $invoiceDate, $term),
             'payment_term_id' => $term->id,
-            'client_id' => $client->id,
-            'client_name' => $client->name,
-            'client_tax_id' => $client->tax_id,
-            'client_address' => $client->address,
-            'client_city' => $client->city,
-            'client_email' => $client->email,
-            'client_phone' => $client->phone,
+            ...$clientSnapshot,
             'currency_id' => $currency->id,
             'currency_code' => $currency->code,
             'currency_symbol' => $currency->symbol,

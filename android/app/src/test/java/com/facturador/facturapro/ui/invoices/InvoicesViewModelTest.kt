@@ -221,6 +221,9 @@ private class FakeInvoiceRepository(
         return issueResult
     }
 
+    override suspend fun cancel(invoiceId: Long): Result<InvoiceDetail> =
+        Result.failure(UnsupportedOperationException())
+
     override suspend fun generatePdf(invoiceId: Long): Result<String> {
         generatePdfCalls++
         return generatePdfResult

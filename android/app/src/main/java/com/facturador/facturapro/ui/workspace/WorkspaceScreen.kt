@@ -13,6 +13,7 @@ import androidx.compose.material.icons.outlined.CalendarMonth
 import androidx.compose.material.icons.outlined.Description
 import androidx.compose.material.icons.outlined.Home
 import androidx.compose.material.icons.outlined.People
+import androidx.compose.material.icons.outlined.BarChart
 import androidx.compose.material.icons.outlined.QrCodeScanner
 import androidx.compose.material.icons.outlined.Settings
 import androidx.compose.material3.CenterAlignedTopAppBar
@@ -107,6 +108,14 @@ fun WorkspaceScreen(
     val settingsState by settingsViewModel.uiState.collectAsStateWithLifecycle()
     val verificationState by verificationViewModel.uiState.collectAsStateWithLifecycle()
     val dashboardState by dashboardViewModel.uiState.collectAsStateWithLifecycle()
+    val permissions = loginState.permissions
+
+    LaunchedEffect(permissions) {
+        if (!section.isAllowed(permissions)) {
+            section = bottomNavItems.firstOrNull { it.section.isAllowed(permissions) }?.section
+                ?: WorkspaceSection.Settings
+        }
+    }
 
     // Keep the dashboard in sync with changes made elsewhere (e.g. issuing an
     // invoice) by refreshing whenever the user lands on the Home section.
@@ -154,11 +163,14 @@ fun WorkspaceScreen(
         bottomBar = {
             FacturaProBottomBar(
                 current = section,
+                permissions = permissions,
                 onSelect = { section = it },
             )
         },
         floatingActionButton = {
-            if (section == WorkspaceSection.Home || section == WorkspaceSection.Invoices || section == WorkspaceSection.TechnicalReports) {
+            val canCreateInvoice = (section == WorkspaceSection.Home || section == WorkspaceSection.Invoices) && loginState.can("crear_factura")
+            val canCreateReport = section == WorkspaceSection.TechnicalReports && loginState.can("crear_informes")
+            if (canCreateInvoice || canCreateReport) {
                 FloatingActionButton(
                     onClick = {
                         if (section == WorkspaceSection.TechnicalReports) {
@@ -203,6 +215,7 @@ fun WorkspaceScreen(
                     state = invoicesState,
                     clients = clientsState.clients,
                     bootstrap = loginState.bootstrap,
+                    permissions = permissions,
                     openCreateRequest = newInvoiceRequest,
                     openInvoiceRequest = openInvoiceRequest,
                     requestedInvoiceId = openInvoiceId,
@@ -216,6 +229,7 @@ fun WorkspaceScreen(
                     onCreateInvoice = invoicesViewModel::createInvoice,
                     onUpdateInvoice = invoicesViewModel::updateInvoice,
                     onIssueInvoice = invoicesViewModel::issueSelectedInvoice,
+                    onCancelInvoice = invoicesViewModel::cancelSelectedInvoice,
                     onLoadPreview = invoicesViewModel::loadPreviewForSelectedInvoice,
                     onLoadIssuePreview = invoicesViewModel::loadIssuePreviewForSelectedInvoice,
                     onLoadDraftPreview = invoicesViewModel::loadPreviewForDraft,
@@ -306,13 +320,14 @@ fun WorkspaceScreen(
 @Composable
 private fun FacturaProBottomBar(
     current: WorkspaceSection,
+    permissions: Set<String>,
     onSelect: (WorkspaceSection) -> Unit,
 ) {
     NavigationBar(
         containerColor = MaterialTheme.colorScheme.surfaceContainerLowest,
         tonalElevation = 0.dp,
     ) {
-        bottomNavItems.forEach { item ->
+        bottomNavItems.filter { it.section.isAllowed(permissions) }.forEach { item ->
             val selected = current == item.section
             NavigationBarItem(
                 selected = selected,
@@ -364,7 +379,18 @@ private data class BottomItem(
 private val bottomNavItems = listOf(
     BottomItem(WorkspaceSection.Home, "Inicio", Icons.Outlined.Home),
     BottomItem(WorkspaceSection.Invoices, "Facturas", Icons.Outlined.Description),
+    BottomItem(WorkspaceSection.Clients, "Clientes", Icons.Outlined.People),
     BottomItem(WorkspaceSection.TechnicalReports, "Informes", Icons.Outlined.Assignment),
+    BottomItem(WorkspaceSection.Reports, "Reportes", Icons.Outlined.BarChart),
     BottomItem(WorkspaceSection.Calendar, "Calendario", Icons.Outlined.CalendarMonth),
     BottomItem(WorkspaceSection.Settings, "Ajustes", Icons.Outlined.Settings),
 )
+
+private fun WorkspaceSection.isAllowed(permissions: Set<String>): Boolean = when (this) {
+    WorkspaceSection.Home, WorkspaceSection.Invoices, WorkspaceSection.Verify -> "ver_factura" in permissions
+    WorkspaceSection.Clients -> "gestionar_clientes" in permissions
+    WorkspaceSection.Calendar -> "ver_calendario" in permissions
+    WorkspaceSection.TechnicalReports -> "ver_informes" in permissions
+    WorkspaceSection.Reports -> "ver_reportes" in permissions
+    WorkspaceSection.Settings -> true
+}

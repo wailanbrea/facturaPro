@@ -23,6 +23,7 @@ class SettingsBootstrapServiceTest extends TestCase
         $this->assertCount(2, $bootstrap['bank_accounts']);
         $this->assertCount(2, $bootstrap['fiscal_profiles']);
         $this->assertNotNull($bootstrap['invoice_number_settings']);
+        $this->assertSame(['conformity_text', 'legal_text'], $bootstrap['invoice_locked_fields']);
         $this->assertArrayHasKey('taxes', $bootstrap['settings']->toArray());
     }
 }
