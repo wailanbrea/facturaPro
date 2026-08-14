@@ -41,6 +41,8 @@ class LoginViewModel(
                         isSessionLoaded = true,
                         userName = session?.userName,
                         permissions = session?.permissions.orEmpty(),
+                        bootstrap = if (session == null) null else it.bootstrap,
+                        isBootstrapLoading = if (session == null) false else it.isBootstrapLoading,
                         errorMessage = null,
                     )
                 }

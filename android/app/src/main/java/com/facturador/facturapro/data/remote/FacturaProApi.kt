@@ -36,7 +36,7 @@ interface FacturaProApi {
     suspend fun login(@Body body: LoginRequestDto): LoginResponseDto
 
     @POST("logout")
-    suspend fun logout()
+    suspend fun logout(@Header("Authorization") auth: String? = null)
 
     @GET("settings/bootstrap")
     suspend fun bootstrap(): BootstrapResponseDto

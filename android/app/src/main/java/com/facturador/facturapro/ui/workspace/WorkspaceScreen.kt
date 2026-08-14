@@ -1,5 +1,6 @@
 package com.facturador.facturapro.ui.workspace
 
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
@@ -16,6 +17,7 @@ import androidx.compose.material.icons.outlined.People
 import androidx.compose.material.icons.outlined.BarChart
 import androidx.compose.material.icons.outlined.QrCodeScanner
 import androidx.compose.material.icons.outlined.Settings
+import androidx.compose.material.icons.outlined.MoreHoriz
 import androidx.compose.material3.CenterAlignedTopAppBar
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FloatingActionButton
@@ -25,6 +27,8 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.NavigationBar
 import androidx.compose.material3.NavigationBarItem
 import androidx.compose.material3.NavigationBarItemDefaults
+import androidx.compose.material3.ModalBottomSheet
+import androidx.compose.material3.ListItem
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBarDefaults
@@ -73,6 +77,7 @@ fun WorkspaceScreen(
     var newTechnicalReportRequest by rememberSaveable { mutableStateOf(0) }
     var openInvoiceRequest by rememberSaveable { mutableStateOf(0) }
     var openInvoiceId by rememberSaveable { mutableStateOf<Long?>(null) }
+    var showMoreMenu by rememberSaveable { mutableStateOf(false) }
 
     val calendarViewModel: CalendarViewModel = viewModel(
         factory = CalendarViewModel.factory(container.calendarRepository),
@@ -164,7 +169,9 @@ fun WorkspaceScreen(
             FacturaProBottomBar(
                 current = section,
                 permissions = permissions,
-                onSelect = { section = it },
+                onSelect = {
+                    if (it == WorkspaceSection.More) showMoreMenu = true else section = it
+                },
             )
         },
         floatingActionButton = {
@@ -312,9 +319,37 @@ fun WorkspaceScreen(
                     onBluetoothPermissionsDenied = settingsViewModel::onBluetoothPermissionsDenied,
                     onLogout = onLogout,
                 )
+
+                WorkspaceSection.More -> Unit
             }
         }
     }
+
+    if (showMoreMenu) {
+        ModalBottomSheet(onDismissRequest = { showMoreMenu = false }) {
+            MoreDestinationRow("Reportes", Icons.Outlined.BarChart) {
+                section = WorkspaceSection.Reports
+                showMoreMenu = false
+            }
+            MoreDestinationRow("Calendario", Icons.Outlined.CalendarMonth) {
+                section = WorkspaceSection.Calendar
+                showMoreMenu = false
+            }
+            MoreDestinationRow("Ajustes", Icons.Outlined.Settings) {
+                section = WorkspaceSection.Settings
+                showMoreMenu = false
+            }
+        }
+    }
+}
+
+@Composable
+private fun MoreDestinationRow(label: String, icon: ImageVector, onClick: () -> Unit) {
+    ListItem(
+        headlineContent = { Text(label, fontWeight = FontWeight.SemiBold) },
+        leadingContent = { Icon(icon, contentDescription = null) },
+        modifier = Modifier.clickable(onClick = onClick),
+    )
 }
 
 @Composable
@@ -328,7 +363,8 @@ private fun FacturaProBottomBar(
         tonalElevation = 0.dp,
     ) {
         bottomNavItems.filter { it.section.isAllowed(permissions) }.forEach { item ->
-            val selected = current == item.section
+            val selected = current == item.section ||
+                (item.section == WorkspaceSection.More && current in moreSections)
             NavigationBarItem(
                 selected = selected,
                 onClick = { onSelect(item.section) },
@@ -368,6 +404,7 @@ enum class WorkspaceSection {
     Reports,
     Verify,
     Settings,
+    More,
 }
 
 private data class BottomItem(
@@ -381,9 +418,13 @@ private val bottomNavItems = listOf(
     BottomItem(WorkspaceSection.Invoices, "Facturas", Icons.Outlined.Description),
     BottomItem(WorkspaceSection.Clients, "Clientes", Icons.Outlined.People),
     BottomItem(WorkspaceSection.TechnicalReports, "Informes", Icons.Outlined.Assignment),
-    BottomItem(WorkspaceSection.Reports, "Reportes", Icons.Outlined.BarChart),
-    BottomItem(WorkspaceSection.Calendar, "Calendario", Icons.Outlined.CalendarMonth),
-    BottomItem(WorkspaceSection.Settings, "Ajustes", Icons.Outlined.Settings),
+    BottomItem(WorkspaceSection.More, "Más", Icons.Outlined.MoreHoriz),
+)
+
+private val moreSections = setOf(
+    WorkspaceSection.Reports,
+    WorkspaceSection.Calendar,
+    WorkspaceSection.Settings,
 )
 
 private fun WorkspaceSection.isAllowed(permissions: Set<String>): Boolean = when (this) {
@@ -393,4 +434,5 @@ private fun WorkspaceSection.isAllowed(permissions: Set<String>): Boolean = when
     WorkspaceSection.TechnicalReports -> "ver_informes" in permissions
     WorkspaceSection.Reports -> "ver_reportes" in permissions
     WorkspaceSection.Settings -> true
+    WorkspaceSection.More -> moreSections.any { it.isAllowed(permissions) }
 }

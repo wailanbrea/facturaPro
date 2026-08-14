@@ -6,6 +6,8 @@ import com.facturador.facturapro.data.remote.dto.LoginRequestDto
 import com.facturador.facturapro.data.remote.dto.toDomain
 import com.facturador.facturapro.domain.model.AuthSession
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.withTimeoutOrNull
 
 class AuthRepository(
     private val api: FacturaProApi,
@@ -32,7 +34,18 @@ class AuthRepository(
     )
 
     override suspend fun logout() {
-        runCatching { api.logout() }
+        val currentSession = sessionStore.session.first()
+        val authorization = currentSession?.let { "${it.tokenType} ${it.accessToken}" }
+
+        // Local logout drives the UI and must be immediate even without network.
         sessionStore.clear()
+
+        // Server token revocation is best-effort and bounded. The explicit
+        // header remains available after the local session has been cleared.
+        runCatching {
+            withTimeoutOrNull(1_500) {
+                api.logout(authorization)
+            }
+        }
     }
 }

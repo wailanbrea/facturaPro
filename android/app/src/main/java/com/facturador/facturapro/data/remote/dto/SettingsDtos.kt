@@ -32,7 +32,7 @@ data class BootstrapDto(
     @SerializedName("invoice_locked_fields")
     val invoiceLockedFields: List<String> = emptyList(),
     @SerializedName("user_permissions")
-    val userPermissions: List<String> = emptyList(),
+    val userPermissions: List<String>? = null,
 )
 
 data class CurrencyDto(
@@ -130,7 +130,7 @@ data class LegalTextDto(
 )
 
 fun BootstrapDto.toDomain(): BootstrapCatalogs = BootstrapCatalogs(
-    userPermissions = userPermissions.toSet(),
+    userPermissions = userPermissions.orEmpty().toSet(),
     currencies = currencies.map {
         CurrencyCatalogItem(
             id = it.id,
