@@ -332,6 +332,8 @@ class InvoiceController extends Controller
         $invoice->update([
             'amount_received' => $invoice->total,
             'balance_due' => 0,
+            'pdf_path' => null,
+            'pdf_sha256' => null,
             'status' => InvoiceStatusService::PAID,
         ]);
         $this->activityLog->record('invoice.payment_recorded', $invoice, ['amount' => $amount], auth()->user(), request());
@@ -407,7 +409,7 @@ class InvoiceController extends Controller
                 'tax_total' => $invoice->tax_total,
                 'total' => $invoice->total,
                 'balance_due' => $invoice->total,
-                'status' => InvoiceStatusService::ISSUED,
+                'status' => InvoiceStatusService::DRAFT,
                 'prepared_by' => $invoice->prepared_by,
                 'received_by' => $invoice->received_by,
                 'technician_name' => $invoice->technician_name,
@@ -443,10 +445,6 @@ class InvoiceController extends Controller
                 ]);
             }
 
-            $factura->invoice_number = $this->numberService->generateForInvoice($factura);
-            $factura->save();
-            $this->signatureService->signOnIssue($factura->load('items'));
-
             $invoice->update([
                 'status' => InvoiceStatusService::CONVERTED,
                 'converted_to_invoice_id' => $factura->id,
@@ -458,7 +456,7 @@ class InvoiceController extends Controller
             $this->activityLog->record(
                 'invoice.quotation_converted',
                 $invoice,
-                ['quotation_id' => $invoice->id, 'invoice_id' => $factura->id, 'invoice_number' => $factura->invoice_number],
+                ['quotation_id' => $invoice->id, 'invoice_id' => $factura->id],
                 auth()->user(),
                 request(),
             );
@@ -518,6 +516,8 @@ class InvoiceController extends Controller
             $invoice->update([
                 'amount_received' => $totalReceived,
                 'balance_due' => $newBalance,
+                'pdf_path' => null,
+                'pdf_sha256' => null,
                 'status' => $this->statusService->determine(
                     InvoiceStatusService::ISSUED,
                     $invoice->total,
@@ -672,7 +672,8 @@ class InvoiceController extends Controller
             'conformity_text' => $data['conformity_text'] ?? $invoice?->conformity_text ?? $this->defaultConformityText(),
             // Igual que los textos legales: si viene bloqueada, se conserva la
             // que ya tenia el documento en vez de vaciarla.
-            'observations' => $data['observations'] ?? $invoice?->observations,
+            'observations' => $data['observations'] ?? $invoice?->observations
+                ?? (($data['document_type'] ?? null) === Invoice::DOCUMENT_TYPE_QUOTATION ? Invoice::DEFAULT_QUOTATION_OBSERVATIONS : null),
             'amount_received' => $this->amountReceivedForDocument($data['document_type'], $data['amount_received'] ?? 0),
             'status' => $invoice?->status ?? InvoiceStatusService::DRAFT,
             'prepared_by' => $data['prepared_by'] ?? null,
@@ -696,6 +697,10 @@ class InvoiceController extends Controller
      */
     private function saveIntervention(Invoice $invoice, array $data): void
     {
+        if ($invoice->isQuotation() && blank($data['intervention']['included_items'] ?? null)) {
+            $data['intervention']['included_items'] = Invoice::DEFAULT_QUOTATION_INCLUDED_ITEMS;
+        }
+
         $intervention = array_filter(
             $data['intervention'] ?? [],
             static fn ($value): bool => $value !== null && $value !== '',
@@ -783,6 +788,11 @@ class InvoiceController extends Controller
         // pudiera alterar ni borrar por error, pero si se pueda desbloquear.
         if (! (bool) ($data['edit_legal_texts'] ?? false)) {
             unset($data['legal_text'], $data['conformity_text'], $data['observations']);
+            unset(
+                $data['intervention']['included_items'],
+                $data['intervention']['diagnostic_summary'],
+                $data['intervention']['technical_conclusions'],
+            );
         }
 
         unset($data['edit_legal_texts']);
@@ -824,10 +834,7 @@ class InvoiceController extends Controller
 
     private function defaultConformityText(): ?string
     {
-        return LegalText::query()
-            ->where('is_active', true)
-            ->orderByDesc('is_default')
-            ->value('conformity_text');
+        return Invoice::DEFAULT_INTERVENTION_ACCEPTANCE;
     }
 
     private function validateLogoForFiscalProfile(array $data): void

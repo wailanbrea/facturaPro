@@ -1,16 +1,23 @@
 package com.facturador.facturapro.ui.invoices
 
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.lazy.LazyListScope
 import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.outlined.Lock
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import com.facturador.facturapro.domain.model.Intervention
@@ -40,10 +47,7 @@ internal fun LazyListScope.commercialFields(
     onDiscountPercent: (String) -> Unit,
     travelAmount: String,
     onTravelAmount: (String) -> Unit,
-    technicianName: String,
-    onTechnicianName: (String) -> Unit,
-    workReference: String,
-    onWorkReference: (String) -> Unit,
+    isQuotation: Boolean,
     serviceLocation: String,
     onServiceLocation: (String) -> Unit,
 ) {
@@ -71,32 +75,16 @@ internal fun LazyListScope.commercialFields(
             )
         }
     }
-    item {
-        OutlinedTextField(
-            value = technicianName,
-            onValueChange = onTechnicianName,
-            modifier = Modifier.fillMaxWidth(),
-            label = { Text("Tecnico asignado") },
-            singleLine = true,
-        )
-    }
-    item {
-        OutlinedTextField(
-            value = workReference,
-            onValueChange = onWorkReference,
-            modifier = Modifier.fillMaxWidth(),
-            label = { Text("Referencia / obra") },
-            singleLine = true,
-        )
-    }
-    item {
-        OutlinedTextField(
-            value = serviceLocation,
-            onValueChange = onServiceLocation,
-            modifier = Modifier.fillMaxWidth(),
-            label = { Text("Lugar de intervencion") },
-            singleLine = true,
-        )
+    if (isQuotation) {
+        item {
+            OutlinedTextField(
+                value = serviceLocation,
+                onValueChange = onServiceLocation,
+                modifier = Modifier.fillMaxWidth(),
+                label = { Text("Lugar de intervención") },
+                singleLine = true,
+            )
+        }
     }
 }
 
@@ -108,31 +96,51 @@ internal fun LazyListScope.interventionFields(
     isQuotation: Boolean,
     intervention: Intervention,
     onChange: (Intervention) -> Unit,
+    textFieldsEditable: Boolean = false,
+    onRequestUnlock: (() -> Unit)? = null,
 ) {
     if (isQuotation) {
-        item { SectionHeading("Alcance del presupuesto") }
+        item { SectionHeading("Contenido del presupuesto") }
         item {
-            OutlinedTextField(
-                value = intervention.serviceScope.orEmpty(),
-                onValueChange = { onChange(intervention.copy(serviceScope = it)) },
-                modifier = Modifier.fillMaxWidth(),
-                label = { Text("Alcance del servicio") },
-                minLines = 2,
-            )
-        }
-        item {
-            OutlinedTextField(
-                value = intervention.includedItems.orEmpty(),
-                onValueChange = { onChange(intervention.copy(includedItems = it)) },
-                modifier = Modifier.fillMaxWidth(),
-                label = { Text("Incluye (un concepto por linea)") },
-                minLines = 3,
-            )
+            Box(modifier = Modifier.fillMaxWidth()) {
+                OutlinedTextField(
+                    value = intervention.includedItems.orEmpty(),
+                    onValueChange = { onChange(intervention.copy(includedItems = it)) },
+                    modifier = Modifier.fillMaxWidth(),
+                    label = { Text("Incluye (un concepto por línea)") },
+                    minLines = 3,
+                    readOnly = !textFieldsEditable,
+                    enabled = textFieldsEditable,
+                    trailingIcon = if (!textFieldsEditable && onRequestUnlock != null) {
+                        {
+                            IconButton(onClick = onRequestUnlock) {
+                                Icon(
+                                    imageVector = Icons.Outlined.Lock,
+                                    contentDescription = "Bloqueado. Toca para habilitar edición",
+                                    tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                                )
+                            }
+                        }
+                    } else null,
+                    colors = OutlinedTextFieldDefaults.colors(
+                        disabledTextColor = MaterialTheme.colorScheme.onSurface,
+                        disabledBorderColor = MaterialTheme.colorScheme.outline,
+                        disabledLabelColor = MaterialTheme.colorScheme.onSurfaceVariant,
+                    ),
+                )
+                if (!textFieldsEditable && onRequestUnlock != null) {
+                    Box(
+                        modifier = Modifier
+                            .matchParentSize()
+                            .clickable(onClick = onRequestUnlock),
+                    )
+                }
+            }
         }
         return
     }
 
-    item { SectionHeading("Equipo e intervencion tecnica") }
+    item { SectionHeading("Equipo e intervención técnica") }
     item {
         OutlinedTextField(
             value = intervention.equipmentType.orEmpty(),
@@ -168,7 +176,7 @@ internal fun LazyListScope.interventionFields(
             value = intervention.equipmentSerial.orEmpty(),
             onValueChange = { onChange(intervention.copy(equipmentSerial = it)) },
             modifier = Modifier.fillMaxWidth(),
-            label = { Text("Numero de serie") },
+            label = { Text("Número de serie") },
             singleLine = true,
         )
     }
@@ -177,7 +185,7 @@ internal fun LazyListScope.interventionFields(
             value = intervention.equipmentLocation.orEmpty(),
             onValueChange = { onChange(intervention.copy(equipmentLocation = it)) },
             modifier = Modifier.fillMaxWidth(),
-            label = { Text("Ubicacion del equipo") },
+            label = { Text("Ubicación del equipo") },
             singleLine = true,
         )
     }
@@ -205,21 +213,77 @@ internal fun LazyListScope.interventionFields(
         }
     }
     item {
-        OutlinedTextField(
-            value = intervention.diagnosticSummary.orEmpty(),
-            onValueChange = { onChange(intervention.copy(diagnosticSummary = it)) },
-            modifier = Modifier.fillMaxWidth(),
-            label = { Text("Diagnostico tecnico") },
-            minLines = 2,
-        )
+        Box(modifier = Modifier.fillMaxWidth()) {
+            OutlinedTextField(
+                value = intervention.diagnosticSummary.orEmpty(),
+                onValueChange = { onChange(intervention.copy(diagnosticSummary = it)) },
+                modifier = Modifier.fillMaxWidth(),
+                label = { Text("Diagnóstico técnico") },
+                placeholder = { Text("Resumen del diagnóstico técnico realizado...") },
+                minLines = 3,
+                readOnly = !textFieldsEditable,
+                enabled = textFieldsEditable,
+                trailingIcon = if (!textFieldsEditable && onRequestUnlock != null) {
+                    {
+                        IconButton(onClick = onRequestUnlock) {
+                            Icon(
+                                imageVector = Icons.Outlined.Lock,
+                                contentDescription = "Bloqueado. Toca para habilitar edición",
+                                tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                            )
+                        }
+                    }
+                } else null,
+                colors = OutlinedTextFieldDefaults.colors(
+                    disabledTextColor = MaterialTheme.colorScheme.onSurface,
+                    disabledBorderColor = MaterialTheme.colorScheme.outline,
+                    disabledLabelColor = MaterialTheme.colorScheme.onSurfaceVariant,
+                ),
+            )
+            if (!textFieldsEditable && onRequestUnlock != null) {
+                Box(
+                    modifier = Modifier
+                        .matchParentSize()
+                        .clickable(onClick = onRequestUnlock),
+                )
+            }
+        }
     }
     item {
-        OutlinedTextField(
-            value = intervention.technicalConclusions.orEmpty(),
-            onValueChange = { onChange(intervention.copy(technicalConclusions = it)) },
-            modifier = Modifier.fillMaxWidth(),
-            label = { Text("Conclusiones tecnicas") },
-            minLines = 2,
-        )
+        Box(modifier = Modifier.fillMaxWidth()) {
+            OutlinedTextField(
+                value = intervention.technicalConclusions.orEmpty(),
+                onValueChange = { onChange(intervention.copy(technicalConclusions = it)) },
+                modifier = Modifier.fillMaxWidth(),
+                label = { Text("Conclusiones técnicas") },
+                placeholder = { Text("Conclusiones y recomendaciones de la intervención...") },
+                minLines = 3,
+                readOnly = !textFieldsEditable,
+                enabled = textFieldsEditable,
+                trailingIcon = if (!textFieldsEditable && onRequestUnlock != null) {
+                    {
+                        IconButton(onClick = onRequestUnlock) {
+                            Icon(
+                                imageVector = Icons.Outlined.Lock,
+                                contentDescription = "Bloqueado. Toca para habilitar edición",
+                                tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                            )
+                        }
+                    }
+                } else null,
+                colors = OutlinedTextFieldDefaults.colors(
+                    disabledTextColor = MaterialTheme.colorScheme.onSurface,
+                    disabledBorderColor = MaterialTheme.colorScheme.outline,
+                    disabledLabelColor = MaterialTheme.colorScheme.onSurfaceVariant,
+                ),
+            )
+            if (!textFieldsEditable && onRequestUnlock != null) {
+                Box(
+                    modifier = Modifier
+                        .matchParentSize()
+                        .clickable(onClick = onRequestUnlock),
+                )
+            }
+        }
     }
 }

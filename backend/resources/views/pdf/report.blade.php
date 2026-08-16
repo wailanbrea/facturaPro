@@ -8,6 +8,9 @@
 
     if ($logoPathValue) {
         $logoPath = storage_path('app/public/'.$logoPathValue);
+        if (! is_file($logoPath) && $logoPathValue === 'logos/logo_tu_tecnico_autorizado.png') {
+            $logoPath = public_path('images/logo_tu_tecnico_autorizado.png');
+        }
         if (is_file($logoPath)) {
             $mime = function_exists('mime_content_type') ? mime_content_type($logoPath) : 'image/png';
             $logoSrc = 'data:'.$mime.';base64,'.base64_encode(file_get_contents($logoPath));

@@ -2,6 +2,7 @@
 
 namespace App\Http\Requests\Api;
 
+use App\Models\FiscalProfile;
 use App\Models\FiscalProfileLogo;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
@@ -77,8 +78,11 @@ class StoreInvoiceRequest extends FormRequest
                 $validator->errors()->add('amount_received', 'Los presupuestos no aceptan importes recibidos.');
             }
 
+            $profile = FiscalProfile::query()->find($this->input('fiscal_profile_id'));
+            $hasLogosInTable = FiscalProfileLogo::query()->where('fiscal_profile_id', $this->input('fiscal_profile_id'))->exists();
+
             if (blank($this->input('logo_path'))) {
-                if (FiscalProfileLogo::query()->where('fiscal_profile_id', $this->input('fiscal_profile_id'))->exists()) {
+                if ($hasLogosInTable) {
                     $validator->errors()->add('logo_path', 'Debe seleccionar un logo para este perfil fiscal.');
                 }
 
@@ -88,9 +92,10 @@ class StoreInvoiceRequest extends FormRequest
             $exists = FiscalProfileLogo::query()
                 ->where('fiscal_profile_id', $this->input('fiscal_profile_id'))
                 ->where('path', $this->input('logo_path'))
-                ->exists();
+                ->exists()
+                || ($profile !== null && $profile->logo_path === $this->input('logo_path'));
 
-            if (! $exists) {
+            if (! $exists && $hasLogosInTable) {
                 $validator->errors()->add('logo_path', 'El logo seleccionado no pertenece a este perfil.');
             }
         });

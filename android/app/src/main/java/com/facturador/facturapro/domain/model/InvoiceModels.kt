@@ -13,6 +13,7 @@ data class InvoiceSummary(
     val status: String,
     val pdfPath: String?,
     val fiscalProfileId: Long? = null,
+    val logoPath: String? = null,
 )
 
 data class InvoiceDetail(

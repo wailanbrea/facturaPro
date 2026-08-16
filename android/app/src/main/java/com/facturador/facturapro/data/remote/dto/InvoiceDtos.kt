@@ -214,6 +214,7 @@ fun InvoiceDto.toSummary(): InvoiceSummary = InvoiceSummary(
     status = status,
     pdfPath = pdfPath,
     fiscalProfileId = fiscalProfileId,
+    logoPath = logoPath,
 )
 
 fun InvoiceDto.toDetail(): InvoiceDetail = InvoiceDetail(

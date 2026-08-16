@@ -159,15 +159,7 @@
                     <label>Desplazamiento</label>
                     <input name="travel_amount" type="number" step="0.01" min="0" value="{{ $travelAmountValue }}">
                 </div>
-                <div class="field">
-                    <label>Tecnico asignado</label>
-                    <input name="technician_name" type="text" maxlength="255" value="{{ old('technician_name', $invoice->technician_name) }}">
-                </div>
-                <div class="field">
-                    <label>Referencia / obra</label>
-                    <input name="work_reference" type="text" maxlength="255" value="{{ old('work_reference', $invoice->work_reference) }}">
-                </div>
-                <div class="field span-2">
+                <div class="field span-2" id="service-location-field">
                     <label>Lugar de intervencion</label>
                     <input name="service_location" type="text" maxlength="255" value="{{ old('service_location', $invoice->service_location) }}"
                            placeholder="Direccion donde se realiza el trabajo, si es distinta a la del cliente">
@@ -177,27 +169,19 @@
                     <input type="hidden" id="edit-legal-texts-input" name="edit_legal_texts" value="{{ $legalTextsEditable ? '1' : '0' }}">
                     <div class="actions" style="justify-content:space-between;align-items:center;margin:0">
                         <div>
-                            <strong>Textos de factura</strong>
-                            <p class="muted" style="margin:4px 0 0;font-size:12px">Texto legal, texto de conformidad y observaciones estan bloqueados por defecto.</p>
+                            <strong>Textos del documento</strong>
+                            <p class="muted" id="editable-text-help" style="margin:4px 0 0;font-size:12px">La aceptacion de la intervencion esta bloqueada por defecto.</p>
                         </div>
                         <button class="btn" id="enable-legal-texts-btn" type="button">{{ $legalTextsEditable ? 'Edicion habilitada' : 'Habilitar edicion' }}</button>
                     </div>
                 </div>
-                <div class="field span-2">
-                    <label>Texto de conformidad
+                <div class="field span-2" id="conformity-text-field">
+                    <label>Aceptacion de la intervencion
                         @if(in_array('conformity_text', $lockedFields, true))
                             <span class="text-on-surface-variant font-normal">🔒 Bloqueado por administración</span>
                         @endif
                     </label>
                     <textarea name="conformity_text" data-legal-text-field @readonly(! $legalTextsEditable) @if(! $legalTextsEditable) style="background:#f3f2fe;cursor:not-allowed" @endif>{{ old('conformity_text', $invoice->conformity_text) }}</textarea>
-                </div>
-                <div class="field span-2">
-                    <label>Texto legal
-                        @if(in_array('legal_text', $lockedFields, true))
-                            <span class="text-on-surface-variant font-normal">🔒 Bloqueado por administración</span>
-                        @endif
-                    </label>
-                    <textarea name="legal_text" data-legal-text-field @readonly(! $legalTextsEditable) @if(! $legalTextsEditable) style="background:#f3f2fe;cursor:not-allowed" @endif>{{ old('legal_text', $invoice->legal_text) }}</textarea>
                 </div>
                 @php
                     // Dos candados distintos: el del administrador es firme y el
@@ -208,13 +192,13 @@
                     // espacios sueltos en el HTML.
                     $observationsAttrs = 'data-legal-text-field'.($observationsAdminLocked ? ' data-admin-locked' : '');
                 @endphp
-                <div class="field span-2">
+                <div class="field span-2" id="observations-field">
                     <label>Observaciones
                         @if($observationsAdminLocked)
                             <span class="text-on-surface-variant font-normal">🔒 Bloqueado por administración</span>
                         @endif
                     </label>
-                    <textarea name="observations" {!! $observationsAttrs !!} @readonly($observationsLocked) @if($observationsLocked) style="background:#f3f2fe;cursor:not-allowed" @endif>{{ old('observations', $invoice->observations) }}</textarea>
+                    <textarea id="observations-input" name="observations" {!! $observationsAttrs !!} @readonly($observationsLocked) @if($observationsLocked) style="background:#f3f2fe;cursor:not-allowed" @endif>{{ old('observations', $invoice->observations) }}</textarea>
                 </div>
             </div>
         </section>
@@ -248,19 +232,17 @@
                         <input name="intervention[units_outdoor]" type="number" min="0" max="255" value="{{ old('intervention.units_outdoor', $interv?->units_outdoor) }}" placeholder="Exterior">
                     </div>
                 </div>
-                <div class="field span-2"><label>Diagnostico tecnico</label><textarea name="intervention[diagnostic_summary]" maxlength="1200">{{ old('intervention.diagnostic_summary', $interv?->diagnostic_summary) }}</textarea></div>
-                <div class="field span-2"><label>Conclusiones tecnicas</label><textarea name="intervention[technical_conclusions]" maxlength="1200">{{ old('intervention.technical_conclusions', $interv?->technical_conclusions) }}</textarea></div>
+                <div class="field span-2"><label>Diagnostico tecnico</label><textarea name="intervention[diagnostic_summary]" maxlength="1200" data-legal-text-field @readonly(! $legalTextsEditable) @if(! $legalTextsEditable) style="background:#f3f2fe;cursor:not-allowed" @endif>{{ old('intervention.diagnostic_summary', $interv?->diagnostic_summary) }}</textarea></div>
+                <div class="field span-2"><label>Conclusiones tecnicas</label><textarea name="intervention[technical_conclusions]" maxlength="1200" data-legal-text-field @readonly(! $legalTextsEditable) @if(! $legalTextsEditable) style="background:#f3f2fe;cursor:not-allowed" @endif>{{ old('intervention.technical_conclusions', $interv?->technical_conclusions) }}</textarea></div>
             </div>
         </section>
 
         <section class="card form" id="quotation-card">
-            <h3>Alcance del presupuesto</h3>
-            <p class="muted" style="margin:-6px 0 0;font-size:12px">Aparece en el presupuesto, en la barra lateral del detalle.</p>
+            <h3>Contenido del presupuesto</h3>
             <div class="fields">
-                <div class="field span-2"><label>Alcance del servicio</label><textarea name="intervention[service_scope]" maxlength="1200">{{ old('intervention.service_scope', $interv?->service_scope) }}</textarea></div>
                 <div class="field span-2">
                     <label>Incluye <span class="text-on-surface-variant font-normal">(un concepto por linea)</span></label>
-                    <textarea name="intervention[included_items]" rows="6" maxlength="1200" placeholder="Mano de obra cualificada&#10;Materiales y repuestos originales&#10;Desplazamiento">{{ old('intervention.included_items', $interv?->included_items) }}</textarea>
+                    <textarea name="intervention[included_items]" rows="6" maxlength="1200" data-legal-text-field @readonly(! $legalTextsEditable) @if(! $legalTextsEditable) style="background:#f3f2fe;cursor:not-allowed" @endif>{{ old('intervention.included_items', $interv?->included_items ?: \App\Models\Invoice::DEFAULT_QUOTATION_INCLUDED_ITEMS) }}</textarea>
                 </div>
             </div>
         </section>
@@ -294,6 +276,25 @@ function syncDocumentTypeFields(){
     const amountField = document.getElementById('amount-received-field');
     const amountInput = document.getElementById('amount-received-input');
     const isQuotation = documentType && documentType.value === 'quotation';
+    const observations = document.getElementById('observations-input');
+    const conformityField = document.getElementById('conformity-text-field');
+    const observationsField = document.getElementById('observations-field');
+    const serviceLocationField = document.getElementById('service-location-field');
+    const editableTextHelp = document.getElementById('editable-text-help');
+    const quotationObservations = @json(\App\Models\Invoice::DEFAULT_QUOTATION_OBSERVATIONS);
+
+    if (isQuotation && observations && observations.value.trim() === '') {
+        observations.value = quotationObservations;
+    }
+
+    if (conformityField) conformityField.style.display = isQuotation ? 'none' : '';
+    if (observationsField) observationsField.style.display = isQuotation ? '' : 'none';
+    if (serviceLocationField) serviceLocationField.style.display = isQuotation ? '' : 'none';
+    if (editableTextHelp) {
+        editableTextHelp.textContent = isQuotation
+            ? 'Observaciones e Incluye estan bloqueados por defecto.'
+            : 'Aceptacion, diagnostico y conclusiones estan bloqueados por defecto.';
+    }
 
     // Cada tipo de documento muestra solo su bloque tecnico. Se ocultan, no se
     // eliminan: los campos se siguen enviando y el backend los valida opcionales.

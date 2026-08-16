@@ -1,12 +1,16 @@
 package com.facturador.facturapro.ui.invoices
 
-import android.content.Intent
 import android.content.ActivityNotFoundException
 import android.content.Context
+import android.content.Intent
 import android.print.PrintAttributes
 import android.print.PrintManager
+import android.webkit.WebView
+import android.webkit.WebViewClient
 import android.widget.Toast
+import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -30,20 +34,19 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.outlined.ArrowBack
 import androidx.compose.material.icons.automirrored.outlined.Send
 import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.outlined.Assignment
 import androidx.compose.material.icons.outlined.Description
 import androidx.compose.material.icons.outlined.Edit
+import androidx.compose.material.icons.outlined.Lock
 import androidx.compose.material.icons.outlined.OpenInBrowser
 import androidx.compose.material.icons.outlined.PictureAsPdf
 import androidx.compose.material.icons.outlined.Print
-import androidx.compose.material.icons.outlined.Assignment
 import androidx.compose.material.icons.outlined.RemoveRedEye
 import androidx.compose.material.icons.outlined.Search
 import androidx.compose.material.icons.outlined.Share
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
-import androidx.compose.material3.AlertDialog
-import androidx.compose.material3.FilterChip
-import androidx.compose.material3.TextButton
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
@@ -52,6 +55,7 @@ import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.ExposedDropdownMenuAnchorType
 import androidx.compose.material3.ExposedDropdownMenuBox
 import androidx.compose.material3.ExposedDropdownMenuDefaults
+import androidx.compose.material3.FilterChip
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -61,9 +65,9 @@ import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.material3.TextField
 import androidx.compose.material3.TextFieldDefaults
-import androidx.activity.compose.BackHandler
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -76,12 +80,14 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.viewinterop.AndroidView
 import androidx.core.content.FileProvider
 import com.facturador.facturapro.domain.model.BootstrapCatalogs
+import com.facturador.facturapro.R
 import com.facturador.facturapro.domain.model.ClientRecord
 import com.facturador.facturapro.domain.model.FiscalProfileLogoCatalogItem
 import com.facturador.facturapro.domain.model.Intervention
@@ -106,8 +112,11 @@ import java.io.File
 import java.math.BigDecimal
 import java.math.RoundingMode
 import java.time.LocalDate
-import android.webkit.WebView
-import android.webkit.WebViewClient
+
+private const val DEFAULT_QUOTATION_OBSERVATIONS = "Este presupuesto no incluye trabajos adicionales no especificados. Cualquier modificación será comunicada y aprobada previamente."
+private const val DEFAULT_INTERVENTION_ACCEPTANCE = "La presente factura acredita los trabajos efectuados y el material suministrado. El pago de la factura constituye la aceptación de los servicios prestados."
+
+private const val DEFAULT_QUOTATION_INCLUDED_ITEMS = "Mano de obra cualificada\nMateriales y repuestos originales\nDesplazamiento\nPruebas y puesta en marcha\nGarantía en trabajos realizados"
 
 @Composable
 fun InvoicesScreen(
@@ -163,7 +172,9 @@ fun InvoicesScreen(
                 onClearSelection()
             }
             InvoicePane.Create -> {
-                pane = InvoicePane.List
+                // El boton/gesto del sistema no debe descartar un formulario en
+                // curso. La flecha visible de la app sigue ofreciendo la salida
+                // deliberada hacia la lista.
             }
             InvoicePane.Edit -> {
                 pane = InvoicePane.Detail
@@ -251,6 +262,7 @@ fun InvoicesScreen(
 
         InvoicePane.Detail -> InvoiceDetailPane(
             state = state,
+            bootstrap = bootstrap,
             onBack = {
                 pane = InvoicePane.List
                 editingInvoiceId = null
@@ -560,6 +572,11 @@ private fun InvoiceListPane(
         items(filteredInvoices, key = { it.id }) { invoice ->
             InvoiceSummaryCard(
                 invoice = invoice,
+                logoPreviewUrl = invoiceLogoPreviewUrl(
+                    fiscalProfileId = invoice.fiscalProfileId,
+                    logoPath = invoice.logoPath,
+                    bootstrap = bootstrap,
+                ),
                 onClick = { onSelectInvoice(invoice.id) },
             )
         }
@@ -729,6 +746,7 @@ private fun SearchField(
 @Composable
 private fun InvoiceDetailPane(
     state: InvoicesUiState,
+    bootstrap: BootstrapCatalogs?,
     permissions: Set<String>,
     onBack: () -> Unit,
     onEdit: () -> Unit,
@@ -780,7 +798,16 @@ private fun InvoiceDetailPane(
         }
 
         if (invoice != null) {
-            item { InvoiceHeaderCard(invoice = invoice) }
+            item {
+                InvoiceHeaderCard(
+                    invoice = invoice,
+                    logoPreviewUrl = invoiceLogoPreviewUrl(
+                        fiscalProfileId = invoice.fiscalProfileId,
+                        logoPath = invoice.logoPath,
+                        bootstrap = bootstrap,
+                    ),
+                )
+            }
             item { InvoiceTotalsCard(invoice = invoice) }
             item {
                 InvoiceActionRow(
@@ -1291,6 +1318,7 @@ private fun InvoiceFormPane(
     var legalText by rememberSaveable(formKey) { mutableStateOf(defaults.legalText) }
     var conformityText by rememberSaveable(formKey) { mutableStateOf(defaults.conformityText) }
     var editLegalTexts by rememberSaveable { mutableStateOf(false) }
+    var showUnlockDialog by rememberSaveable { mutableStateOf(false) }
     var observations by rememberSaveable(formKey) { mutableStateOf(defaults.observations) }
     var preparedBy by rememberSaveable(formKey) { mutableStateOf(defaults.preparedBy) }
     var receivedBy by rememberSaveable(formKey) { mutableStateOf(defaults.receivedBy) }
@@ -1316,11 +1344,11 @@ private fun InvoiceFormPane(
         account.fiscalProfileId == null || account.fiscalProfileId == selectedFiscalProfileId
     }
     val adminLockedFields = bootstrap?.lockedInvoiceFields.orEmpty()
-    val legalTextEditable = editLegalTexts && "legal_text" !in adminLockedFields
+    val isQuotation = documentType == "quotation"
     val conformityTextEditable = editLegalTexts && "conformity_text" !in adminLockedFields
     val observationsEditable = editLegalTexts && "observations" !in adminLockedFields
-    val hasUnlockableText = listOf("legal_text", "conformity_text", "observations")
-        .any { it !in adminLockedFields }
+    val visibleEditableTextField = if (isQuotation) "observations" else "conformity_text"
+    val hasUnlockableText = visibleEditableTextField !in adminLockedFields
     val nextNumberPreview = if (documentType == "quotation") selectedProfile?.nextQuotationNumber else selectedProfile?.nextInvoiceNumber
 
     LaunchedEffect(selectedFiscalProfileId, bootstrap) {
@@ -1344,6 +1372,15 @@ private fun InvoiceFormPane(
             && selectedFiscalProfileId != null
             && selectedWarrantyId != null
             && items.all { it.description.isNotBlank() && it.quantity.isNotBlank() && it.unitCost.isNotBlank() }
+
+    LaunchedEffect(documentType) {
+        if (existingInvoice == null && documentType == "quotation" && observations.isBlank()) {
+            observations = DEFAULT_QUOTATION_OBSERVATIONS
+        }
+        if (documentType == "quotation" && intervention.includedItems.isNullOrBlank()) {
+            intervention = intervention.copy(includedItems = DEFAULT_QUOTATION_INCLUDED_ITEMS)
+        }
+    }
 
     fun currentDraft(): InvoiceDraft? {
         val paymentTermId = selectedTermId ?: return null
@@ -1604,8 +1641,13 @@ private fun InvoiceFormPane(
                 horizontalArrangement = Arrangement.SpaceBetween
             ) {
                 Column(modifier = Modifier.weight(1f)) {
-                    Text("Textos de factura", fontWeight = FontWeight.Bold, fontSize = 14.sp)
-                    Text("Texto legal, conformidad y observaciones están bloqueados por defecto.", fontSize = 11.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    Text("Textos del documento", fontWeight = FontWeight.Bold, fontSize = 14.sp)
+                    Text(
+                        if (isQuotation) "Observaciones e Incluye están bloqueados por defecto."
+                        else "Aceptación, diagnóstico y conclusiones están bloqueados por defecto.",
+                        fontSize = 11.sp,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
                 }
                 Button(
                     onClick = { editLegalTexts = !editLegalTexts },
@@ -1625,60 +1667,87 @@ private fun InvoiceFormPane(
                 }
             }
         }
-        item {
-            OutlinedTextField(
-                value = legalText,
-                onValueChange = { legalText = it },
-                modifier = Modifier.fillMaxWidth(),
-                label = { Text("Texto legal") },
-                readOnly = !legalTextEditable,
-                enabled = legalTextEditable,
-                colors = OutlinedTextFieldDefaults.colors(
-                    disabledTextColor = MaterialTheme.colorScheme.onSurface,
-                    disabledBorderColor = MaterialTheme.colorScheme.outline,
-                    disabledLabelColor = MaterialTheme.colorScheme.onSurfaceVariant
-                )
-            )
-        }
-        item {
-            OutlinedTextField(
-                value = conformityText,
-                onValueChange = { conformityText = it },
-                modifier = Modifier.fillMaxWidth(),
-                label = { Text("Texto de conformidad") },
-                readOnly = !conformityTextEditable,
-                enabled = conformityTextEditable,
-                colors = OutlinedTextFieldDefaults.colors(
-                    disabledTextColor = MaterialTheme.colorScheme.onSurface,
-                    disabledBorderColor = MaterialTheme.colorScheme.outline,
-                    disabledLabelColor = MaterialTheme.colorScheme.onSurfaceVariant
-                )
-            )
-        }
-        item {
-            OutlinedTextField(
-                value = observations,
-                onValueChange = { observations = it },
-                modifier = Modifier.fillMaxWidth(),
-                label = { Text("Observaciones") },
-                readOnly = !observationsEditable,
-                enabled = observationsEditable,
-                colors = OutlinedTextFieldDefaults.colors(
-                    disabledTextColor = MaterialTheme.colorScheme.onSurface,
-                    disabledBorderColor = MaterialTheme.colorScheme.outline,
-                    disabledLabelColor = MaterialTheme.colorScheme.onSurfaceVariant,
-                ),
-            )
+        if (isQuotation) {
+            item {
+                Box(modifier = Modifier.fillMaxWidth()) {
+                    OutlinedTextField(
+                        value = observations,
+                        onValueChange = { observations = it },
+                        modifier = Modifier.fillMaxWidth(),
+                        label = { Text("Observaciones") },
+                        minLines = 2,
+                        readOnly = !observationsEditable,
+                        enabled = observationsEditable,
+                        trailingIcon = if (!observationsEditable && hasUnlockableText) {
+                            {
+                                IconButton(onClick = { showUnlockDialog = true }) {
+                                    Icon(
+                                        imageVector = Icons.Outlined.Lock,
+                                        contentDescription = "Bloqueado. Toca para habilitar edición",
+                                        tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                                    )
+                                }
+                            }
+                        } else null,
+                        colors = OutlinedTextFieldDefaults.colors(
+                            disabledTextColor = MaterialTheme.colorScheme.onSurface,
+                            disabledBorderColor = MaterialTheme.colorScheme.outline,
+                            disabledLabelColor = MaterialTheme.colorScheme.onSurfaceVariant,
+                        ),
+                    )
+                    if (!observationsEditable && hasUnlockableText) {
+                        Box(
+                            modifier = Modifier
+                                .matchParentSize()
+                                .clickable { showUnlockDialog = true },
+                        )
+                    }
+                }
+            }
+        } else {
+            item {
+                Box(modifier = Modifier.fillMaxWidth()) {
+                    OutlinedTextField(
+                        value = conformityText,
+                        onValueChange = { conformityText = it },
+                        modifier = Modifier.fillMaxWidth(),
+                        label = { Text("Aceptación de la intervención") },
+                        minLines = 2,
+                        readOnly = !conformityTextEditable,
+                        enabled = conformityTextEditable,
+                        trailingIcon = if (!conformityTextEditable && hasUnlockableText) {
+                            {
+                                IconButton(onClick = { showUnlockDialog = true }) {
+                                    Icon(
+                                        imageVector = Icons.Outlined.Lock,
+                                        contentDescription = "Bloqueado. Toca para habilitar edición",
+                                        tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                                    )
+                                }
+                            }
+                        } else null,
+                        colors = OutlinedTextFieldDefaults.colors(
+                            disabledTextColor = MaterialTheme.colorScheme.onSurface,
+                            disabledBorderColor = MaterialTheme.colorScheme.outline,
+                            disabledLabelColor = MaterialTheme.colorScheme.onSurfaceVariant,
+                        ),
+                    )
+                    if (!conformityTextEditable && hasUnlockableText) {
+                        Box(
+                            modifier = Modifier
+                                .matchParentSize()
+                                .clickable { showUnlockDialog = true },
+                        )
+                    }
+                }
+            }
         }
         commercialFields(
             discountPercent = discountPercent,
             onDiscountPercent = { discountPercent = it },
             travelAmount = travelAmount,
             onTravelAmount = { travelAmount = it },
-            technicianName = technicianName,
-            onTechnicianName = { technicianName = it },
-            workReference = workReference,
-            onWorkReference = { workReference = it },
+            isQuotation = isQuotation,
             serviceLocation = serviceLocation,
             onServiceLocation = { serviceLocation = it },
         )
@@ -1687,25 +1756,11 @@ private fun InvoiceFormPane(
             isQuotation = documentType == "quotation",
             intervention = intervention,
             onChange = { intervention = it },
+            textFieldsEditable = editLegalTexts,
+            onRequestUnlock = if (!editLegalTexts && hasUnlockableText) {
+                { showUnlockDialog = true }
+            } else null,
         )
-        item {
-            OutlinedTextField(
-                value = preparedBy,
-                onValueChange = { preparedBy = it },
-                modifier = Modifier.fillMaxWidth(),
-                label = { Text("Preparado por") },
-                singleLine = true,
-            )
-        }
-        item {
-            OutlinedTextField(
-                value = receivedBy,
-                onValueChange = { receivedBy = it },
-                modifier = Modifier.fillMaxWidth(),
-                label = { Text("Recibido por") },
-                singleLine = true,
-            )
-        }
         if (documentType != "quotation") {
             item {
                 OutlinedTextField(
@@ -1791,6 +1846,7 @@ private fun InvoiceFormPane(
             }
         }
 
+
         item {
             Spacer(Modifier.height(8.dp))
             Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
@@ -1825,11 +1881,81 @@ private fun InvoiceFormPane(
             }
         }
     }
+
+    if (showUnlockDialog) {
+        AlertDialog(
+            onDismissRequest = { showUnlockDialog = false },
+            icon = {
+                Icon(
+                    imageVector = Icons.Outlined.Lock,
+                    contentDescription = null,
+                    tint = MaterialTheme.colorScheme.primary,
+                )
+            },
+            title = { Text("Habilitar edición", fontWeight = FontWeight.Bold) },
+            text = {
+                Text(
+                    "Este campo está protegido contra modificaciones accidentales. ¿Deseas habilitar la edición de los textos técnicos y del documento?",
+                    fontSize = 14.sp,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            },
+            confirmButton = {
+                Button(
+                    onClick = {
+                        editLegalTexts = true
+                        showUnlockDialog = false
+                    },
+                ) {
+                    Text("Habilitar edición")
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { showUnlockDialog = false }) {
+                    Text("Cancelar")
+                }
+            },
+        )
+    }
+}
+
+private fun invoiceLogoPreviewUrl(
+    fiscalProfileId: Long?,
+    logoPath: String?,
+    bootstrap: BootstrapCatalogs?,
+): String? {
+    val profile = bootstrap?.fiscalProfiles?.firstOrNull { it.id == fiscalProfileId }
+    val selectedLogoPath = logoPath ?: profile?.logoPath
+    return profile?.logos
+        ?.firstOrNull { it.path == selectedLogoPath }
+        ?.previewUrl
+        ?: if (selectedLogoPath == null) profile?.logos?.firstOrNull { it.isDefault }?.previewUrl else null
+}
+
+@Composable
+private fun InvoiceLogoPreview(
+    previewUrl: String?,
+    modifier: Modifier = Modifier,
+) {
+    if (previewUrl.isNullOrBlank()) {
+        Image(
+            painter = painterResource(R.drawable.authorized_technician_launcher),
+            contentDescription = "Logo usado por el documento",
+            modifier = modifier,
+        )
+    } else {
+        RemoteLogoPreview(
+            previewUrl = previewUrl,
+            contentDescription = "Logo usado por el documento",
+            modifier = modifier,
+        )
+    }
 }
 
 @Composable
 private fun InvoiceSummaryCard(
     invoice: InvoiceSummary,
+    logoPreviewUrl: String?,
     onClick: () -> Unit,
 ) {
     SectionCard(
@@ -1839,6 +1965,11 @@ private fun InvoiceSummaryCard(
     ) {
         Column(modifier = Modifier.padding(16.dp)) {
             Row(verticalAlignment = Alignment.CenterVertically) {
+                InvoiceLogoPreview(
+                    previewUrl = logoPreviewUrl,
+                    modifier = Modifier.size(42.dp),
+                )
+                Spacer(Modifier.width(10.dp))
                 Text(
                     text = invoice.invoiceNumber ?: "Borrador #${invoice.id}",
                     style = MaterialTheme.typography.labelMedium,
@@ -1908,11 +2039,17 @@ private fun InvoiceSummaryCard(
 }
 
 @Composable
-private fun InvoiceHeaderCard(invoice: InvoiceDetail) {
+private fun InvoiceHeaderCard(
+    invoice: InvoiceDetail,
+    logoPreviewUrl: String?,
+) {
     SectionCard {
         Column(modifier = Modifier.padding(18.dp)) {
             Row(verticalAlignment = Alignment.CenterVertically) {
-                InitialAvatar(text = invoice.clientName, size = 44.dp)
+                InvoiceLogoPreview(
+                    previewUrl = logoPreviewUrl,
+                    modifier = Modifier.size(52.dp),
+                )
                 Spacer(Modifier.size(12.dp))
                 Column(modifier = Modifier.weight(1f)) {
                     Text(
@@ -2195,6 +2332,7 @@ private fun LocalPreviewTotalsCard(
             .multiply(rate)
             .divide(BigDecimal("100"), 4, RoundingMode.HALF_UP)
     }
+
     val highestRate = items.maxOfOrNull { item ->
         bootstrap.taxes.firstOrNull { it.id == item.taxId }?.rate?.toBigDecimalOrZero() ?: BigDecimal.ZERO
     } ?: BigDecimal.ZERO
@@ -2649,7 +2787,13 @@ private data class InvoiceFormDefaults(
                     technicianName = invoice.technicianName.orEmpty(),
                     workReference = invoice.workReference.orEmpty(),
                     serviceLocation = invoice.serviceLocation.orEmpty(),
-                    intervention = invoice.intervention ?: Intervention(),
+                    intervention = (invoice.intervention ?: Intervention()).let { current ->
+                        if (invoice.documentType == "quotation" && current.includedItems.isNullOrBlank()) {
+                            current.copy(includedItems = DEFAULT_QUOTATION_INCLUDED_ITEMS)
+                        } else {
+                            current
+                        }
+                    },
                     items = invoice.items.map {
                         EditableInvoiceItem(
                             description = it.description,
@@ -2688,8 +2832,7 @@ private data class InvoiceFormDefaults(
                 warrantyId = warranty?.id,
                 warrantyText = warranty?.title.orEmpty(),
                 legalText = legalText?.legalFooter.orEmpty(),
-                conformityText = legalText?.conformityText
-                    ?: "La presente factura acredita los trabajos efectuados y el material suministrado. El pago de la factura constituye la aceptación de los servicios prestados.",
+                conformityText = DEFAULT_INTERVENTION_ACCEPTANCE,
                 observations = "",
                 preparedBy = "",
                 receivedBy = "",
@@ -2699,7 +2842,7 @@ private data class InvoiceFormDefaults(
                 technicianName = "",
                 workReference = "",
                 serviceLocation = "",
-                intervention = Intervention(),
+                intervention = Intervention(includedItems = DEFAULT_QUOTATION_INCLUDED_ITEMS),
                 items = listOf(
                     EditableInvoiceItem(
                         description = "",

@@ -90,6 +90,7 @@ class AdminPanelTest extends TestCase
             'technician_name' => 'David Martinez',
             'work_reference' => 'Vivienda Particular',
             'service_location' => 'Calle Diputacio 456',
+            'edit_legal_texts' => 1,
             'intervention' => [
                 'equipment_type' => 'Aire acondicionado',
                 'equipment_model' => 'Split 1x1',
@@ -186,6 +187,8 @@ class AdminPanelTest extends TestCase
 
         $this->post(route('web.invoices.mark-paid', $invoice))->assertRedirect();
         $this->assertSame('paid', $invoice->fresh()->status);
+        $this->assertNull($invoice->fresh()->pdf_path);
+        $this->assertSame('Efectivo', $invoice->fresh()->load('payments')->paymentMethodLabel());
         $this->get(route('web.invoices.preview', $invoice))
             ->assertOk()
             ->assertSee('COBRAT');
@@ -344,6 +347,7 @@ class AdminPanelTest extends TestCase
             ->latest('id')
             ->firstOrFail();
         $this->assertSame('logos/presupuesto-especial.png', $quotation->logo_path);
+        $this->assertSame(Invoice::DEFAULT_QUOTATION_INCLUDED_ITEMS, $quotation->intervention?->included_items);
 
         $this->post(route('web.invoices.issue', $quotation))->assertRedirect();
         $quotation->refresh();
@@ -369,8 +373,8 @@ class AdminPanelTest extends TestCase
         $this->assertSame('invoice', $invoice->document_type);
         $this->assertSame($quotation->id, $invoice->source_quotation_id);
         $this->assertSame('logos/presupuesto-especial.png', $invoice->logo_path);
-        $this->assertSame('FAC-LA-TEC-000001', $invoice->invoice_number);
-        $this->assertSame('issued', $invoice->status);
+        $this->assertSame('draft', $invoice->status);
+        $this->assertNull($invoice->invoice_number);
         $this->assertSame('0.0000', $invoice->amount_received);
         $this->assertSame($invoice->total, $invoice->balance_due);
     }
@@ -655,7 +659,9 @@ class AdminPanelTest extends TestCase
         // El formulario la pinta bloqueada y dentro del panel de desbloqueo.
         $this->get(route('web.invoices.edit', $invoice))
             ->assertOk()
-            ->assertSee('Texto legal, texto de conformidad y observaciones estan bloqueados por defecto.')
+            ->assertSee('La aceptacion de la intervencion esta bloqueada por defecto.')
+            ->assertDontSee('name="legal_text"', false)
+            ->assertDontSee('name="work_reference"', false)
             ->assertSee('name="observations" data-legal-text-field readonly', false);
 
         // Sin pulsar el boton, no se toca.

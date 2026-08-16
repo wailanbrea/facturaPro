@@ -63,9 +63,14 @@ class InvoiceRepository(
         request: () -> retrofit2.Response<okhttp3.ResponseBody>,
     ): Result<String> = runCatching {
         val response = request()
-        val raw = response.body()?.string().orEmpty()
+        val isSuccess = response.isSuccessful
+        val raw = if (isSuccess) {
+            response.body()?.string().orEmpty()
+        } else {
+            response.errorBody()?.string().orEmpty()
+        }
 
-        if (!response.isSuccessful) {
+        if (!isSuccess) {
             val serverMessage = extractErrorMessage(raw).ifBlank {
                 "HTTP ${response.code()} · ${response.message().ifBlank { "Error sin descripción" }}"
             }
@@ -87,6 +92,13 @@ class InvoiceRepository(
         if (body.isBlank()) return ""
         val trimmed = body.trim()
         if (trimmed.startsWith("{")) {
+            // Extraer el primer error del mapa "errors": { "field": ["mensaje"] }
+            val firstErrorMatch = Regex("\"errors\"\\s*:\\s*\\{[^:]+:\\s*\\[\\s*\"((?:\\\\.|[^\"\\\\])*)\"").find(trimmed)
+            if (firstErrorMatch != null) {
+                val detail = firstErrorMatch.groupValues.getOrNull(1)?.replace("\\\"", "\"")
+                if (!detail.isNullOrBlank()) return detail
+            }
+
             // Best-effort JSON message extraction without pulling in a parser.
             Regex("\"message\"\\s*:\\s*\"((?:\\\\.|[^\"\\\\])*)\"").find(trimmed)
                 ?.groupValues?.getOrNull(1)

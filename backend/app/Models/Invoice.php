@@ -13,6 +13,12 @@ class Invoice extends Model
 
     public const DOCUMENT_TYPE_QUOTATION = 'quotation';
 
+    public const DEFAULT_QUOTATION_OBSERVATIONS = 'Este presupuesto no incluye trabajos adicionales no especificados. Cualquier modificación será comunicada y aprobada previamente.';
+
+    public const DEFAULT_QUOTATION_INCLUDED_ITEMS = "Mano de obra cualificada\nMateriales y repuestos originales\nDesplazamiento\nPruebas y puesta en marcha\nGarantía en trabajos realizados";
+
+    public const DEFAULT_INTERVENTION_ACCEPTANCE = 'La presente factura acredita los trabajos efectuados y el material suministrado. El pago de la factura constituye la aceptación de los servicios prestados.';
+
     /**
      * Relations every PDF template needs eager-loaded.
      *
@@ -29,6 +35,7 @@ class Invoice extends Model
         'fiscalProfile',
         'warranty',
         'intervention',
+        'payments',
     ];
 
     protected $fillable = [
@@ -187,6 +194,23 @@ class Invoice extends Model
     public function isQuotation(): bool
     {
         return $this->document_type === self::DOCUMENT_TYPE_QUOTATION;
+    }
+
+    public function paymentMethodLabel(): string
+    {
+        $labels = [
+            'cash' => 'Efectivo', 'efectivo' => 'Efectivo',
+            'transfer' => 'Transferencia bancaria', 'transferencia' => 'Transferencia bancaria',
+            'card' => 'Tarjeta', 'tarjeta' => 'Tarjeta',
+            'check' => 'Cheque', 'cheque' => 'Cheque',
+        ];
+
+        return $this->payments
+            ->pluck('method')
+            ->filter(fn ($method): bool => is_string($method) && trim($method) !== '')
+            ->map(fn (string $method): string => $labels[mb_strtolower(trim($method))] ?? ucfirst(trim($method)))
+            ->unique()
+            ->implode(', ');
     }
 
     /**

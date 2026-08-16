@@ -146,6 +146,11 @@ class InvoiceApiTest extends TestCase
             'fiscal_profile_id' => $profile->id,
         ])->json('data.id');
 
+        $this->assertSame(
+            Invoice::DEFAULT_QUOTATION_INCLUDED_ITEMS,
+            Invoice::query()->findOrFail($quotationId)->intervention?->included_items,
+        );
+
         $this->getJson("/api/invoices?document_type=invoice&fiscal_profile_id={$profile->id}")
             ->assertOk()
             ->assertJsonPath('data.0.id', $invoiceId)
@@ -292,6 +297,11 @@ class InvoiceApiTest extends TestCase
             ->assertJsonPath('data.invoice_number', 'FAC-LA-000001')
             ->assertJsonPath('data.status', 'issued');
 
+        Invoice::query()->findOrFail($invoiceId)->update([
+            'pdf_path' => 'invoices/stale-before-payment.pdf',
+            'pdf_sha256' => str_repeat('a', 64),
+        ]);
+
         $paid = $this->postJson("/api/invoices/{$invoiceId}/mark-paid", [
             'amount' => '236',
             'payment_date' => '2026-05-21',
@@ -312,6 +322,12 @@ class InvoiceApiTest extends TestCase
         $this->assertDatabaseHas('invoice_payments', [
             'invoice_id' => $invoiceId,
             'amount' => '236.0000',
+            'method' => 'cash',
+        ]);
+        $this->assertDatabaseHas('invoices', [
+            'id' => $invoiceId,
+            'pdf_path' => null,
+            'pdf_sha256' => null,
         ]);
         $this->assertDatabaseHas('activity_logs', [
             'action' => 'invoice.issued',
@@ -589,6 +605,42 @@ class InvoiceApiTest extends TestCase
         $this->getJson('/api/invoices?per_page=100000')
             ->assertOk()
             ->assertJsonPath('meta.per_page', 100);
+    }
+
+    public function test_quotation_conversion_creates_draft_invoice_that_can_be_edited(): void
+    {
+        $quotation = $this->createInvoice(['document_type' => 'quotation'])->json('data');
+        $this->postJson("/api/invoices/{$quotation['id']}/issue")->assertOk();
+
+        $response = $this->postJson("/api/invoices/{$quotation['id']}/convert");
+        $response->assertOk()
+            ->assertJsonPath('data.status', 'draft')
+            ->assertJsonPath('data.document_type', 'invoice')
+            ->assertJsonPath('data.invoice_number', null);
+
+        $facturaId = $response->json('data.id');
+
+        // Verify the converted invoice can be edited
+        $tax = Tax::query()->where('name', 'ITBIS 18%')->firstOrFail();
+        $this->putJson("/api/invoices/{$facturaId}", [
+            'observations' => 'Observaciones añadidas tras convertir presupuesto.',
+            'items' => [
+                [
+                    'description' => 'Item modificado',
+                    'quantity' => '3',
+                    'unit_cost' => '150',
+                    'tax_id' => $tax->id,
+                ],
+            ],
+        ])->assertOk()
+          ->assertJsonPath('data.observations', 'Observaciones añadidas tras convertir presupuesto.')
+          ->assertJsonPath('data.items.0.description', 'Item modificado')
+          ->assertJsonPath('data.status', 'draft');
+
+        // And then can be issued
+        $this->postJson("/api/invoices/{$facturaId}/issue")
+            ->assertOk()
+            ->assertJsonPath('data.status', 'issued');
     }
 
     /**

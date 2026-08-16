@@ -586,4 +586,6 @@ private fun InvoiceDetail.toSummary(): InvoiceSummary = InvoiceSummary(
     balanceDue = balanceDue,
     status = status,
     pdfPath = pdfPath,
+    fiscalProfileId = fiscalProfileId,
+    logoPath = logoPath,
 )

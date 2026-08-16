@@ -10,10 +10,6 @@
     $validUntil = $invoice->due_date?->format('d/m/Y') ?: '-';
     $includedItems = $intervention?->includedItemsList() ?? collect();
 
-    /*
-     * BORRADOR. Igual que en la factura: texto de trabajo para dimensionar la
-     * maqueta, sin revision juridica.
-     */
     $legalBlocks = [
         ['icon' => 'shield-check', 'tone' => 'navy', 'title' => 'Garantía', 'text' => 'Garantía de '.\App\Models\Warranty::durationLabelFor($invoice->warranty?->duration_months).' en mano de obra y materiales suministrados, conforme a la normativa vigente.'],
         ['icon' => 'x-circle', 'tone' => 'accent', 'title' => 'Validez', 'text' => 'Este presupuesto es válido hasta la fecha indicada. Pasado este plazo, podrá estar sujeto a cambios.'],
@@ -25,16 +21,6 @@
         ['icon' => 'euro', 'tone' => 'accent', 'title' => 'Cancelación', 'text' => 'Cancelaciones con menos de 24 h de antelación podrán tener coste de desplazamiento.'],
         ['icon' => 'check-circle', 'tone' => 'navy', 'title' => 'Aceptación', 'text' => 'La aceptación implica conformidad con las condiciones del servicio.'],
         ['icon' => 'landmark', 'tone' => 'navy', 'title' => 'Jurisdicción', 'text' => 'Para cualquier controversia, serán competentes los juzgados de '.($invoice->seller_city ?: 'la sede del emisor').'.'],
-        ['icon' => 'search', 'tone' => 'accent', 'title' => 'Trabajos no previstos', 'text' => 'Las averías detectadas durante la ejecución y no recogidas aquí se presupuestan aparte.'],
-        ['icon' => 'user', 'tone' => 'navy', 'title' => 'Acceso al equipo', 'text' => 'El precio supone acceso libre al equipo. Los medios de elevación no incluidos se valoran aparte.'],
-        ['icon' => 'package', 'tone' => 'accent', 'title' => 'Suministros', 'text' => 'Los precios de material están sujetos a la tarifa vigente del proveedor en la fecha del pedido.'],
-        ['icon' => 'shield-check', 'tone' => 'navy', 'title' => 'Gases fluorados', 'text' => 'La carga y recuperación de refrigerante la realiza personal certificado conforme al RD 115/2017.'],
-        ['icon' => 'euro', 'tone' => 'accent', 'title' => 'Forma de pago', 'text' => 'Salvo pacto distinto, el pago se realiza por transferencia a la finalización de los trabajos.'],
-        ['icon' => 'file-text', 'tone' => 'navy', 'title' => 'Anticipos', 'text' => 'En pedidos de material específico puede solicitarse un anticipo antes de encargarlo.'],
-        ['icon' => 'wrench', 'tone' => 'accent', 'title' => 'Retirada de residuos', 'text' => 'La retirada de equipos y embalajes se realiza conforme a la normativa de residuos aplicable.'],
-        ['icon' => 'clock', 'tone' => 'navy', 'title' => 'Horario', 'text' => 'Los importes corresponden a horario laboral. Trabajos en festivo o nocturnos tienen recargo.'],
-        ['icon' => 'award', 'tone' => 'accent', 'title' => 'Personal colaborador', 'text' => 'Determinados trabajos pueden ejecutarse por personal colaborador bajo supervisión del emisor.'],
-        ['icon' => 'check-circle', 'tone' => 'navy', 'title' => 'Puesta en marcha', 'text' => 'La puesta en marcha y verificación de funcionamiento se incluyen salvo indicación contraria.'],
     ];
 @endphp
 <!DOCTYPE html>
@@ -81,7 +67,7 @@
                         <dl style="margin:0">
                             <div class="kv"><dt>Fecha de emisión:</dt><dd>{{ $invoice->invoice_date?->format('d/m/Y') ?: '-' }}</dd></div>
                             <div class="kv"><dt>Fecha de validez:</dt><dd>{{ $validUntil }}</dd></div>
-                            <div class="kv"><dt>Forma de pago:</dt><dd>Transferencia bancaria</dd></div>
+                            <div class="kv"><dt>Forma de pago:</dt><dd></dd></div>
                             {{-- Tecnico asignado y referencia/obra se guardan pero no se
                                  imprimen todavia. --}}
                             @if($invoice->service_location)
@@ -138,10 +124,6 @@
 
             @if($isFirst)
                 <div>
-                    <div class="aside-box">
-                        <div class="note-title"><x-pdf-icon name="search" :size="9" /> Alcance del servicio</div>
-                        <div class="note-text muted">{{ $intervention?->service_scope ?: 'Este presupuesto incluye los trabajos descritos en el detalle y los materiales indicados.' }}</div>
-                    </div>
                     @if($includedItems->isNotEmpty())
                         <div class="aside-box">
                             <div class="note-title">Incluye</div>
@@ -162,7 +144,7 @@
                     <span class="note-ico"><x-pdf-icon name="file-text" :size="12" /></span>
                     <div>
                         <div class="note-title">Observaciones</div>
-                        <div class="note-text muted">{{ $invoice->observations ?: 'Este presupuesto no incluye trabajos adicionales no especificados. Cualquier modificación será comunicada y aprobada previamente.' }}</div>
+                        <div class="note-text muted">{{ $invoice->observations ?: \App\Models\Invoice::DEFAULT_QUOTATION_OBSERVATIONS }}</div>
                     </div>
                 </div>
 

@@ -119,6 +119,32 @@ class PdfTemplateTest extends TestCase
         $this->assertStringNotContainsString('Actuaciones', $html);
     }
 
+    public function test_payment_method_is_blank_until_a_payment_is_registered(): void
+    {
+        $invoice = $this->makeInvoice(3);
+
+        $html = $this->previewHtml($invoice);
+        $this->assertMatchesRegularExpression('/Forma de pago:<\/dt><dd>\s*<\/dd>/', $html);
+        $this->assertStringNotContainsString('Transferencia bancaria</dd>', $html);
+
+        $invoice->payments()->create([
+            'payment_date' => '2026-08-05',
+            'amount' => '121.0000',
+            'method' => 'efectivo',
+        ]);
+
+        $html = $this->previewHtml($invoice->fresh());
+        $this->assertStringContainsString('Forma de pago:</dt><dd>Efectivo</dd>', $html);
+        $this->assertStringNotContainsString('Transferencia bancaria</dd>', $html);
+    }
+
+    public function test_quotation_payment_method_is_blank(): void
+    {
+        $html = $this->previewHtml($this->makeInvoice(3, 'quotation'));
+
+        $this->assertMatchesRegularExpression('/Forma de pago:<\/dt><dd>\s*<\/dd>/', $html);
+    }
+
     public function test_bold_labels_end_with_a_colon(): void
     {
         $invoice = $this->makeInvoice(3);

@@ -141,13 +141,19 @@ class PdfDocumentContext
      */
     private static function embeddedLogo(Invoice $invoice): ?string
     {
-        $path = $invoice->logo_path ?: $invoice->fiscalProfile?->logo_path;
+        $path = $invoice->logo_path
+            ?: $invoice->fiscalProfile?->logo_path
+            ?: 'logos/logo_tu_tecnico_autorizado.png';
 
         if (! $path) {
             return null;
         }
 
         $absolute = storage_path('app/public/'.$path);
+
+        if (! is_file($absolute) && $path === 'logos/logo_tu_tecnico_autorizado.png') {
+            $absolute = public_path('images/logo_tu_tecnico_autorizado.png');
+        }
 
         if (! is_file($absolute)) {
             return null;

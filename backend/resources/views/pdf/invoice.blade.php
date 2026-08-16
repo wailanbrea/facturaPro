@@ -8,11 +8,6 @@
     $statusLabel = \App\Support\InvoiceStatusLabel::label($invoice->status);
     $isPaid = strtolower((string) $invoice->status) === 'paid';
 
-    /*
-     * BORRADOR. Estas condiciones son un texto de trabajo redactado para
-     * dimensionar la maqueta, NO tienen validez juridica revisada. Antes de
-     * emitir facturas reales con ellas deben pasar por asesoria.
-     */
     $legalBlocks = [
         ['icon' => 'shield-check', 'tone' => 'navy', 'title' => 'Garantía legal', 'text' => 'Garantía de '.\App\Models\Warranty::durationLabelFor($invoice->warranty?->duration_months).' en mano de obra y materiales suministrados, conforme a la normativa vigente.'],
         ['icon' => 'x-circle', 'tone' => 'accent', 'title' => 'Exclusiones', 'text' => 'No cubre daños por mal uso, manipulación de terceros, falta de mantenimiento, sobretensiones o causas externas.'],
@@ -24,16 +19,6 @@
         ['icon' => 'euro', 'tone' => 'accent', 'title' => 'Facturación y pago', 'text' => 'Pago en la forma y plazo indicados en la factura. Los importes se expresan con impuestos desglosados.'],
         ['icon' => 'check-circle', 'tone' => 'navy', 'title' => 'Aceptación', 'text' => 'La aceptación implica conformidad con las condiciones del servicio.'],
         ['icon' => 'landmark', 'tone' => 'navy', 'title' => 'Jurisdicción', 'text' => 'Para cualquier controversia, serán competentes los juzgados de '.($invoice->seller_city ?: 'la sede del emisor').'.'],
-        ['icon' => 'clock', 'tone' => 'accent', 'title' => 'Plazo de reclamación', 'text' => 'Cualquier incidencia sobre la intervención debe comunicarse dentro de los 15 días naturales siguientes.'],
-        ['icon' => 'wrench', 'tone' => 'navy', 'title' => 'Piezas sustituidas', 'text' => 'Las piezas retiradas quedan a disposición del cliente durante 15 días; después se gestionan como residuo.'],
-        ['icon' => 'shield-check', 'tone' => 'accent', 'title' => 'Gases fluorados', 'text' => 'La manipulación de refrigerantes se realiza por personal certificado conforme al RD 115/2017.'],
-        ['icon' => 'user', 'tone' => 'navy', 'title' => 'Acceso al equipo', 'text' => 'El cliente facilita el acceso al equipo y las condiciones de seguridad necesarias para la intervención.'],
-        ['icon' => 'package', 'tone' => 'accent', 'title' => 'Desplazamientos', 'text' => 'El desplazamiento se factura por zona. Fuera del área metropolitana puede aplicarse un suplemento.'],
-        ['icon' => 'settings', 'tone' => 'navy', 'title' => 'Mantenimiento', 'text' => 'Se recomienda revisión anual para conservar el rendimiento y la garantía del fabricante.'],
-        ['icon' => 'x-circle', 'tone' => 'accent', 'title' => 'Cancelaciones', 'text' => 'Las visitas anuladas con menos de 24 horas de antelación podrán facturarse como desplazamiento.'],
-        ['icon' => 'file-text', 'tone' => 'navy', 'title' => 'Certificados', 'text' => 'Los certificados de instalación o puesta en marcha se emiten a petición del cliente.'],
-        ['icon' => 'euro', 'tone' => 'accent', 'title' => 'Anticipos', 'text' => 'En suministros bajo pedido puede solicitarse un anticipo, que se descuenta de la factura final.'],
-        ['icon' => 'award', 'tone' => 'navy', 'title' => 'Personal colaborador', 'text' => 'Determinados trabajos pueden ejecutarse por personal colaborador bajo supervisión del emisor.'],
     ];
 @endphp
 <!DOCTYPE html>
@@ -118,7 +103,7 @@
                         <dl style="margin:0">
                             <div class="kv"><dt>Fecha de emisión:</dt><dd>{{ $invoice->invoice_date?->format('d/m/Y') ?: '-' }}</dd></div>
                             <div class="kv"><dt>Fecha de vencimiento:</dt><dd>{{ $invoice->due_date?->format('d/m/Y') ?: '-' }}</dd></div>
-                            <div class="kv"><dt>Forma de pago:</dt><dd>Transferencia bancaria</dd></div>
+                            <div class="kv"><dt>Forma de pago:</dt><dd>{{ $invoice->paymentMethodLabel() }}</dd></div>
                             {{-- El estado va como texto simple, nunca como bloque destacado. --}}
                             <div class="kv"><dt>Estado de la factura:</dt><dd class="{{ $isPaid ? 'paid' : 'strong' }}">{{ mb_strtoupper($statusLabel) }}</dd></div>
                             {{-- El tecnico asignado se guarda pero no se imprime todavia. --}}
@@ -195,7 +180,7 @@
                     <span class="note-ico"><x-pdf-icon name="pen-line" :size="12" /></span>
                     <div style="flex:1">
                         <div class="note-title">Aceptación de la intervención</div>
-                        <div class="note-text muted">{{ $invoice->conformity_text ?: 'La presente factura acredita los trabajos efectuados y el material suministrado. El pago de la factura constituye la aceptación de los servicios prestados.' }}</div>
+                        <div class="note-text muted">{{ $invoice->conformity_text ?: \App\Models\Invoice::DEFAULT_INTERVENTION_ACCEPTANCE }}</div>
                     </div>
                 </div>
 

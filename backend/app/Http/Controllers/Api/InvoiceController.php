@@ -320,7 +320,7 @@ class InvoiceController extends Controller
                     'tax_total' => $invoice->tax_total,
                     'total' => $invoice->total,
                     'balance_due' => $invoice->total,
-                    'status' => InvoiceStatusService::ISSUED,
+                    'status' => InvoiceStatusService::DRAFT,
                     'prepared_by' => $invoice->prepared_by,
                     'received_by' => $invoice->received_by,
                     'technician_name' => $invoice->technician_name,
@@ -356,10 +356,6 @@ class InvoiceController extends Controller
                     ]);
                 }
 
-                $factura->invoice_number = $this->numberService->generateForInvoice($factura);
-                $factura->save();
-                $this->signatureService->signOnIssue($factura->load('items'));
-
                 $invoice->update([
                     'status' => InvoiceStatusService::CONVERTED,
                     'converted_to_invoice_id' => $factura->id,
@@ -371,7 +367,7 @@ class InvoiceController extends Controller
                 $this->activityLog->record(
                     'invoice.quotation_converted',
                     $invoice,
-                    ['quotation_id' => $invoice->id, 'invoice_id' => $factura->id, 'invoice_number' => $factura->invoice_number],
+                    ['quotation_id' => $invoice->id, 'invoice_id' => $factura->id],
                     $request->user(),
                     $request,
                 );
@@ -418,6 +414,10 @@ class InvoiceController extends Controller
             $invoice->update([
                 'amount_received' => $calculated['amount_received'],
                 'balance_due' => $calculated['balance_due'],
+                // El PDF anterior refleja el estado previo al pago. Obliga a
+                // regenerarlo para que muestre el método que acaba de registrarse.
+                'pdf_path' => null,
+                'pdf_sha256' => null,
                 'status' => $this->statusService->determine(
                     InvoiceStatusService::ISSUED,
                     $invoice->total,
@@ -571,7 +571,8 @@ class InvoiceController extends Controller
             'warranty_text' => $warranty?->full_text,
             'legal_text' => $data['legal_text'] ?? $invoice?->legal_text ?? $this->defaultLegalFooter(),
             'conformity_text' => $data['conformity_text'] ?? $invoice?->conformity_text ?? $this->defaultConformityText(),
-            'observations' => $data['observations'] ?? null,
+            'observations' => $data['observations'] ?? $invoice?->observations
+                ?? (($data['document_type'] ?? null) === Invoice::DOCUMENT_TYPE_QUOTATION ? Invoice::DEFAULT_QUOTATION_OBSERVATIONS : null),
             'amount_received' => $this->amountReceivedForDocument($data['document_type'] ?? $invoice?->document_type ?? Invoice::DOCUMENT_TYPE_INVOICE, $data['amount_received'] ?? $invoice?->amount_received ?? 0),
             'status' => $status,
             'prepared_by' => $data['prepared_by'] ?? null,
@@ -710,6 +711,10 @@ class InvoiceController extends Controller
      */
     private function saveIntervention(Invoice $invoice, array $data): void
     {
+        if ($invoice->isQuotation() && blank($data['intervention']['included_items'] ?? null)) {
+            $data['intervention']['included_items'] = Invoice::DEFAULT_QUOTATION_INCLUDED_ITEMS;
+        }
+
         if (! array_key_exists('intervention', $data)) {
             return;
         }
@@ -859,7 +864,7 @@ class InvoiceController extends Controller
 
     private function defaultConformityText(): ?string
     {
-        return $this->defaultLegalText()?->conformity_text;
+        return Invoice::DEFAULT_INTERVENTION_ACCEPTANCE;
     }
 
     /**
