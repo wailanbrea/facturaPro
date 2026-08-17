@@ -67,6 +67,7 @@
                         <dl style="margin:0">
                             <div class="kv"><dt>Fecha de emisión:</dt><dd>{{ $invoice->invoice_date?->format('d/m/Y') ?: '-' }}</dd></div>
                             <div class="kv"><dt>Fecha de validez:</dt><dd>{{ $validUntil }}</dd></div>
+                            <div class="kv"><dt>Término de pago:</dt><dd>{{ $invoice->paymentTerm?->name ?: 'Al contado' }}</dd></div>
                             <div class="kv"><dt>Forma de pago:</dt><dd></dd></div>
                             {{-- Tecnico asignado y referencia/obra se guardan pero no se
                                  imprimen todavia. --}}

@@ -77,6 +77,7 @@ class InvoiceController extends Controller
                 });
             })
             ->latest('invoice_date')
+            ->latest('id')
             ->paginate($this->perPage());
 
         return InvoiceResource::collection($invoices);

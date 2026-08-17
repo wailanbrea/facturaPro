@@ -103,6 +103,7 @@
                         <dl style="margin:0">
                             <div class="kv"><dt>Fecha de emisión:</dt><dd>{{ $invoice->invoice_date?->format('d/m/Y') ?: '-' }}</dd></div>
                             <div class="kv"><dt>Fecha de vencimiento:</dt><dd>{{ $invoice->due_date?->format('d/m/Y') ?: '-' }}</dd></div>
+                            <div class="kv"><dt>Término de pago:</dt><dd>{{ $invoice->paymentTerm?->name ?: 'Al contado' }}</dd></div>
                             <div class="kv"><dt>Forma de pago:</dt><dd>{{ $invoice->paymentMethodLabel() }}</dd></div>
                             {{-- El estado va como texto simple, nunca como bloque destacado. --}}
                             <div class="kv"><dt>Estado de la factura:</dt><dd class="{{ $isPaid ? 'paid' : 'strong' }}">{{ mb_strtoupper($statusLabel) }}</dd></div>

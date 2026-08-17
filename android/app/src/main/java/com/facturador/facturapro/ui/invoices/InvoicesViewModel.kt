@@ -39,7 +39,7 @@ class InvoicesViewModel(
                 onSuccess = { invoices ->
                     _uiState.update {
                         it.copy(
-                            invoices = invoices,
+                            invoices = invoices.sortedByDateAndId(),
                             isLoading = false,
                         )
                     }
@@ -122,7 +122,7 @@ class InvoicesViewModel(
                             savedInvoiceId = invoice.id,
                             selectedInvoice = invoice,
                             invoices = (it.invoices.filterNot { summary -> summary.id == invoice.id } + invoice.toSummary())
-                                .sortedByDescending { summary -> summary.invoiceDate },
+                                .sortedByDateAndId(),
                         )
                     }
                 },
@@ -156,7 +156,7 @@ class InvoicesViewModel(
                             isSaving = false,
                             selectedInvoice = invoice,
                             invoices = (it.invoices.filterNot { summary -> summary.id == invoice.id } + invoice.toSummary())
-                                .sortedByDescending { summary -> summary.invoiceDate },
+                                .sortedByDateAndId(),
                         )
                     }
                 },
@@ -192,7 +192,7 @@ class InvoicesViewModel(
                             isSaving = false,
                             selectedInvoice = invoice,
                             invoices = (it.invoices.filterNot { summary -> summary.id == invoice.id } + invoice.toSummary())
-                                .sortedByDescending { summary -> summary.invoiceDate },
+                                .sortedByDateAndId(),
                         )
                     }
                 },
@@ -220,7 +220,7 @@ class InvoicesViewModel(
                             isSaving = false,
                             selectedInvoice = invoice,
                             invoices = (it.invoices.filterNot { summary -> summary.id == invoice.id } + invoice.toSummary())
-                                .sortedByDescending { summary -> summary.invoiceDate },
+                                .sortedByDateAndId(),
                         )
                     }
                 },
@@ -251,7 +251,7 @@ class InvoicesViewModel(
                             isSaving = false,
                             selectedInvoice = invoice,
                             invoices = (it.invoices.filterNot { summary -> summary.id == invoice.id } + invoice.toSummary())
-                                .sortedByDescending { summary -> summary.invoiceDate },
+                                .sortedByDateAndId(),
                         )
                     }
                     refresh()
@@ -291,7 +291,7 @@ class InvoicesViewModel(
                             isSaving = false,
                             selectedInvoice = invoice,
                             invoices = (it.invoices.filterNot { summary -> summary.id == invoice.id } + invoice.toSummary())
-                                .sortedByDescending { summary -> summary.invoiceDate },
+                                .sortedByDateAndId(),
                         )
                     }
                 },
@@ -505,7 +505,7 @@ class InvoicesViewModel(
                             isSaving = false,
                             selectedInvoice = readyInvoice,
                             invoices = (current.invoices.filterNot { summary -> summary.id == readyInvoice.id } + readyInvoice.toSummary())
-                                .sortedByDescending { summary -> summary.invoiceDate },
+                                .sortedByDateAndId(),
 
                             // IMPORTANTE:
                             // View abre el visor interno. No debe mandar pendingPdfAction.
@@ -589,3 +589,6 @@ private fun InvoiceDetail.toSummary(): InvoiceSummary = InvoiceSummary(
     fiscalProfileId = fiscalProfileId,
     logoPath = logoPath,
 )
+
+private fun List<InvoiceSummary>.sortedByDateAndId(): List<InvoiceSummary> =
+    sortedWith(compareByDescending<InvoiceSummary> { it.invoiceDate }.thenByDescending { it.id })

@@ -270,6 +270,7 @@ fun InvoicesScreen(
                 onClearPreview()
             },
             onEdit = {
+                editingInvoiceId = state.selectedInvoice?.id
                 pane = InvoicePane.Edit
             },
             permissions = permissions,
@@ -496,7 +497,7 @@ private fun InvoiceListPane(
             (statusFilter == null || matchesFilter(invoice.status, statusFilter!!))
                 && documentFilter.matches(invoice.documentType, invoice.status)
                 && (state.fiscalProfileIdFilter == null || invoice.fiscalProfileId == state.fiscalProfileIdFilter)
-        }
+        }.sortedWith(compareByDescending<InvoiceSummary> { it.invoiceDate }.thenByDescending { it.id })
     }
 
     LazyColumn(

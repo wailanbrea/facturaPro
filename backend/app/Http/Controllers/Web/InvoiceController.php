@@ -66,6 +66,7 @@ class InvoiceController extends Controller
                 });
             })
             ->latest('invoice_date')
+            ->latest('id')
             ->paginate(15)
             ->withQueryString();
 
