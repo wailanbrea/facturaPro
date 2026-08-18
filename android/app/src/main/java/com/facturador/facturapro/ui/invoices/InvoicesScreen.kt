@@ -105,6 +105,7 @@ import com.facturador.facturapro.ui.common.SectionTitle
 import com.facturador.facturapro.ui.common.StatusBadge
 import com.facturador.facturapro.ui.common.RemoteLogoPreview
 import com.facturador.facturapro.ui.common.formatMoney
+import com.facturador.facturapro.ui.common.formatQuantity
 import com.facturador.facturapro.ui.common.invoiceStatusLabel
 import com.facturador.facturapro.ui.common.statusColors
 import com.facturador.facturapro.ui.theme.OutlineVariant
