@@ -451,7 +451,6 @@ fun CreateAppointmentScreen(
                         modifier = Modifier.fillMaxWidth().padding(bottom = 16.dp),
                     ) {
                         AppointmentStatus.entries
-                            .filter { it != AppointmentStatus.CANCELLED }
                             .forEach { s ->
                                 val color = runCatching { Color(android.graphics.Color.parseColor(s.colorHex)) }.getOrElse { MaterialTheme.colorScheme.primary }
                                 FilterChip(

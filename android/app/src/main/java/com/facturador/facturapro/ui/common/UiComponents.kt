@@ -241,15 +241,25 @@ fun invoiceStatusLabel(status: String): String = when (status) {
     else -> status.replace('_', ' ').replaceFirstChar { it.uppercase() }
 }
 
-/** US-style thousands separator + 2 decimals; safe against unparseable strings. */
+/** US-style thousands separator + 2 decimals; safe against unparseable strings and large numbers. */
 fun formatMoney(amount: String, symbol: String? = null): String {
     val decimal = amount.toBigDecimalOrZero().setScale(2, RoundingMode.HALF_UP)
-    val parts = decimal.toPlainString().split(".")
-    val integer = parts[0].toLong()
-        .let { java.text.NumberFormat.getIntegerInstance(java.util.Locale.US).format(it) }
-    val decimals = parts.getOrNull(1) ?: "00"
-    val core = "$integer.$decimals"
+    val numberFormat = java.text.NumberFormat.getNumberInstance(java.util.Locale.US).apply {
+        minimumFractionDigits = 2
+        maximumFractionDigits = 2
+    }
+    val core = numberFormat.format(decimal)
     return if (symbol.isNullOrBlank()) core else "$symbol $core"
+}
+
+fun formatQuantity(quantity: String?): String {
+    if (quantity.isNullOrBlank()) return "1"
+    val bd = quantity.trim().toBigDecimalOrZero()
+    return if (bd.stripTrailingZeros().scale() <= 0) {
+        bd.toBigInteger().toString()
+    } else {
+        bd.stripTrailingZeros().toPlainString()
+    }
 }
 
 fun String.toBigDecimalOrZero(): BigDecimal = runCatching {

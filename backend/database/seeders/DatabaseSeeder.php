@@ -195,13 +195,6 @@ class DatabaseSeeder extends Seeder
                 'is_active' => true,
             ],
         );
-        $profile->logos()->updateOrCreate(
-            ['path' => 'logos/logo_tu_tecnico_autorizado.png'],
-            [
-                'label' => 'Tu Técnico Autorizado',
-                'is_default' => true,
-            ],
-        );
         $profile2 = FiscalProfile::query()->updateOrCreate(
             ['name' => 'PAMELA MISHELL AVILA CELI'],
             [
@@ -213,13 +206,6 @@ class DatabaseSeeder extends Seeder
                 'logo_path' => 'logos/logo_tu_tecnico_autorizado.png',
                 'is_default' => false,
                 'is_active' => true,
-            ],
-        );
-        $profile2->logos()->updateOrCreate(
-            ['path' => 'logos/logo_tu_tecnico_autorizado.png'],
-            [
-                'label' => 'Tu Técnico Autorizado',
-                'is_default' => true,
             ],
         );
         FiscalProfile::query()->whereKeyNot($profile->id)->update(['is_default' => false]);

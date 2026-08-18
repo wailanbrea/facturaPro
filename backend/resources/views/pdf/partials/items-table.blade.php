@@ -32,7 +32,7 @@
             <tr>
                 <td class="c-idx">{{ $startIndex + $offset }}</td>
                 <td><div class="desc">{{ $item->description }}</div></td>
-                <td class="c-qty">{{ rtrim(rtrim(number_format((float) $item->quantity, 4, ',', '.'), '0'), ',') }}</td>
+                <td class="c-qty">{{ (float) $item->quantity == (int) $item->quantity ? (int) $item->quantity : rtrim(rtrim(number_format((float) $item->quantity, 2, ',', '.'), '0'), ',') }}</td>
                 <td class="c-price nowrap">{{ $money->format($item->unit_cost, $currency) }}</td>
                 <td class="c-amount nowrap">{{ $money->format($item->line_subtotal, $currency) }}</td>
             </tr>

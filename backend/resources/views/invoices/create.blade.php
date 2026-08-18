@@ -232,8 +232,8 @@
                         <input name="intervention[units_outdoor]" type="number" min="0" max="255" value="{{ old('intervention.units_outdoor', $interv?->units_outdoor) }}" placeholder="Exterior">
                     </div>
                 </div>
-                <div class="field span-2"><label>Diagnostico tecnico</label><textarea name="intervention[diagnostic_summary]" maxlength="1200" data-legal-text-field @readonly(! $legalTextsEditable) @if(! $legalTextsEditable) style="background:#f3f2fe;cursor:not-allowed" @endif>{{ old('intervention.diagnostic_summary', $interv?->diagnostic_summary) }}</textarea></div>
-                <div class="field span-2"><label>Conclusiones tecnicas</label><textarea name="intervention[technical_conclusions]" maxlength="1200" data-legal-text-field @readonly(! $legalTextsEditable) @if(! $legalTextsEditable) style="background:#f3f2fe;cursor:not-allowed" @endif>{{ old('intervention.technical_conclusions', $interv?->technical_conclusions) }}</textarea></div>
+                <div class="field span-2"><label>Diagnostico tecnico</label><textarea name="intervention[diagnostic_summary]" maxlength="1200">{{ old('intervention.diagnostic_summary', $interv?->diagnostic_summary) }}</textarea></div>
+                <div class="field span-2"><label>Conclusiones tecnicas</label><textarea name="intervention[technical_conclusions]" maxlength="1200">{{ old('intervention.technical_conclusions', $interv?->technical_conclusions) }}</textarea></div>
             </div>
         </section>
 
@@ -253,8 +253,8 @@
             @foreach($rows as $index => $item)
                 <div class="line-row">
                     <div class="field"><label>Descripcion</label><input name="items[{{ $index }}][description]" value="{{ $item->description ?? '' }}" required></div>
-                    <div class="field"><label>Cantidad</label><input name="items[{{ $index }}][quantity]" type="number" step="0.0001" min="0.0001" value="{{ $item->quantity ?? 1 }}" required></div>
-                    <div class="field"><label>Costo unitario</label><input name="items[{{ $index }}][unit_cost]" type="number" step="0.0001" min="0" value="{{ $item->unit_cost ?? 0 }}" required></div>
+                    <div class="field"><label>Cantidad</label><input name="items[{{ $index }}][quantity]" type="number" step="any" min="0.01" value="{{ isset($item->quantity) ? (float) $item->quantity : 1 }}" required></div>
+                    <div class="field"><label>Costo unitario</label><input name="items[{{ $index }}][unit_cost]" type="number" step="0.01" min="0" value="{{ isset($item->unit_cost) ? number_format((float)$item->unit_cost, 2, '.', '') : '0.00' }}" required></div>
                     <div class="field">
                         <label>Impuesto</label>
                         <select name="items[{{ $index }}][tax_id]" required>
@@ -293,7 +293,7 @@ function syncDocumentTypeFields(){
     if (editableTextHelp) {
         editableTextHelp.textContent = isQuotation
             ? 'Observaciones e Incluye estan bloqueados por defecto.'
-            : 'Aceptacion, diagnostico y conclusiones estan bloqueados por defecto.';
+            : 'La aceptacion de la intervencion esta bloqueada por defecto.';
     }
 
     // Cada tipo de documento muestra solo su bloque tecnico. Se ocultan, no se
@@ -321,8 +321,8 @@ function addItem(){
     document.getElementById('items').insertAdjacentHTML('beforeend', `
     <div class="line-row">
         <div class="field"><input name="items[${itemIndex}][description]" required></div>
-        <div class="field"><input name="items[${itemIndex}][quantity]" type="number" step="0.0001" min="0.0001" value="1" required></div>
-        <div class="field"><input name="items[${itemIndex}][unit_cost]" type="number" step="0.0001" min="0" value="0" required></div>
+        <div class="field"><input name="items[${itemIndex}][quantity]" type="number" step="any" min="0.01" value="1" required></div>
+        <div class="field"><input name="items[${itemIndex}][unit_cost]" type="number" step="0.01" min="0" value="0.00" required></div>
         <div class="field"><select name="items[${itemIndex}][tax_id]" required>${taxes}</select></div>
         <button class="btn danger" type="button" onclick="this.parentElement.remove()">x</button>
     </div>`);

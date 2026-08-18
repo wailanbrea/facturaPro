@@ -2214,7 +2214,7 @@ private fun InvoiceLineCard(
                 )
             }
             Row(verticalAlignment = Alignment.CenterVertically) {
-                LineChip(label = "Cant. ${item.quantity}")
+                LineChip(label = "Cant. ${formatQuantity(item.quantity)}")
                 Spacer(Modifier.size(8.dp))
                 LineChip(label = "${formatMoney(item.unitCost, currencySymbol)} c/u")
                 Spacer(Modifier.size(8.dp))
@@ -2798,8 +2798,8 @@ private data class InvoiceFormDefaults(
                     items = invoice.items.map {
                         EditableInvoiceItem(
                             description = it.description,
-                            quantity = it.quantity,
-                            unitCost = it.unitCost,
+                            quantity = formatQuantity(it.quantity),
+                            unitCost = formatMoney(it.unitCost, null).replace(",", ""),
                             taxId = it.taxId,
                         )
                     },

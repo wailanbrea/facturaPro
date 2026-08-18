@@ -60,7 +60,7 @@
             @foreach($invoice->items as $item)
                 <tr>
                     <td>{{ $item->description }}</td>
-                    <td class="right">{{ $item->quantity }}</td>
+                    <td class="right">{{ (float) $item->quantity == (int) $item->quantity ? (int) $item->quantity : (float) $item->quantity }}</td>
                     <td class="right">{{ $invoice->currency_symbol }} {{ number_format((float) $item->unit_cost, 2) }}</td>
                     <td class="right">{{ $item->tax_name }}</td>
                     <td class="right">{{ $invoice->currency_symbol }} {{ number_format((float) $item->line_total, 2) }}</td>
