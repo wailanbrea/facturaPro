@@ -25,8 +25,7 @@ android {
 
     defaultConfig {
         applicationId = "com.facturador.facturapro"
-        // AndroidX PDF Viewer (androidx.pdf:pdf-viewer:1.0.0-alpha02) requiere minSdk 35.
-        minSdk = 35
+        minSdk = 26
         targetSdk = 36
         versionCode = 1
         versionName = "1.0"
@@ -88,7 +87,6 @@ dependencies {
     implementation(libs.retrofit)
     implementation(libs.retrofit.converter.gson)
     implementation(libs.androidx.fragment.ktx)
-    implementation(libs.androidx.pdf.viewer.fragment)
     implementation(libs.play.services.code.scanner)
     testImplementation(libs.junit)
     testImplementation(libs.kotlinx.coroutines.test)

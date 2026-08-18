@@ -1,48 +1,65 @@
 package com.facturador.facturapro.ui.invoices
 
-import android.content.ContextWrapper
 import android.content.ContentValues
+import android.content.Context
 import android.content.Intent
+import android.graphics.Bitmap
+import android.graphics.Color
+import android.graphics.pdf.PdfRenderer
 import android.net.Uri
 import android.os.Environment
+import android.os.ParcelFileDescriptor
 import android.provider.MediaStore
 import android.util.Log
-import android.view.View
+import android.widget.Toast
+import androidx.compose.foundation.Image
+import androidx.compose.foundation.gestures.rememberTransformableState
+import androidx.compose.foundation.gestures.transformable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.itemsIndexed
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.outlined.ArrowBack
 import androidx.compose.material.icons.outlined.Download
 import androidx.compose.material.icons.outlined.Share
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.DisposableEffect
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableFloatStateOf
+import androidx.compose.runtime.mutableStateListOf
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.graphics.asImageBitmap
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.viewinterop.AndroidView
 import androidx.core.content.FileProvider
-import androidx.fragment.app.FragmentActivity
-import androidx.fragment.app.FragmentContainerView
-import androidx.fragment.app.commit
-import androidx.lifecycle.DefaultLifecycleObserver
-import androidx.lifecycle.Lifecycle
-import androidx.lifecycle.LifecycleOwner
-import androidx.pdf.viewer.fragment.PdfViewerFragment
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
 import java.io.File
 import java.io.IOException
 
@@ -56,8 +73,6 @@ fun PdfViewerScreen(
     modifier: Modifier = Modifier,
 ) {
     val context = LocalContext.current
-    val activity = remember(context) { context.findFragmentActivity() }
-
     val file = remember(filePath) { File(filePath) }
     val fileError = remember(filePath) {
         when {
@@ -65,22 +80,6 @@ fun PdfViewerScreen(
             file.length() <= 0L -> "El archivo PDF está vacío."
             else -> null
         }
-    }
-
-    val uri: Uri? = remember(filePath, fileError) {
-        if (fileError != null) return@remember null
-        runCatching {
-            FileProvider.getUriForFile(
-                context,
-                "${context.packageName}.fileprovider",
-                file,
-            )
-        }.onSuccess { generated ->
-            Log.d(TAG, "Abriendo visor interno con: $filePath")
-            Log.d(TAG, "Uri generado: $generated")
-        }.onFailure {
-            Log.e(TAG, "Error al generar Uri FileProvider: ${it.message}", it)
-        }.getOrNull()
     }
 
     Column(
@@ -118,41 +117,156 @@ fun PdfViewerScreen(
 
         HorizontalDivider()
 
-        when {
-            fileError != null -> {
-                Log.e(TAG, "Error al abrir PDF: $fileError ($filePath)")
-                PdfErrorBox(message = fileError)
-            }
+        if (fileError != null) {
+            Log.e(TAG, "Error al abrir PDF: $fileError ($filePath)")
+            PdfErrorBox(message = fileError)
+        } else {
+            PdfRendererContent(
+                file = file,
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(top = 4.dp, bottom = 8.dp),
+            )
+        }
+    }
+}
 
-            uri == null -> {
-                PdfErrorBox(message = "No se pudo generar el Uri del PDF.")
-            }
+private data class PdfPageBitmap(
+    val index: Int,
+    val bitmap: Bitmap,
+    val width: Int,
+    val height: Int,
+)
 
-            activity == null -> {
-                Log.e(TAG, "Error al abrir PDF: contexto no es FragmentActivity")
-                PdfErrorBox(
-                    message = "No se puede mostrar el PDF: la actividad no soporta fragments.",
-                )
-            }
+@Composable
+private fun PdfRendererContent(
+    file: File,
+    modifier: Modifier = Modifier,
+) {
+    var isLoading by remember { mutableStateOf(true) }
+    var renderError by remember { mutableStateOf<String?>(null) }
+    val pages = remember { mutableStateListOf<PdfPageBitmap>() }
 
-            else -> {
-                PdfFragmentHost(
-                    activity = activity,
-                    uri = uri,
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .padding(top = 4.dp, bottom = 8.dp),
-                )
+    var scale by remember { mutableFloatStateOf(1f) }
+    var offset by remember { mutableStateOf(Offset.Zero) }
+
+    val transformState = rememberTransformableState { zoomChange, offsetChange, _ ->
+        scale = (scale * zoomChange).coerceIn(1f, 4f)
+        if (scale > 1f) {
+            offset += offsetChange
+        } else {
+            offset = Offset.Zero
+        }
+    }
+
+    LaunchedEffect(file.absolutePath) {
+        isLoading = true
+        renderError = null
+        pages.clear()
+        withContext(Dispatchers.IO) {
+            runCatching {
+                val pfd = ParcelFileDescriptor.open(file, ParcelFileDescriptor.MODE_READ_ONLY)
+                val renderer = PdfRenderer(pfd)
+                val count = renderer.pageCount
+                val rendered = mutableListOf<PdfPageBitmap>()
+                for (i in 0 until count) {
+                    val page = renderer.openPage(i)
+                    val targetWidth = (page.width * 2).coerceAtMost(2400)
+                    val targetHeight = (page.height * 2).coerceAtMost(3200)
+                    val bmp = Bitmap.createBitmap(targetWidth, targetHeight, Bitmap.Config.ARGB_8888)
+                    val canvas = android.graphics.Canvas(bmp)
+                    canvas.drawColor(Color.WHITE)
+                    page.render(bmp, null, null, PdfRenderer.Page.RENDER_MODE_FOR_DISPLAY)
+                    page.close()
+                    rendered.add(PdfPageBitmap(i, bmp, targetWidth, targetHeight))
+                }
+                renderer.close()
+                pfd.close()
+                rendered
+            }.onSuccess { list ->
+                pages.addAll(list)
+                isLoading = false
+            }.onFailure { err ->
+                Log.e(TAG, "Error renderizando PDF con PdfRenderer: ${err.message}", err)
+                renderError = "Error al procesar el documento PDF: ${err.localizedMessage ?: "formato no reconocido"}"
+                isLoading = false
+            }
+        }
+    }
+
+    when {
+        isLoading -> {
+            Box(modifier = modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                Column(
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                    verticalArrangement = Arrangement.spacedBy(8.dp),
+                ) {
+                    CircularProgressIndicator()
+                    Text("Cargando documento...", style = MaterialTheme.typography.bodySmall)
+                }
+            }
+        }
+
+        renderError != null -> {
+            PdfErrorBox(message = renderError ?: "Error desconocido")
+        }
+
+        else -> {
+            Box(
+                modifier = modifier
+                    .fillMaxSize()
+                    .graphicsLayer(
+                        scaleX = scale,
+                        scaleY = scale,
+                        translationX = offset.x,
+                        translationY = offset.y,
+                    )
+                    .transformable(state = transformState),
+            ) {
+                LazyColumn(
+                    modifier = Modifier.fillMaxSize(),
+                    contentPadding = PaddingValues(vertical = 12.dp),
+                    verticalArrangement = Arrangement.spacedBy(16.dp),
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                ) {
+                    itemsIndexed(pages) { idx, pageItem ->
+                        Column(
+                            horizontalAlignment = Alignment.CenterHorizontally,
+                            modifier = Modifier.fillMaxWidth(),
+                        ) {
+                            Surface(
+                                shadowElevation = 4.dp,
+                                shape = RoundedCornerShape(8.dp),
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .aspectRatio(pageItem.width.toFloat() / pageItem.height.toFloat())
+                                    .clip(RoundedCornerShape(8.dp)),
+                            ) {
+                                Image(
+                                    bitmap = pageItem.bitmap.asImageBitmap(),
+                                    contentDescription = "Página ${idx + 1}",
+                                    modifier = Modifier.fillMaxSize(),
+                                )
+                            }
+                            Spacer(Modifier.height(4.dp))
+                            Text(
+                                text = "Página ${idx + 1} de ${pages.size}",
+                                style = MaterialTheme.typography.labelSmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            )
+                        }
+                    }
+                }
             }
         }
     }
 }
 
-private fun sharePdf(context: android.content.Context, file: File) {
+private fun sharePdf(context: Context, file: File) {
     val uri = runCatching {
         FileProvider.getUriForFile(context, "${context.packageName}.fileprovider", file)
     }.getOrElse {
-        android.widget.Toast.makeText(context, "No se pudo preparar el PDF para compartir.", android.widget.Toast.LENGTH_LONG).show()
+        Toast.makeText(context, "No se pudo preparar el PDF para compartir.", Toast.LENGTH_LONG).show()
         return
     }
 
@@ -163,7 +277,7 @@ private fun sharePdf(context: android.content.Context, file: File) {
     }, "Compartir PDF"))
 }
 
-private fun savePdfToDownloads(context: android.content.Context, file: File) {
+private fun savePdfToDownloads(context: Context, file: File) {
     runCatching {
         val values = ContentValues().apply {
             put(MediaStore.Downloads.DISPLAY_NAME, file.name)
@@ -178,57 +292,9 @@ private fun savePdfToDownloads(context: android.content.Context, file: File) {
         values.clear()
         values.put(MediaStore.Downloads.IS_PENDING, 0)
         context.contentResolver.update(uri, values, null, null)
-        android.widget.Toast.makeText(context, "PDF guardado en Descargas/FacturaPro", android.widget.Toast.LENGTH_LONG).show()
+        Toast.makeText(context, "PDF guardado en Descargas/FacturaPro", Toast.LENGTH_LONG).show()
     }.onFailure {
-        android.widget.Toast.makeText(context, "No se pudo guardar el PDF.", android.widget.Toast.LENGTH_LONG).show()
-    }
-}
-
-@Composable
-private fun PdfFragmentHost(
-    activity: FragmentActivity,
-    uri: Uri,
-    modifier: Modifier = Modifier,
-) {
-    val containerId = rememberSaveable { View.generateViewId() }
-    val fragmentTag = remember(containerId) { "pdf-viewer-fragment-$containerId" }
-
-    AndroidView(
-        modifier = modifier,
-        factory = { ctx ->
-            FragmentContainerView(ctx).apply {
-                id = containerId
-            }
-        },
-        update = {
-            val fragmentManager = activity.supportFragmentManager
-            val existing = fragmentManager.findFragmentByTag(fragmentTag) as? PdfViewerFragment
-
-            if (existing == null) {
-                val newFragment = PdfViewerFragment()
-                fragmentManager.commit(allowStateLoss = true) {
-                    add(containerId, newFragment, fragmentTag)
-                }
-                Log.d(TAG, "Fragment PDF agregado, esperando STARTED para cargar Uri")
-                newFragment.setUriWhenStarted(uri)
-            } else if (existing.documentUri != uri) {
-                existing.setUriWhenStarted(uri)
-                Log.d(TAG, "Fragment PDF reutilizado con nuevo Uri: $uri")
-            }
-        },
-    )
-
-    DisposableEffect(containerId, uri) {
-        onDispose {
-            val fragmentManager = activity.supportFragmentManager
-            if (!fragmentManager.isStateSaved && !fragmentManager.isDestroyed) {
-                fragmentManager.findFragmentByTag(fragmentTag)?.let { fragment ->
-                    fragmentManager.commit(allowStateLoss = true) {
-                        remove(fragment)
-                    }
-                }
-            }
-        }
+        Toast.makeText(context, "No se pudo guardar el PDF.", Toast.LENGTH_LONG).show()
     }
 }
 
@@ -257,28 +323,4 @@ private fun PdfErrorBox(message: String) {
             )
         }
     }
-}
-
-private fun android.content.Context.findFragmentActivity(): FragmentActivity? {
-    var current: android.content.Context? = this
-    while (current is ContextWrapper) {
-        if (current is FragmentActivity) return current
-        current = current.baseContext
-    }
-    return null
-}
-
-private fun PdfViewerFragment.setUriWhenStarted(uri: Uri) {
-    if (lifecycle.currentState.isAtLeast(Lifecycle.State.STARTED)) {
-        documentUri = uri
-        Log.d(TAG, "Fragment PDF cargando Uri (ya STARTED): $uri")
-        return
-    }
-    lifecycle.addObserver(object : DefaultLifecycleObserver {
-        override fun onStart(owner: LifecycleOwner) {
-            documentUri = uri
-            Log.d(TAG, "Fragment PDF cargando Uri tras STARTED: $uri")
-            lifecycle.removeObserver(this)
-        }
-    })
 }
