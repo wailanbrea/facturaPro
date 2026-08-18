@@ -445,6 +445,7 @@ fun CreateAppointmentScreen(
                     Text("Estado", fontWeight = FontWeight.Medium, fontSize = 13.sp, modifier = Modifier.padding(bottom = 6.dp))
                     @OptIn(ExperimentalLayoutApi::class)
                     FlowRow(
+                        maxItemsInEachRow = 3,
                         horizontalArrangement = Arrangement.spacedBy(8.dp),
                         verticalArrangement = Arrangement.spacedBy(8.dp),
                         modifier = Modifier.fillMaxWidth().padding(bottom = 16.dp),
@@ -456,7 +457,7 @@ fun CreateAppointmentScreen(
                                 FilterChip(
                                     selected = status == s,
                                     onClick = { status = s },
-                                    label = { Text(s.label, fontSize = 11.sp) },
+                                    label = { Text(s.label, fontSize = 12.sp, maxLines = 1) },
                                     colors = FilterChipDefaults.filterChipColors(
                                         selectedContainerColor = color.copy(alpha = 0.15f),
                                         selectedLabelColor = color,
