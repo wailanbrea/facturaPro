@@ -8,7 +8,7 @@ $kernel->bootstrap();
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
 
-echo "=== ESTADO ACTUAL DE LA BASE DE DATOS ===" . PHP_EOL;
+echo "=== ESTADO DE DOCUMENTOS Y DATOS TRANSACCIONALES ===" . PHP_EOL;
 
 $tablesToCheck = [
     'invoices' => 'Facturas y Presupuestos',
@@ -17,7 +17,6 @@ $tablesToCheck = [
     'invoice_payments' => 'Pagos registrados',
     'technical_reports' => 'Informes técnicos',
     'appointments' => 'Citas de calendario',
-    'appointment_contacts' => 'Contactos de citas',
     'activity_logs' => 'Registros de auditoría',
     'clients' => 'Clientes registrados',
 ];
@@ -25,8 +24,28 @@ $tablesToCheck = [
 foreach ($tablesToCheck as $table => $desc) {
     if (Schema::hasTable($table)) {
         $count = DB::table($table)->count();
-        echo sprintf("%-45s : %d registros\n", $desc . " ({$table})", $count);
+        echo sprintf("%-50s : %d registros\n", $desc . " ({$table})", $count);
     }
 }
 
-echo "==========================================" . PHP_EOL;
+echo PHP_EOL . "=== CONFIGURACIÓN Y CATÁLOGOS BASE (INTACTOS) ===" . PHP_EOL;
+$catalogs = [
+    'users' => 'Usuarios y Técnicos',
+    'fiscal_profiles' => 'Perfiles Fiscales',
+    'fiscal_profile_logos' => 'Logos autorizados',
+    'bank_accounts' => 'Cuentas bancarias',
+    'currencies' => 'Monedas',
+    'taxes' => 'Impuestos',
+    'payment_terms' => 'Términos de pago',
+    'warranties' => 'Garantías',
+    'settings' => 'Configuración general',
+];
+
+foreach ($catalogs as $table => $desc) {
+    if (Schema::hasTable($table)) {
+        $count = DB::table($table)->count();
+        echo sprintf("%-50s : %d registros\n", $desc . " ({$table})", $count);
+    }
+}
+
+echo "===================================================" . PHP_EOL;
