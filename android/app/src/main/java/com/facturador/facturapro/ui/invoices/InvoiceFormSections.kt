@@ -4,7 +4,9 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.lazy.LazyListScope
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
@@ -101,6 +103,43 @@ internal fun LazyListScope.interventionFields(
 ) {
     if (isQuotation) {
         item { SectionHeading("Contenido del presupuesto") }
+        item {
+            Box(modifier = Modifier.fillMaxWidth()) {
+                OutlinedTextField(
+                    value = intervention.serviceScope.orEmpty(),
+                    onValueChange = { onChange(intervention.copy(serviceScope = it)) },
+                    modifier = Modifier.fillMaxWidth(),
+                    label = { Text("Alcance del servicio") },
+                    minLines = 2,
+                    readOnly = !textFieldsEditable,
+                    enabled = textFieldsEditable,
+                    trailingIcon = if (!textFieldsEditable && onRequestUnlock != null) {
+                        {
+                            IconButton(onClick = onRequestUnlock) {
+                                Icon(
+                                    imageVector = Icons.Outlined.Lock,
+                                    contentDescription = "Bloqueado. Toca para habilitar edición",
+                                    tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                                )
+                            }
+                        }
+                    } else null,
+                    colors = OutlinedTextFieldDefaults.colors(
+                        disabledTextColor = MaterialTheme.colorScheme.onSurface,
+                        disabledBorderColor = MaterialTheme.colorScheme.outline,
+                        disabledLabelColor = MaterialTheme.colorScheme.onSurfaceVariant,
+                    ),
+                )
+                if (!textFieldsEditable && onRequestUnlock != null) {
+                    Box(
+                        modifier = Modifier
+                            .matchParentSize()
+                            .clickable(onClick = onRequestUnlock),
+                    )
+                }
+            }
+        }
+        item { Spacer(Modifier.height(8.dp)) }
         item {
             Box(modifier = Modifier.fillMaxWidth()) {
                 OutlinedTextField(

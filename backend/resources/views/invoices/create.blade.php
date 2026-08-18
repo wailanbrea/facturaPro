@@ -241,14 +241,18 @@
             <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
                 <div>
                     <h3 style="margin:0">Contenido del presupuesto</h3>
-                    <p class="muted" style="margin:4px 0 0;font-size:12px">Especifica los conceptos incluidos en la propuesta economica (un concepto por linea).</p>
+                    <p class="muted" style="margin:4px 0 0;font-size:12px">Especifica el alcance del servicio y los conceptos incluidos en la propuesta economica.</p>
                 </div>
                 <button class="btn" id="enable-quotation-texts-btn" type="button">{{ $legalTextsEditable ? 'Edición habilitada' : 'Habilitar edición' }}</button>
             </div>
             <div class="fields">
                 <div class="field span-2">
+                    <label>Alcance del servicio</label>
+                    <textarea id="quotation-service-scope" name="intervention[service_scope]" rows="3" maxlength="1200" data-legal-text-field @readonly(! $legalTextsEditable) @if(! $legalTextsEditable) style="background:#f3f2fe;cursor:not-allowed" @endif>{{ old('intervention.service_scope', $interv?->service_scope ?: \App\Models\Invoice::DEFAULT_QUOTATION_SERVICE_SCOPE) }}</textarea>
+                </div>
+                <div class="field span-2">
                     <label>Incluye <span class="text-on-surface-variant font-normal">(un concepto por linea)</span></label>
-                    <textarea id="quotation-included-items" name="intervention[included_items]" rows="6" maxlength="1200" data-legal-text-field @readonly(! $legalTextsEditable) @if(! $legalTextsEditable) style="background:#f3f2fe;cursor:not-allowed" @endif>{{ old('intervention.included_items', $interv?->included_items ?: \App\Models\Invoice::DEFAULT_QUOTATION_INCLUDED_ITEMS) }}</textarea>
+                    <textarea id="quotation-included-items" name="intervention[included_items]" rows="5" maxlength="1200" data-legal-text-field @readonly(! $legalTextsEditable) @if(! $legalTextsEditable) style="background:#f3f2fe;cursor:not-allowed" @endif>{{ old('intervention.included_items', $interv?->included_items ?: \App\Models\Invoice::DEFAULT_QUOTATION_INCLUDED_ITEMS) }}</textarea>
                 </div>
             </div>
         </section>

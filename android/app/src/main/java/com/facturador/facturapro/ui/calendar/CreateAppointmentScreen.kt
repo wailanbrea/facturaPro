@@ -488,12 +488,52 @@ fun CreateAppointmentScreen(
                                     containerColor = MaterialTheme.colorScheme.error,
                                     contentColor = MaterialTheme.colorScheme.onError
                                 ),
-                                modifier = Modifier.weight(1f),
+                                modifier = Modifier.weight(0.9f),
                                 enabled = !isSubmitting,
                             ) {
                                 Icon(Icons.Default.Delete, null, modifier = Modifier.size(16.dp))
                                 Spacer(Modifier.width(4.dp))
-                                Text("Eliminar")
+                                Text("Eliminar", fontSize = 12.sp, maxLines = 1)
+                            }
+
+                            if (status != AppointmentStatus.CANCELLED) {
+                                OutlinedButton(
+                                    onClick = {
+                                        status = AppointmentStatus.CANCELLED
+                                        val requestEndDate = normalizedAppointmentEnd(startDate, endDate)
+                                        endDate = requestEndDate
+                                        isSubmitting = true
+                                        errorMsg = null
+                                        val req = CreateAppointmentRequest(
+                                            title = title,
+                                            clientId = existingAppointment.clientId,
+                                            startAt = startDate.format(fmt),
+                                            endAt = requestEndDate.format(fmt),
+                                            location = locationText.ifBlank { null },
+                                            locationLat = locationLat,
+                                            locationLng = locationLng,
+                                            serviceDescription = serviceDescription.ifBlank { null },
+                                            observations = observations.ifBlank { null },
+                                            contacts = contactsList.filter { !it.name.isNullOrBlank() || !it.phone.isNullOrBlank() || !it.email.isNullOrBlank() },
+                                            status = AppointmentStatus.CANCELLED.key,
+                                        )
+                                        viewModel.updateAppointment(
+                                            existingAppointment.id,
+                                            req,
+                                            onSuccess = { isSubmitting = false; onDismiss() },
+                                            onError = { errorMsg = it; isSubmitting = false }
+                                        )
+                                    },
+                                    modifier = Modifier.weight(1.1f),
+                                    enabled = !isSubmitting,
+                                    colors = ButtonDefaults.outlinedButtonColors(
+                                        contentColor = Color(0xFF6B7280)
+                                    ),
+                                ) {
+                                    Icon(Icons.Default.Close, null, modifier = Modifier.size(16.dp))
+                                    Spacer(Modifier.width(4.dp))
+                                    Text("Cancelar", fontSize = 12.sp, maxLines = 1)
+                                }
                             }
                         }
                         

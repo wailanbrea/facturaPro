@@ -718,8 +718,13 @@ class InvoiceController extends Controller
      */
     private function saveIntervention(Invoice $invoice, array $data): void
     {
-        if ($invoice->isQuotation() && blank($data['intervention']['included_items'] ?? null)) {
-            $data['intervention']['included_items'] = Invoice::DEFAULT_QUOTATION_INCLUDED_ITEMS;
+        if ($invoice->isQuotation()) {
+            if (blank($data['intervention']['included_items'] ?? null)) {
+                $data['intervention']['included_items'] = Invoice::DEFAULT_QUOTATION_INCLUDED_ITEMS;
+            }
+            if (blank($data['intervention']['service_scope'] ?? null)) {
+                $data['intervention']['service_scope'] = Invoice::DEFAULT_QUOTATION_SERVICE_SCOPE;
+            }
         }
 
         if (! array_key_exists('intervention', $data) || ! is_array($data['intervention'])) {

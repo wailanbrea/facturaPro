@@ -17,6 +17,8 @@ class Invoice extends Model
 
     public const DEFAULT_QUOTATION_INCLUDED_ITEMS = "Mano de obra cualificada\nMateriales y repuestos originales\nDesplazamiento\nPruebas y puesta en marcha\nGarantía en trabajos realizados";
 
+    public const DEFAULT_QUOTATION_SERVICE_SCOPE = 'Este presupuesto incluye los trabajos descritos en el detalle, materiales y desplazamiento dentro del area metropolitana de Barcelona.';
+
     public const DEFAULT_INTERVENTION_ACCEPTANCE = 'La presente factura acredita los trabajos efectuados y el material suministrado. El pago de la factura constituye la aceptación de los servicios prestados.';
 
     /**

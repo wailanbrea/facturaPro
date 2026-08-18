@@ -118,6 +118,7 @@ private const val DEFAULT_QUOTATION_OBSERVATIONS = "Este presupuesto no incluye 
 private const val DEFAULT_INTERVENTION_ACCEPTANCE = "La presente factura acredita los trabajos efectuados y el material suministrado. El pago de la factura constituye la aceptación de los servicios prestados."
 
 private const val DEFAULT_QUOTATION_INCLUDED_ITEMS = "Mano de obra cualificada\nMateriales y repuestos originales\nDesplazamiento\nPruebas y puesta en marcha\nGarantía en trabajos realizados"
+private const val DEFAULT_QUOTATION_SERVICE_SCOPE = "Este presupuesto incluye los trabajos descritos en el detalle, materiales y desplazamiento dentro del área metropolitana de Barcelona."
 
 @Composable
 fun InvoicesScreen(
@@ -1381,6 +1382,9 @@ private fun InvoiceFormPane(
         }
         if (documentType == "quotation" && intervention.includedItems.isNullOrBlank()) {
             intervention = intervention.copy(includedItems = DEFAULT_QUOTATION_INCLUDED_ITEMS)
+        }
+        if (documentType == "quotation" && intervention.serviceScope.isNullOrBlank()) {
+            intervention = intervention.copy(serviceScope = DEFAULT_QUOTATION_SERVICE_SCOPE)
         }
     }
 
@@ -2790,8 +2794,11 @@ private data class InvoiceFormDefaults(
                     workReference = invoice.workReference.orEmpty(),
                     serviceLocation = invoice.serviceLocation.orEmpty(),
                     intervention = (invoice.intervention ?: Intervention()).let { current ->
-                        if (invoice.documentType == "quotation" && current.includedItems.isNullOrBlank()) {
-                            current.copy(includedItems = DEFAULT_QUOTATION_INCLUDED_ITEMS)
+                        if (invoice.documentType == "quotation") {
+                            current.copy(
+                                includedItems = current.includedItems.takeUnless { it.isNullOrBlank() } ?: DEFAULT_QUOTATION_INCLUDED_ITEMS,
+                                serviceScope = current.serviceScope.takeUnless { it.isNullOrBlank() } ?: DEFAULT_QUOTATION_SERVICE_SCOPE,
+                            )
                         } else {
                             current
                         }
@@ -2844,7 +2851,10 @@ private data class InvoiceFormDefaults(
                 technicianName = "",
                 workReference = "",
                 serviceLocation = "",
-                intervention = Intervention(includedItems = DEFAULT_QUOTATION_INCLUDED_ITEMS),
+                intervention = Intervention(
+                    includedItems = DEFAULT_QUOTATION_INCLUDED_ITEMS,
+                    serviceScope = DEFAULT_QUOTATION_SERVICE_SCOPE,
+                ),
                 items = listOf(
                     EditableInvoiceItem(
                         description = "",

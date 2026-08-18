@@ -125,6 +125,21 @@
 
             @if($isFirst)
                 <div>
+                    @php
+                        $serviceScope = $intervention?->service_scope ?: \App\Models\Invoice::DEFAULT_QUOTATION_SERVICE_SCOPE;
+                    @endphp
+                    @if(filled($serviceScope))
+                        <div class="aside-box">
+                            <div class="note-title" style="display:flex;align-items:center;gap:1.4mm">
+                                <x-pdf-icon name="search" :size="8" />
+                                <span>ALCANCE DEL SERVICIO</span>
+                            </div>
+                            <div class="note-text" style="font-size:7pt;line-height:1.35;color:var(--ink);margin-top:1.2mm">
+                                {{ $serviceScope }}
+                            </div>
+                        </div>
+                    @endif
+
                     @if($includedItems->isNotEmpty())
                         <div class="aside-box">
                             <div class="note-title">Incluye</div>
