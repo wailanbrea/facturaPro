@@ -443,7 +443,12 @@ fun CreateAppointmentScreen(
                 // Status selector
                 item {
                     Text("Estado", fontWeight = FontWeight.Medium, fontSize = 13.sp, modifier = Modifier.padding(bottom = 6.dp))
-                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.padding(bottom = 16.dp)) {
+                    @OptIn(ExperimentalLayoutApi::class)
+                    FlowRow(
+                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                        verticalArrangement = Arrangement.spacedBy(8.dp),
+                        modifier = Modifier.fillMaxWidth().padding(bottom = 16.dp),
+                    ) {
                         AppointmentStatus.entries
                             .filter { it != AppointmentStatus.CANCELLED }
                             .forEach { s ->

@@ -122,10 +122,26 @@ fun WorkspaceScreen(
         }
     }
 
-    // Keep the dashboard in sync with changes made elsewhere (e.g. issuing an
-    // invoice) by refreshing whenever the user lands on the Home section.
+    // Keep the dashboard and client lists in sync with changes made elsewhere (e.g. creating/issuing an
+    // invoice, creating clients, or navigating to technical reports).
     LaunchedEffect(section) {
         if (section == WorkspaceSection.Home) {
+            dashboardViewModel.refresh()
+        }
+        if (section == WorkspaceSection.TechnicalReports || section == WorkspaceSection.Clients) {
+            clientsViewModel.refresh()
+        }
+    }
+
+    LaunchedEffect(newTechnicalReportRequest) {
+        if (newTechnicalReportRequest > 0) {
+            clientsViewModel.refresh()
+        }
+    }
+
+    LaunchedEffect(invoicesState.savedInvoiceId) {
+        if (invoicesState.savedInvoiceId != null) {
+            clientsViewModel.refresh()
             dashboardViewModel.refresh()
         }
     }
@@ -280,7 +296,10 @@ fun WorkspaceScreen(
                     bootstrap = loginState.bootstrap,
                     openCreateRequest = newTechnicalReportRequest,
                     onSearchChanged = technicalReportsViewModel::onSearchChanged,
-                    onRefresh = technicalReportsViewModel::refresh,
+                    onRefresh = {
+                        technicalReportsViewModel.refresh()
+                        clientsViewModel.refresh()
+                    },
                     onSelectReport = technicalReportsViewModel::loadDetail,
                     onClearSelection = technicalReportsViewModel::clearSelection,
                     onCreateReport = technicalReportsViewModel::createReport,
