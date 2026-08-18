@@ -238,11 +238,17 @@
         </section>
 
         <section class="card form" id="quotation-card">
-            <h3>Contenido del presupuesto</h3>
+            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
+                <div>
+                    <h3 style="margin:0">Contenido del presupuesto</h3>
+                    <p class="muted" style="margin:4px 0 0;font-size:12px">Especifica los conceptos incluidos en la propuesta economica (un concepto por linea).</p>
+                </div>
+                <button class="btn" id="enable-quotation-texts-btn" type="button">{{ $legalTextsEditable ? 'Edición habilitada' : 'Habilitar edición' }}</button>
+            </div>
             <div class="fields">
                 <div class="field span-2">
                     <label>Incluye <span class="text-on-surface-variant font-normal">(un concepto por linea)</span></label>
-                    <textarea name="intervention[included_items]" rows="6" maxlength="1200" data-legal-text-field @readonly(! $legalTextsEditable) @if(! $legalTextsEditable) style="background:#f3f2fe;cursor:not-allowed" @endif>{{ old('intervention.included_items', $interv?->included_items ?: \App\Models\Invoice::DEFAULT_QUOTATION_INCLUDED_ITEMS) }}</textarea>
+                    <textarea id="quotation-included-items" name="intervention[included_items]" rows="6" maxlength="1200" data-legal-text-field @readonly(! $legalTextsEditable) @if(! $legalTextsEditable) style="background:#f3f2fe;cursor:not-allowed" @endif>{{ old('intervention.included_items', $interv?->included_items ?: \App\Models\Invoice::DEFAULT_QUOTATION_INCLUDED_ITEMS) }}</textarea>
                 </div>
             </div>
         </section>
@@ -350,6 +356,7 @@ syncDocumentTypeFields();
 (function () {
     const unlockInput = document.getElementById('edit-legal-texts-input');
     const unlockButton = document.getElementById('enable-legal-texts-btn');
+    const unlockQuotationButton = document.getElementById('enable-quotation-texts-btn');
     const fields = Array.from(document.querySelectorAll('[data-legal-text-field]'));
 
     function setLegalTextsEditable(enabled) {
@@ -376,9 +383,15 @@ syncDocumentTypeFields();
             unlockButton.textContent = enabled ? 'Edicion habilitada' : 'Habilitar edicion';
             unlockButton.disabled = enabled;
         }
+
+        if (unlockQuotationButton) {
+            unlockQuotationButton.textContent = enabled ? 'Edición habilitada' : 'Habilitar edición';
+            unlockQuotationButton.disabled = enabled;
+        }
     }
 
     unlockButton?.addEventListener('click', () => setLegalTextsEditable(true));
+    unlockQuotationButton?.addEventListener('click', () => setLegalTextsEditable(true));
     setLegalTextsEditable(unlockInput?.value === '1');
 })();
 

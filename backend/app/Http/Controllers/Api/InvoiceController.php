@@ -722,22 +722,19 @@ class InvoiceController extends Controller
             $data['intervention']['included_items'] = Invoice::DEFAULT_QUOTATION_INCLUDED_ITEMS;
         }
 
-        if (! array_key_exists('intervention', $data)) {
+        if (! array_key_exists('intervention', $data) || ! is_array($data['intervention'])) {
             return;
         }
 
-        $intervention = array_filter(
-            $data['intervention'] ?? [],
-            static fn ($value): bool => $value !== null && $value !== '',
-        );
+        $hasAnyValue = collect($data['intervention'])->contains(fn ($v) => filled($v));
 
-        if ($intervention === []) {
+        if (! $hasAnyValue) {
             $invoice->intervention()->delete();
 
             return;
         }
 
-        $invoice->intervention()->updateOrCreate(['invoice_id' => $invoice->id], $intervention);
+        $invoice->intervention()->updateOrCreate(['invoice_id' => $invoice->id], $data['intervention']);
     }
 
     /**

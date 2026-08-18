@@ -702,18 +702,22 @@ class InvoiceController extends Controller
             $data['intervention']['included_items'] = Invoice::DEFAULT_QUOTATION_INCLUDED_ITEMS;
         }
 
-        $intervention = array_filter(
-            $data['intervention'] ?? [],
-            static fn ($value): bool => $value !== null && $value !== '',
-        );
+        if (! array_key_exists('intervention', $data) || ! is_array($data['intervention'])) {
+            return;
+        }
 
-        if ($intervention === []) {
+        $hasAnyValue = collect($data['intervention'])->contains(fn ($v) => filled($v));
+
+        if (! $hasAnyValue) {
             $invoice->intervention()->delete();
 
             return;
         }
 
-        $invoice->intervention()->updateOrCreate(['invoice_id' => $invoice->id], $intervention);
+        $invoice->intervention()->updateOrCreate(
+            ['invoice_id' => $invoice->id],
+            $data['intervention'],
+        );
     }
 
     /**
@@ -784,16 +788,11 @@ class InvoiceController extends Controller
      */
     private function stripLockedFields(array $data): array
     {
-        // Sin pulsar "Habilitar edicion" los tres textos conservan el valor que
-        // ya tenian. Observaciones entra aqui porque el cliente pidio que no se
-        // pudiera alterar ni borrar por error, pero si se pueda desbloquear.
+        // Sin pulsar "Habilitar edicion" los textos legales y observaciones conservan
+        // el valor que ya tenian. Los campos tecnicos (diagnostico, conclusiones,
+        // equipo, contenido de presupuesto) SIEMPRE se conservan y guardan.
         if (! (bool) ($data['edit_legal_texts'] ?? false)) {
             unset($data['legal_text'], $data['conformity_text'], $data['observations']);
-            unset(
-                $data['intervention']['included_items'],
-                $data['intervention']['diagnostic_summary'],
-                $data['intervention']['technical_conclusions'],
-            );
         }
 
         unset($data['edit_legal_texts']);

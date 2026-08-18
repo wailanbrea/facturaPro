@@ -541,6 +541,10 @@ class AdminPanelTest extends TestCase
             'fiscal_profile_id' => $profile->id,
             'warranty_id' => $warranty->id,
             'amount_received' => 0,
+            'intervention' => [
+                'diagnostic_summary' => 'Fuga de gas en válvula de servicio.',
+                'technical_conclusions' => 'Válvula reparada y carga de refrigerante completa.',
+            ],
             'items' => [
                 ['description' => 'Servicio actualizado', 'quantity' => 3, 'unit_cost' => 100, 'tax_id' => $tax->id],
             ],
@@ -549,6 +553,8 @@ class AdminPanelTest extends TestCase
         $invoice->refresh();
         $this->assertSame('354.0000', $invoice->total);
         $this->assertSame('Servicio actualizado', $invoice->items()->firstOrFail()->description);
+        $this->assertSame('Fuga de gas en válvula de servicio.', $invoice->intervention?->diagnostic_summary);
+        $this->assertSame('Válvula reparada y carga de refrigerante completa.', $invoice->intervention?->technical_conclusions);
     }
 
     public function test_invoice_legal_texts_require_explicit_unlock_to_edit(): void
