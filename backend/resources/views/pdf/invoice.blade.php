@@ -158,7 +158,9 @@
                                 <div class="kv"><dt>{{ $ctx->taxLabel }}:</dt><dd>{{ $money->format($invoice->tax_total, $currency) }}</dd></div>
                                 @if((float) $invoice->amount_received > 0)
                                     <div class="kv"><dt>Importe recibido:</dt><dd>{{ $money->format($invoice->amount_received, $currency) }}</dd></div>
-                                    <div class="kv"><dt>Balance pendiente:</dt><dd class="strong">{{ $money->format($invoice->balance_due, $currency) }}</dd></div>
+                                    @if((float) $invoice->balance_due > 0.0001)
+                                        <div class="kv"><dt>Balance pendiente:</dt><dd class="strong">{{ $money->format($invoice->balance_due, $currency) }}</dd></div>
+                                    @endif
                                 @endif
                             </dl>
                             <div class="totals-highlight single">

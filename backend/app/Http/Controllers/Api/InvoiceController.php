@@ -410,7 +410,13 @@ class InvoiceController extends Controller
                 'created_by' => $request->user()?->id,
             ]);
 
-            $calculated = $this->calculator->calculate($this->itemsForCalculation($invoice), (string) $newReceived);
+            $calculated = $this->calculator->calculate(
+                $this->itemsForCalculation($invoice),
+                (string) $newReceived,
+                $this->pricesIncludeTax(),
+                discountPercent: $invoice->discount_percent ?? '0',
+                travelAmount: $invoice->travel_amount ?? '0',
+            );
 
             $invoice->update([
                 'amount_received' => $calculated['amount_received'],

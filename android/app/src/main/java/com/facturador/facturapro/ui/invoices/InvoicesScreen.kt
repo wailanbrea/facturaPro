@@ -2863,6 +2863,7 @@ private fun String.toBigDecimalOrZero(): BigDecimal = runCatching {
 
 private fun formatPaymentAmount(amount: String?): String = amount
     ?.toBigDecimalOrZero()
+    ?.max(BigDecimal.ZERO)
     ?.setScale(2, RoundingMode.HALF_UP)
     ?.toPlainString()
     ?: "0.00"

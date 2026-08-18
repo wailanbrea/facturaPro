@@ -161,7 +161,9 @@ class InvoiceCalculationService
             throw new InvalidArgumentException('amount_received must be greater than or equal to zero.');
         }
 
-        $balanceDue = $total->minus($amountReceivedDecimal);
+        $balanceDue = $total->isLessThan($amountReceivedDecimal)
+            ? BigDecimal::zero()
+            : $total->minus($amountReceivedDecimal);
 
         return [
             'items' => $calculatedItems,
