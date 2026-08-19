@@ -84,12 +84,19 @@ DB::transaction(function () {
         
         InvoiceNumberSetting::create([
             'fiscal_profile_id' => $profile->id,
-            'invoice_prefix' => 'FAC-',
-            'invoice_serie' => $prefix,
-            'next_invoice_number' => 1,
-            'quotation_prefix' => 'PRE-',
-            'quotation_serie' => $prefix,
-            'next_quotation_number' => 1,
+            'document_type' => 'invoice',
+            'prefix' => 'FAC-',
+            'serie' => $prefix,
+            'next_number' => 1,
+            'number_length' => 6,
+        ]);
+
+        InvoiceNumberSetting::create([
+            'fiscal_profile_id' => $profile->id,
+            'document_type' => 'quotation',
+            'prefix' => 'PRE-',
+            'serie' => $prefix,
+            'next_number' => 1,
             'number_length' => 6,
         ]);
 
@@ -142,7 +149,7 @@ foreach (FiscalProfileLogo::all() as $logo) {
     echo " -> Logo ID {$logo->id} | Perfil {$logo->fiscal_profile_id} | Path: {$logo->path} | Label: {$logo->label}" . PHP_EOL;
 }
 foreach (InvoiceNumberSetting::all() as $ins) {
-    echo " -> Secuencia Factura ID {$ins->id} | Perfil {$ins->fiscal_profile_id} | Next Inv: {$ins->next_invoice_number} | Next Quo: {$ins->next_quotation_number}" . PHP_EOL;
+    echo " -> Secuencia Factura ID {$ins->id} | Perfil {$ins->fiscal_profile_id} | Tipo: {$ins->document_type} | Prefijo: {$ins->prefix}{$ins->serie} | Next: {$ins->next_number}" . PHP_EOL;
 }
 foreach (TechnicalReportNumberSetting::all() as $tns) {
     echo " -> Secuencia Informe ID {$tns->id} | Perfil {$tns->fiscal_profile_id} | Next: {$tns->next_number}" . PHP_EOL;
