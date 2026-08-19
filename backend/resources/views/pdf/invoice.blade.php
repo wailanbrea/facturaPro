@@ -99,10 +99,15 @@
                         <x-pdf-icon name="calendar" :size="9" />
                         Datos de la factura
                     </div>
-                    <div class="card-body">
+                        @php
+                            $effectiveDueDate = $invoice->due_date ?: ($invoice->invoice_date ? $invoice->invoice_date->copy()->addDays(30) : null);
+                            if ($invoice->invoice_date && $effectiveDueDate && $effectiveDueDate->lessThanOrEqualTo($invoice->invoice_date)) {
+                                $effectiveDueDate = $invoice->invoice_date->copy()->addDays(30);
+                            }
+                        @endphp
                         <dl style="margin:0">
                             <div class="kv"><dt>Fecha de emisión:</dt><dd>{{ $invoice->invoice_date?->format('d/m/Y') ?: '-' }}</dd></div>
-                            <div class="kv"><dt>Fecha de vencimiento:</dt><dd>{{ $invoice->due_date?->format('d/m/Y') ?: '-' }}</dd></div>
+                            <div class="kv"><dt>Fecha de vencimiento:</dt><dd>{{ $effectiveDueDate?->format('d/m/Y') ?: '-' }}</dd></div>
                             <div class="kv"><dt>Término de pago:</dt><dd>{{ $invoice->paymentTerm?->name ?: 'Al contado' }}</dd></div>
                             <div class="kv"><dt>Forma de pago:</dt><dd>{{ $invoice->paymentMethodLabel() }}</dd></div>
                             {{-- El estado va como texto simple, nunca como bloque destacado. --}}

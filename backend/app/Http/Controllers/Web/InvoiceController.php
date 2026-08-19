@@ -373,7 +373,7 @@ class InvoiceController extends Controller
                 'document_type' => 'invoice',
                 'source_quotation_id' => $invoice->id,
                 'invoice_date' => $invoiceDate->toDateString(),
-                'due_date' => $term ? $invoiceDate->addDays($term->days)->toDateString() : $invoice->due_date?->toDateString(),
+                'due_date' => $invoiceDate->addDays($term && $term->days > 0 ? $term->days : 30)->toDateString(),
                 'payment_term_id' => $invoice->payment_term_id,
                 'client_id' => $invoice->client_id,
                 'client_name' => $invoice->client_name,
@@ -745,11 +745,11 @@ class InvoiceController extends Controller
     }
 
     /**
-     * Presupuestos siempre vencen a 30 dias; facturas segun el termino de pago.
+     * Presupuestos y facturas vencen por defecto a 30 dias a futuro.
      */
     private function dueDateFor(string $documentType, CarbonImmutable $invoiceDate, PaymentTerm $term): string
     {
-        $days = $documentType === Invoice::DOCUMENT_TYPE_QUOTATION ? 30 : $term->days;
+        $days = $documentType === Invoice::DOCUMENT_TYPE_QUOTATION ? 30 : ($term->days > 0 ? $term->days : 30);
 
         return $invoiceDate->addDays($days)->toDateString();
     }

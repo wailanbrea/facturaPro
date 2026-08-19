@@ -284,7 +284,7 @@ class InvoiceController extends Controller
                     'document_type' => 'invoice',
                     'source_quotation_id' => $invoice->id,
                     'invoice_date' => $invoiceDate->toDateString(),
-                    'due_date' => $term ? $invoiceDate->addDays($term->days)->toDateString() : $invoice->due_date?->toDateString(),
+                    'due_date' => $invoiceDate->addDays($term && $term->days > 0 ? $term->days : 30)->toDateString(),
                     'payment_term_id' => $invoice->payment_term_id,
                     'client_id' => $invoice->client_id,
                     'client_name' => $invoice->client_name,
@@ -554,7 +554,7 @@ class InvoiceController extends Controller
             'invoice_date' => $invoiceDate->toDateString(),
             'due_date' => ($data['document_type'] ?? $invoice?->document_type ?? 'invoice') === Invoice::DOCUMENT_TYPE_QUOTATION
                 ? $invoiceDate->addDays(30)->toDateString()
-                : ($data['due_date'] ?? $invoiceDate->addDays($paymentTerm->days)->toDateString()),
+                : ($data['due_date'] ?? $invoiceDate->addDays($paymentTerm->days > 0 ? $paymentTerm->days : 30)->toDateString()),
             'payment_term_id' => $paymentTerm->id,
             ...$clientSnapshot,
             'currency_id' => $currency->id,
