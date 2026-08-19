@@ -11,16 +11,16 @@
     $includedItems = $intervention?->includedItemsList() ?? collect();
 
     $legalBlocks = [
-        ['icon' => 'shield-check', 'tone' => 'navy', 'title' => 'Garantía', 'text' => 'Garantía de '.\App\Models\Warranty::durationLabelFor($invoice->warranty?->duration_months).' en mano de obra y materiales suministrados, conforme a la normativa vigente.'],
-        ['icon' => 'x-circle', 'tone' => 'accent', 'title' => 'Validez', 'text' => 'Este presupuesto es válido hasta la fecha indicada. Pasado este plazo, podrá estar sujeto a cambios.'],
-        ['icon' => 'scale', 'tone' => 'navy', 'title' => 'Condiciones', 'text' => 'Sujeto a nuestras Condiciones Generales de Prestación del Servicio.'],
-        ['icon' => 'clock', 'tone' => 'accent', 'title' => 'Plazos de ejecución', 'text' => 'Los trabajos se realizarán en la fecha acordada, según disponibilidad de material y agenda.'],
-        ['icon' => 'settings', 'tone' => 'navy', 'title' => 'Materiales', 'text' => 'Utilizamos repuestos originales o de primeras marcas equivalentes.'],
-        ['icon' => 'file-text', 'tone' => 'accent', 'title' => 'Modificaciones', 'text' => 'Cualquier cambio en el alcance deberá ser aprobado por ambas partes antes de ejecutarse.'],
-        ['icon' => 'lock', 'tone' => 'navy', 'title' => 'Protección de datos', 'text' => 'Tratamiento de datos conforme al RGPD (UE 2016/679).'],
-        ['icon' => 'euro', 'tone' => 'accent', 'title' => 'Cancelación', 'text' => 'Cancelaciones con menos de 24 h de antelación podrán tener coste de desplazamiento.'],
-        ['icon' => 'check-circle', 'tone' => 'navy', 'title' => 'Aceptación', 'text' => 'La aceptación implica conformidad con las condiciones del servicio.'],
-        ['icon' => 'landmark', 'tone' => 'navy', 'title' => 'Jurisdicción', 'text' => 'Para cualquier controversia, serán competentes los juzgados de '.($invoice->seller_city ?: 'la sede del emisor').'.'],
+        ['icon' => 'shield-check', 'tone' => 'navy', 'title' => 'GARANTÍA', 'text' => 'Garantía de '.\App\Models\Warranty::durationLabelFor($invoice->warranty?->duration_months).' en mano de obra y materiales suministrados, conforme a la normativa vigente.'],
+        ['icon' => 'x-circle', 'tone' => 'accent', 'title' => 'VALIDEZ', 'text' => 'Este presupuesto es válido hasta la fecha indicada. Pasado este plazo, podrá estar sujeto a cambios.'],
+        ['icon' => 'scale', 'tone' => 'navy', 'title' => 'CONDICIONES', 'text' => 'Sujeto a nuestras Condiciones Generales de Prestación del Servicio.'],
+        ['icon' => 'clock', 'tone' => 'accent', 'title' => 'PLAZOS DE EJECUCIÓN', 'text' => 'Los trabajos se realizarán en la fecha acordada, según disponibilidad.'],
+        ['icon' => 'settings', 'tone' => 'navy', 'title' => 'MATERIALES', 'text' => 'Utilizamos repuestos originales o de primeras marcas.'],
+        ['icon' => 'file-text', 'tone' => 'accent', 'title' => 'MODIFICACIONES', 'text' => 'Cualquier cambio en el alcance deberá ser aprobado por ambas partes.'],
+        ['icon' => 'lock', 'tone' => 'navy', 'title' => 'PROTECCIÓN DE DATOS', 'text' => 'Tratamiento de datos conforme al RGPD (UE 2016/679).'],
+        ['icon' => 'euro', 'tone' => 'accent', 'title' => 'CANCELACIÓN', 'text' => 'Cancelaciones con menos de 24 h de antelación podrán tener coste.'],
+        ['icon' => 'check-circle', 'tone' => 'navy', 'title' => 'ACEPTACIÓN', 'text' => 'La aceptación implica conformidad con las condiciones del servicio.'],
+        ['icon' => 'landmark', 'tone' => 'accent', 'title' => 'JURISDICCIÓN', 'text' => 'Para cualquier controversia, serán competentes los juzgados de '.($invoice->seller_city ?: 'Barcelona').'.'],
     ];
 @endphp
 <!DOCTYPE html>
