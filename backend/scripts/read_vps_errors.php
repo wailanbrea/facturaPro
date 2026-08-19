@@ -6,6 +6,9 @@ if (!file_exists($logPath)) {
     exit(0);
 }
 
-$lines = file($logPath);
-$tail = array_slice($lines, -250);
-echo implode('', $tail);
+$content = file_get_contents($logPath);
+preg_match_all('/\[\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}\] [^\n]+ERROR: [^\n]+/', $content, $matches);
+
+foreach (array_slice($matches[0], -30) as $err) {
+    echo $err . PHP_EOL;
+}
