@@ -256,9 +256,8 @@ internal fun LazyListScope.interventionFields(
             OutlinedTextField(
                 value = intervention.diagnosticSummary.orEmpty(),
                 onValueChange = {
-                    if (it.length <= 300) {
-                        onChange(intervention.copy(diagnosticSummary = it))
-                    }
+                    val text = if (it.length > 300) it.take(300) else it
+                    onChange(intervention.copy(diagnosticSummary = text))
                 },
                 modifier = Modifier.fillMaxWidth(),
                 label = { Text("Diagnóstico técnico") },
@@ -298,9 +297,8 @@ internal fun LazyListScope.interventionFields(
             OutlinedTextField(
                 value = intervention.technicalConclusions.orEmpty(),
                 onValueChange = {
-                    if (it.length <= 280) {
-                        onChange(intervention.copy(technicalConclusions = it))
-                    }
+                    val text = if (it.length > 280) it.take(280) else it
+                    onChange(intervention.copy(technicalConclusions = text))
                 },
                 modifier = Modifier.fillMaxWidth(),
                 label = { Text("Conclusiones técnicas") },
