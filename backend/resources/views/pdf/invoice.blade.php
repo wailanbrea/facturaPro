@@ -99,6 +99,7 @@
                         <x-pdf-icon name="calendar" :size="9" />
                         Datos de la factura
                     </div>
+                    <div class="card-body">
                         @php
                             $effectiveDueDate = $invoice->due_date ?: ($invoice->invoice_date ? $invoice->invoice_date->copy()->addDays(30) : null);
                             if ($invoice->invoice_date && $effectiveDueDate && $effectiveDueDate->lessThanOrEqualTo($invoice->invoice_date)) {
