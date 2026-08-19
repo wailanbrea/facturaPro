@@ -9,16 +9,16 @@
     $isPaid = strtolower((string) $invoice->status) === 'paid';
 
     $legalBlocks = [
-        ['icon' => 'shield-check', 'tone' => 'navy', 'title' => 'Garantía legal', 'text' => 'Garantía de '.\App\Models\Warranty::durationLabelFor($invoice->warranty?->duration_months).' en mano de obra y materiales suministrados, conforme a la normativa vigente.'],
-        ['icon' => 'x-circle', 'tone' => 'accent', 'title' => 'Exclusiones', 'text' => 'No cubre daños por mal uso, manipulación de terceros, falta de mantenimiento, sobretensiones o causas externas.'],
-        ['icon' => 'alert-triangle', 'tone' => 'navy', 'title' => 'Limitaciones', 'text' => 'Responsabilidad limitada al valor de la intervención realizada.'],
-        ['icon' => 'search', 'tone' => 'accent', 'title' => 'Daños ocultos', 'text' => 'Averías no visibles en el momento de la intervención. Su reparación se presupuesta aparte.'],
-        ['icon' => 'settings', 'tone' => 'navy', 'title' => 'Equipos antiguos', 'text' => 'En equipos con más de 10 años no se garantiza la disponibilidad de repuestos.'],
-        ['icon' => 'file-text', 'tone' => 'accent', 'title' => 'Presupuestos', 'text' => 'Validez de 30 días naturales desde la fecha de emisión.'],
-        ['icon' => 'lock', 'tone' => 'navy', 'title' => 'Protección de datos', 'text' => 'Tratamiento de datos conforme al RGPD (UE 2016/679). Puede ejercer sus derechos ante el emisor.'],
-        ['icon' => 'euro', 'tone' => 'accent', 'title' => 'Facturación y pago', 'text' => 'Pago en la forma y plazo indicados en la factura. Los importes se expresan con impuestos desglosados.'],
-        ['icon' => 'check-circle', 'tone' => 'navy', 'title' => 'Aceptación', 'text' => 'La aceptación implica conformidad con las condiciones del servicio.'],
-        ['icon' => 'landmark', 'tone' => 'navy', 'title' => 'Jurisdicción', 'text' => 'Para cualquier controversia, serán competentes los juzgados de '.($invoice->seller_city ?: 'la sede del emisor').'.'],
+        ['icon' => 'shield-check', 'tone' => 'navy', 'title' => 'GARANTÍA LEGAL', 'text' => 'Garantía de '.\App\Models\Warranty::durationLabelFor($invoice->warranty?->duration_months).' en mano de obra y materiales suministrados, conforme a la normativa vigente.'],
+        ['icon' => 'x-circle', 'tone' => 'accent', 'title' => 'EXCLUSIONES', 'text' => 'No cubre daños por mal uso, manipulación de terceros, falta de mantenimiento, sobretensiones o causas externas.'],
+        ['icon' => 'scale', 'tone' => 'navy', 'title' => 'LIMITACIONES', 'text' => 'Responsabilidad limitada al valor de la intervención realizada.'],
+        ['icon' => 'search', 'tone' => 'accent', 'title' => 'DAÑOS OCULTOS', 'text' => 'Averías no visibles en el momento de la intervención.'],
+        ['icon' => 'settings', 'tone' => 'navy', 'title' => 'EQUIPOS ANTIGUOS', 'text' => 'En equipos con más de 10 años no se garantiza la disponibilidad de repuestos.'],
+        ['icon' => 'file-text', 'tone' => 'accent', 'title' => 'PRESUPUESTOS', 'text' => 'Validez de 30 días naturales desde la fecha de emisión.'],
+        ['icon' => 'lock', 'tone' => 'navy', 'title' => 'PROTECCIÓN DE DATOS', 'text' => 'Tratamiento de datos conforme al RGPD (UE 2016/679).'],
+        ['icon' => 'euro', 'tone' => 'accent', 'title' => 'FACTURACIÓN Y PAGO', 'text' => 'Pago en la forma y plazo indicados en la factura.'],
+        ['icon' => 'check-circle', 'tone' => 'navy', 'title' => 'ACEPTACIÓN', 'text' => 'La aceptación implica conformidad con las condiciones del servicio.'],
+        ['icon' => 'landmark', 'tone' => 'accent', 'title' => 'JURISDICCIÓN', 'text' => 'Para cualquier controversia, serán competentes los juzgados de '.($invoice->seller_city ?: 'Barcelona').'.'],
     ];
 @endphp
 <!DOCTYPE html>
