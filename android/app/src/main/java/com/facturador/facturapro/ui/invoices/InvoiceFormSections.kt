@@ -255,10 +255,15 @@ internal fun LazyListScope.interventionFields(
         Box(modifier = Modifier.fillMaxWidth()) {
             OutlinedTextField(
                 value = intervention.diagnosticSummary.orEmpty(),
-                onValueChange = { onChange(intervention.copy(diagnosticSummary = it)) },
+                onValueChange = {
+                    if (it.length <= 300) {
+                        onChange(intervention.copy(diagnosticSummary = it))
+                    }
+                },
                 modifier = Modifier.fillMaxWidth(),
                 label = { Text("Diagnóstico técnico") },
                 placeholder = { Text("Resumen del diagnóstico técnico realizado...") },
+                supportingText = { Text("${intervention.diagnosticSummary?.length ?: 0}/300") },
                 minLines = 3,
                 readOnly = !textFieldsEditable,
                 enabled = textFieldsEditable,
@@ -292,10 +297,15 @@ internal fun LazyListScope.interventionFields(
         Box(modifier = Modifier.fillMaxWidth()) {
             OutlinedTextField(
                 value = intervention.technicalConclusions.orEmpty(),
-                onValueChange = { onChange(intervention.copy(technicalConclusions = it)) },
+                onValueChange = {
+                    if (it.length <= 280) {
+                        onChange(intervention.copy(technicalConclusions = it))
+                    }
+                },
                 modifier = Modifier.fillMaxWidth(),
                 label = { Text("Conclusiones técnicas") },
                 placeholder = { Text("Conclusiones y recomendaciones de la intervención...") },
+                supportingText = { Text("${intervention.technicalConclusions?.length ?: 0}/280") },
                 minLines = 3,
                 readOnly = !textFieldsEditable,
                 enabled = textFieldsEditable,

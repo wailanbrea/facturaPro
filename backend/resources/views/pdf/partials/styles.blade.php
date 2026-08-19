@@ -332,8 +332,10 @@
     .note-text { color: var(--ink); line-height: 1.3; white-space: pre-line; overflow: hidden; }
     .note-text.muted { color: var(--muted); }
 
-    .aside-box { border: 0.3mm solid var(--line); border-radius: 1.4mm; padding: 2.2mm 2.6mm; }
-    .aside-box + .aside-box { margin-top: 3mm; }
+    .aside-box { border: 0.3mm solid var(--line); border-radius: 1.4mm; padding: 1.8mm 2.2mm; }
+    .aside-box + .aside-box { margin-top: 2mm; }
+    .aside-box .note-title { font-size: 5.8pt; margin-bottom: 0.8mm; }
+    .aside-box .note-text { font-size: 6.2pt; line-height: 1.22; }
 
     .check-list { margin: 1.2mm 0 0; padding: 0; list-style: none; }
     .check-list li { display: flex; align-items: flex-start; gap: 1.4mm; padding: .6mm 0; }

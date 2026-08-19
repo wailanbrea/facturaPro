@@ -232,8 +232,20 @@
                         <input name="intervention[units_outdoor]" type="number" min="0" max="255" value="{{ old('intervention.units_outdoor', $interv?->units_outdoor) }}" placeholder="Exterior">
                     </div>
                 </div>
-                <div class="field span-2"><label>Diagnostico tecnico</label><textarea name="intervention[diagnostic_summary]" maxlength="1200">{{ old('intervention.diagnostic_summary', $interv?->diagnostic_summary) }}</textarea></div>
-                <div class="field span-2"><label>Conclusiones tecnicas</label><textarea name="intervention[technical_conclusions]" maxlength="1200">{{ old('intervention.technical_conclusions', $interv?->technical_conclusions) }}</textarea></div>
+                <div class="field span-2">
+                    <div style="display:flex;justify-content:space-between;align-items:center">
+                        <label>Diagnóstico técnico</label>
+                        <span id="diagnostic-count" class="muted" style="font-size:11px">0/300</span>
+                    </div>
+                    <textarea name="intervention[diagnostic_summary]" id="diagnostic-summary-input" maxlength="300" oninput="document.getElementById('diagnostic-count').textContent = this.value.length + '/300'">{{ old('intervention.diagnostic_summary', $interv?->diagnostic_summary) }}</textarea>
+                </div>
+                <div class="field span-2">
+                    <div style="display:flex;justify-content:space-between;align-items:center">
+                        <label>Conclusiones técnicas</label>
+                        <span id="conclusions-count" class="muted" style="font-size:11px">0/280</span>
+                    </div>
+                    <textarea name="intervention[technical_conclusions]" id="conclusions-input" maxlength="280" oninput="document.getElementById('conclusions-count').textContent = this.value.length + '/280'">{{ old('intervention.technical_conclusions', $interv?->technical_conclusions) }}</textarea>
+                </div>
             </div>
         </section>
 
@@ -516,6 +528,11 @@ syncDocumentTypeFields();
         refreshLogoOptions();
         window.refreshInvoiceNumberPreview();
     });
+
+    const diagInp = document.getElementById('diagnostic-summary-input');
+    if (diagInp) document.getElementById('diagnostic-count').textContent = diagInp.value.length + '/300';
+    const concInp = document.getElementById('conclusions-input');
+    if (concInp) document.getElementById('conclusions-count').textContent = concInp.value.length + '/280';
 
     refreshLogoOptions();
     window.refreshInvoiceNumberPreview();
