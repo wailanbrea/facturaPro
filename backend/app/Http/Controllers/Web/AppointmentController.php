@@ -220,7 +220,9 @@ class AppointmentController extends Controller
         }
 
         if ($query->exists()) {
-            abort(422, 'Existe un conflicto de horario con otra cita en ese rango.');
+            throw \Illuminate\Validation\ValidationException::withMessages([
+                'start_at' => 'Existe un conflicto de horario con otra cita en ese rango.',
+            ]);
         }
     }
 
