@@ -10,7 +10,7 @@
 @section('actions')
 <a class="btn" href="{{ route('web.technical-reports.index') }}">Volver</a>
 <a class="btn" href="{{ route('web.technical-reports.preview', $report) }}" target="_blank">Vista previa</a>
-@if($canEditReports && $report->status !== 'cancelled')
+@if($canEditReports && $report->status === 'draft' && $report->verification_hash === null)
     <a class="btn" href="{{ route('web.technical-reports.edit', $report) }}">Editar</a>
 @endif
 @if($canDownloadReports && $report->status !== 'cancelled')

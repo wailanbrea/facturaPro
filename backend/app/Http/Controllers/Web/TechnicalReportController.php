@@ -87,10 +87,10 @@ class TechnicalReportController extends Controller
 
     public function edit(TechnicalReport $technicalReport): View|RedirectResponse
     {
-        if ($technicalReport->status === TechnicalReportService::CANCELLED) {
+        if ($technicalReport->status !== TechnicalReportService::DRAFT || $technicalReport->verification_hash !== null) {
             return redirect()
                 ->route('web.technical-reports.show', $technicalReport)
-                ->withErrors(['report' => 'No se puede editar un informe anulado.']);
+                ->withErrors(['report' => 'Solo se pueden editar informes técnicos en estado borrador.']);
         }
 
         return view('technical-reports.edit', [
@@ -104,6 +104,12 @@ class TechnicalReportController extends Controller
 
     public function update(UpdateTechnicalReportRequest $request, TechnicalReport $technicalReport): RedirectResponse
     {
+        if ($technicalReport->status !== TechnicalReportService::DRAFT || $technicalReport->verification_hash !== null) {
+            return redirect()
+                ->route('web.technical-reports.show', $technicalReport)
+                ->withErrors(['report' => 'Solo se pueden editar informes técnicos en estado borrador.']);
+        }
+
         $report = $this->reports->update($technicalReport, $this->withoutAdditionalTexts($request->validated()), $request->user());
 
         return redirect()

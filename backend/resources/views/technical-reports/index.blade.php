@@ -54,7 +54,7 @@
             <td class="right">
                 <div class="actions" style="justify-content:flex-end">
                     <a class="btn" href="{{ route('web.technical-reports.show', $report) }}">Ver</a>
-                    @if($canEditReports && $report->status !== 'cancelled')
+                    @if($canEditReports && $report->status === 'draft' && $report->verification_hash === null)
                         <a class="btn" href="{{ route('web.technical-reports.edit', $report) }}">Editar</a>
                     @endif
                     <a class="btn" href="{{ route('web.technical-reports.preview', $report) }}" target="_blank">PDF</a>
