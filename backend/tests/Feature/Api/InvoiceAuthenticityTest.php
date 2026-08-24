@@ -80,13 +80,37 @@ class InvoiceAuthenticityTest extends TestCase
             ->assertJsonPath('authentic', false);
     }
 
-    public function test_signed_invoice_cannot_modify_authenticated_fields(): void
+    public function test_editing_a_signed_invoice_rebuilds_its_dependent_chain(): void
     {
-        $id = $this->createInvoice()->json('data.id');
-        $this->postJson("/api/invoices/{$id}/issue")->assertOk();
+        $firstId = $this->createInvoice()->json('data.id');
+        $this->postJson("/api/invoices/{$firstId}/issue")->assertOk();
+        $secondId = $this->createInvoice()->json('data.id');
+        $this->postJson("/api/invoices/{$secondId}/issue")->assertOk();
 
-        $this->putJson("/api/invoices/{$id}", ['amount_received' => '50.00'])
-            ->assertStatus(409);
+        $oldFirstHash = Invoice::query()->findOrFail($firstId)->verification_hash;
+        $oldSecondHash = Invoice::query()->findOrFail($secondId)->verification_hash;
+        $tax = Tax::query()->where('name', 'ITBIS 18%')->firstOrFail();
+
+        $this->putJson("/api/invoices/{$firstId}", [
+            'items' => [[
+                'description' => 'Servicio corregido',
+                'quantity' => '2',
+                'unit_cost' => '100.00',
+                'tax_id' => $tax->id,
+            ]],
+        ])->assertOk()
+            ->assertJsonPath('data.items.0.description', 'Servicio corregido');
+
+        $first = Invoice::query()->with('items')->findOrFail($firstId);
+        $second = Invoice::query()->with('items')->findOrFail($secondId);
+        $signature = app(InvoiceSignatureService::class);
+
+        $this->assertNotSame($oldFirstHash, $first->verification_hash);
+        $this->assertNotSame($oldSecondHash, $second->verification_hash);
+        $this->assertSame($first->verification_hash, $second->previous_hash);
+        $this->assertTrue($signature->matches($first));
+        $this->assertTrue($signature->matches($second));
+        $this->artisan('invoices:verify-chain')->assertExitCode(0);
     }
 
     public function test_chain_links_consecutive_invoices_and_audit_detects_tampering(): void
@@ -191,7 +215,7 @@ class InvoiceAuthenticityTest extends TestCase
     }
 
     /**
-     * @param array<string, mixed> $overrides
+     * @param  array<string, mixed>  $overrides
      */
     private function createInvoice(array $overrides = [])
     {
@@ -199,7 +223,7 @@ class InvoiceAuthenticityTest extends TestCase
     }
 
     /**
-     * @param array<string, mixed> $overrides
+     * @param  array<string, mixed>  $overrides
      * @return array<string, mixed>
      */
     private function invoicePayload(array $overrides = []): array

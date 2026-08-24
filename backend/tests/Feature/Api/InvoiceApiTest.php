@@ -413,15 +413,17 @@ class InvoiceApiTest extends TestCase
             ->assertJsonPath('data.status', 'overdue');
     }
 
-    public function test_cancelled_invoice_cannot_be_updated(): void
+    public function test_cancelled_invoice_can_be_updated_by_user_with_permission(): void
     {
         $invoiceId = $this->createInvoice()->json('data.id');
 
         $this->postJson("/api/invoices/{$invoiceId}/cancel")->assertOk();
 
         $this->putJson("/api/invoices/{$invoiceId}", [
-            'observations' => 'Should not update',
-        ])->assertStatus(409);
+            'observations' => 'Documento anulado corregido',
+        ])->assertOk()
+            ->assertJsonPath('data.status', 'cancelled')
+            ->assertJsonPath('data.observations', 'Documento anulado corregido');
 
         $this->assertDatabaseHas('activity_logs', [
             'action' => 'invoice.cancelled',
@@ -450,6 +452,41 @@ class InvoiceApiTest extends TestCase
         Sanctum::actingAs(User::factory()->create());
 
         $this->createInvoice()->assertForbidden();
+    }
+
+    public function test_user_without_permission_cannot_edit_invoice(): void
+    {
+        $invoiceId = $this->createInvoice()->json('data.id');
+        Sanctum::actingAs(User::factory()->create());
+
+        $this->putJson("/api/invoices/{$invoiceId}", [
+            'observations' => 'Cambio no autorizado',
+        ])->assertForbidden();
+    }
+
+    public function test_paid_invoice_can_update_monetary_fields(): void
+    {
+        $invoiceId = $this->createInvoice()->json('data.id');
+        $this->postJson("/api/invoices/{$invoiceId}/issue")->assertOk();
+        $this->postJson("/api/invoices/{$invoiceId}/mark-paid", [
+            'amount' => '236',
+            'payment_date' => '2026-05-21',
+            'method' => 'cash',
+        ])->assertOk()->assertJsonPath('data.status', 'paid');
+
+        $tax = Tax::query()->where('name', 'ITBIS 18%')->firstOrFail();
+
+        $this->putJson("/api/invoices/{$invoiceId}", [
+            'amount_received' => '236',
+            'items' => [[
+                'description' => 'Servicio ampliado',
+                'quantity' => '3',
+                'unit_cost' => '100',
+                'tax_id' => $tax->id,
+            ]],
+        ])->assertOk()
+            ->assertJsonPath('data.status', 'partially_paid')
+            ->assertJsonPath('data.total', '354.0000');
     }
 
     public function test_generate_and_download_pdf_endpoint(): void
@@ -633,14 +670,20 @@ class InvoiceApiTest extends TestCase
                 ],
             ],
         ])->assertOk()
-          ->assertJsonPath('data.observations', 'Observaciones añadidas tras convertir presupuesto.')
-          ->assertJsonPath('data.items.0.description', 'Item modificado')
-          ->assertJsonPath('data.status', 'draft');
+            ->assertJsonPath('data.observations', 'Observaciones añadidas tras convertir presupuesto.')
+            ->assertJsonPath('data.items.0.description', 'Item modificado')
+            ->assertJsonPath('data.status', 'draft');
 
         // And then can be issued
         $this->postJson("/api/invoices/{$facturaId}/issue")
             ->assertOk()
             ->assertJsonPath('data.status', 'issued');
+
+        $this->putJson("/api/invoices/{$quotation['id']}", [
+            'observations' => 'Presupuesto convertido corregido',
+        ])->assertOk()
+            ->assertJsonPath('data.status', 'converted')
+            ->assertJsonPath('data.observations', 'Presupuesto convertido corregido');
     }
 
     /**

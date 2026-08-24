@@ -203,11 +203,12 @@ fun InvoicesScreen(
         }
     }
 
-    LaunchedEffect(openInvoiceRequest, requestedInvoiceId, openRequestedInvoiceForEdit) {
+    LaunchedEffect(openInvoiceRequest, requestedInvoiceId, openRequestedInvoiceForEdit, permissions) {
         val invoiceId = requestedInvoiceId ?: return@LaunchedEffect
         if (openInvoiceRequest > 0) {
-            editingInvoiceId = invoiceId
-            pane = if (openRequestedInvoiceForEdit) InvoicePane.Edit else InvoicePane.Detail
+            val canOpenForEdit = openRequestedInvoiceForEdit && "editar_factura" in permissions
+            editingInvoiceId = if (canOpenForEdit) invoiceId else null
+            pane = if (canOpenForEdit) InvoicePane.Edit else InvoicePane.Detail
             onClearPreview()
             onSelectInvoice(invoiceId)
         }
@@ -779,7 +780,7 @@ private fun InvoiceDetailPane(
                 title = invoice?.invoiceNumber ?: if (invoice?.documentType == "quotation") "Presupuesto" else "Factura",
                 onBack = onBack,
                 trailing = {
-                    if (invoice?.status == "draft" && "editar_factura" in permissions) {
+                    if (invoice != null && "editar_factura" in permissions) {
                         IconButton(onClick = onEdit, enabled = !state.isSaving) {
                             Icon(
                                 imageVector = Icons.Outlined.Edit,
@@ -1470,7 +1471,7 @@ private fun InvoiceFormPane(
             DocumentTypeSelector(
                 selectedType = documentType,
                 onSelected = { documentType = it },
-                enabled = !isSaving,
+                enabled = !isSaving && (existingInvoice == null || existingInvoice.status == "draft"),
             )
         }
         item {

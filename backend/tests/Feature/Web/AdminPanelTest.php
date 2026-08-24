@@ -683,7 +683,7 @@ class AdminPanelTest extends TestCase
         $this->assertSame('CAMBIADA A PROPOSITO', $invoice->refresh()->observations);
     }
 
-    public function test_issued_invoice_cannot_be_edited_from_web(): void
+    public function test_issued_invoice_can_be_edited_from_web_with_permission(): void
     {
         $this->seed();
         $this->actingAs(User::query()->firstOrFail());
@@ -713,7 +713,39 @@ class AdminPanelTest extends TestCase
         $this->post(route('web.invoices.issue', $invoice));
 
         $this->get(route('web.invoices.edit', $invoice))
-            ->assertRedirect(route('web.invoices.show', $invoice));
+            ->assertOk()
+            ->assertSee('Guardar cambios');
+
+        $this->put(route('web.invoices.update', $invoice), [
+            'document_type' => 'invoice',
+            'invoice_date' => '2026-05-21',
+            'payment_term_id' => $term->id,
+            'client_id' => $client->id,
+            'currency_id' => $currency->id,
+            'fiscal_profile_id' => $profile->id,
+            'warranty_id' => $warranty->id,
+            'amount_received' => 0,
+            'items' => [
+                ['description' => 'Servicio corregido', 'quantity' => 2, 'unit_cost' => 100, 'tax_id' => $tax->id],
+            ],
+        ])->assertRedirect(route('web.invoices.show', $invoice));
+
+        $invoice->refresh();
+        $this->assertSame('Servicio corregido', $invoice->items()->firstOrFail()->description);
+        $this->assertNotSame('draft', $invoice->status);
+        $this->artisan('invoices:verify-chain')->assertExitCode(0);
+    }
+
+    public function test_user_without_permission_cannot_edit_invoice_from_web(): void
+    {
+        $this->seed();
+        $admin = User::query()->firstOrFail();
+        $this->actingAs($admin);
+
+        $invoice = $this->createReportInvoice(['status' => 'draft']);
+
+        $this->actingAs(User::factory()->create());
+        $this->get(route('web.invoices.edit', $invoice))->assertForbidden();
     }
 
     public function test_settings_page_renders_catalogs(): void

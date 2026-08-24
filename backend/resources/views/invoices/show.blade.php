@@ -16,9 +16,11 @@
 @section('actions')
 <a class="btn" href="{{ route('web.invoices.index') }}">Volver</a>
 <a class="btn" href="{{ route('web.invoices.preview', $invoice) }}" target="_blank">Vista previa</a>
+@if(auth()->user()?->hasPermission('editar_factura'))
+    <a class="btn" href="{{ route('web.invoices.edit', $invoice) }}">Editar</a>
+@endif
 @if($invoice->status !== 'cancelled')
     @if($invoice->status === 'draft')
-        <a class="btn" href="{{ route('web.invoices.edit', $invoice) }}">Editar</a>
         <form method="POST" action="{{ route('web.invoices.issue', $invoice) }}">@csrf<button class="btn primary" type="submit">Emitir</button></form>
     @endif
     @if($canConvertQuotation)

@@ -142,29 +142,15 @@ class InvoiceController extends Controller
 
     public function update(UpdateInvoiceRequest $request, Invoice $invoice): InvoiceResource|JsonResponse
     {
-        if ($invoice->status === InvoiceStatusService::CANCELLED) {
-            return response()->json(['message' => 'Cancelled invoices cannot be modified.'], 409);
-        }
-
         $data = $request->validated();
 
         if ($this->changesDocumentTypeAfterDraft($invoice, $data)) {
             return response()->json(['message' => 'Issued documents cannot change document type.'], 409);
         }
 
-        if ($invoice->status === InvoiceStatusService::CONVERTED) {
-            return response()->json(['message' => 'Converted quotations cannot be modified.'], 409);
-        }
+        $obsoletePdfPaths = array_filter([$invoice->pdf_path]);
 
-        if ($invoice->status === InvoiceStatusService::PAID && $this->requestChangesAmounts($data)) {
-            return response()->json(['message' => 'Paid invoices cannot modify monetary fields.'], 409);
-        }
-
-        if ($invoice->signed_at !== null && $this->requestChangesAmounts($data)) {
-            return response()->json(['message' => 'Signed invoices cannot modify their authenticated fields.'], 409);
-        }
-
-        $invoice = DB::transaction(function () use ($request, $invoice, $data): Invoice {
+        $invoice = DB::transaction(function () use ($request, $invoice, $data, &$obsoletePdfPaths): Invoice {
             $this->ensureManualNumberIsAllowed($data['invoice_number'] ?? null, $invoice);
 
             $merged = $this->mergeInvoiceData($invoice, $data);
@@ -193,10 +179,24 @@ class InvoiceController extends Controller
                 ]);
             }
 
+            $invoice->update([
+                'pdf_path' => null,
+                'pdf_sha256' => null,
+            ]);
+
+            $obsoletePdfPaths = array_merge(
+                $obsoletePdfPaths,
+                $this->signatureService->resignAfterEdit($invoice->refresh()),
+            );
+
             $this->activityLog->record('invoice.updated', $invoice, ['invoice_id' => $invoice->id], $request->user(), $request);
 
             return $invoice->fresh('items');
         });
+
+        foreach (array_unique($obsoletePdfPaths) as $path) {
+            Storage::disk('public')->delete($path);
+        }
 
         return new InvoiceResource($invoice);
     }
@@ -852,18 +852,6 @@ class InvoiceController extends Controller
             'work_reference' => array_key_exists('work_reference', $data) ? $data['work_reference'] : $invoice->work_reference,
             'service_location' => array_key_exists('service_location', $data) ? $data['service_location'] : $invoice->service_location,
         ];
-    }
-
-    /**
-     * @param  array<string, mixed>  $data
-     */
-    private function requestChangesAmounts(array $data): bool
-    {
-        // El descuento y el desplazamiento mueven la base imponible y el total,
-        // asi que cuentan como cambio monetario: una factura firmada no puede
-        // tocarlos sin invalidar su propia firma.
-        return collect(['items', 'amount_received', 'discount_percent', 'travel_amount', 'currency_id', 'payment_term_id', 'client_id', 'client_name', 'client_tax_id', 'client_address', 'client_city', 'client_phone', 'client_email', 'invoice_date', 'due_date'])
-            ->contains(fn (string $field): bool => array_key_exists($field, $data));
     }
 
     private function defaultLegalFooter(): ?string

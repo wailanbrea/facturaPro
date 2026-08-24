@@ -163,12 +163,6 @@ class InvoiceController extends Controller
 
     public function edit(Invoice $invoice): View|RedirectResponse
     {
-        if ($invoice->status !== InvoiceStatusService::DRAFT) {
-            return redirect()
-                ->route('web.invoices.show', $invoice)
-                ->withErrors(['invoice' => 'Solo se pueden editar facturas en borrador.']);
-        }
-
         return view('invoices.create', [
             ...$this->catalogs(),
             'lockedFields' => $this->lockedFieldsForUser(),
@@ -176,19 +170,19 @@ class InvoiceController extends Controller
             'items' => $invoice->items,
             'action' => route('web.invoices.update', $invoice),
             'method' => 'PUT',
-            'submitLabel' => 'Actualizar borrador',
+            'submitLabel' => 'Guardar cambios',
         ]);
     }
 
     public function update(Request $request, Invoice $invoice): RedirectResponse
     {
-        if ($invoice->status !== InvoiceStatusService::DRAFT) {
-            return redirect()
-                ->route('web.invoices.show', $invoice)
-                ->withErrors(['invoice' => 'Solo se pueden editar facturas en borrador.']);
-        }
-
         $data = $this->validated($request);
+
+        if ($invoice->status !== InvoiceStatusService::DRAFT && $data['document_type'] !== $invoice->document_type) {
+            return back()
+                ->withErrors(['document_type' => 'No se puede cambiar el tipo de un documento emitido.'])
+                ->withInput();
+        }
 
         if ($this->quotationReceivesPayment($data)) {
             return back()
@@ -198,7 +192,9 @@ class InvoiceController extends Controller
 
         $data = $this->stripLockedFields($data);
 
-        DB::transaction(function () use ($data, $invoice): void {
+        $obsoletePdfPaths = array_filter([$invoice->pdf_path]);
+
+        DB::transaction(function () use ($data, $invoice, &$obsoletePdfPaths): void {
             $payload = $this->invoicePayload($data, $invoice);
             $invoice->update($payload);
 
@@ -225,14 +221,30 @@ class InvoiceController extends Controller
                 'total' => $calculated['total'],
                 'balance_due' => $calculated['balance_due'],
                 'updated_by' => auth()->id(),
+                'pdf_path' => null,
+                'pdf_sha256' => null,
             ]);
 
+            if ($invoice->status !== InvoiceStatusService::DRAFT) {
+                $invoice->update([
+                    'status' => $this->statusService->statusAfterAmountsChanged($invoice),
+                ]);
+            }
+
             $this->saveIntervention($invoice, $data);
+            $obsoletePdfPaths = array_merge(
+                $obsoletePdfPaths,
+                $this->signatureService->resignAfterEdit($invoice->refresh()),
+            );
 
             $this->activityLog->record('invoice.updated', $invoice, ['invoice_id' => $invoice->id], auth()->user(), request());
         });
 
-        return redirect()->route('web.invoices.show', $invoice)->with('status', 'Factura borrador actualizada.');
+        foreach (array_unique($obsoletePdfPaths) as $path) {
+            Storage::disk('public')->delete($path);
+        }
+
+        return redirect()->route('web.invoices.show', $invoice)->with('status', 'Documento actualizado correctamente.');
     }
 
     public function issue(Invoice $invoice): RedirectResponse

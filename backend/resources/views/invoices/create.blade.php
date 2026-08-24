@@ -14,7 +14,7 @@
 @endphp
 
 @section('title', $isEdit ? 'Editar factura' : 'Nueva factura')
-@section('subtitle', $isEdit ? 'Solo borradores pueden editarse' : 'Crear borrador con calculo backend')
+@section('subtitle', $isEdit ? 'Edicion autorizada del documento' : 'Crear borrador con calculo backend')
 
 @section('content')
 <form method="POST" action="{{ $action }}" class="form">
@@ -28,7 +28,10 @@
             <div class="fields">
                 <div class="field">
                     <label>Tipo de documento</label>
-                    <select name="document_type" id="document-type-select" required>
+                    @if($isEdit && $invoice->status !== 'draft')
+                        <input type="hidden" name="document_type" value="{{ $invoice->document_type }}">
+                    @endif
+                    <select name="document_type" id="document-type-select" required @disabled($isEdit && $invoice->status !== 'draft')>
                         <option value="invoice" @selected(old('document_type', $invoice->document_type ?? 'invoice') === 'invoice')>Factura</option>
                         <option value="quotation" @selected(old('document_type', $invoice->document_type ?? 'invoice') === 'quotation')>Presupuesto</option>
                     </select>

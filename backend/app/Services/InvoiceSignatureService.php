@@ -3,6 +3,7 @@
 namespace App\Services;
 
 use App\Models\Invoice;
+use Illuminate\Support\Facades\DB;
 use RuntimeException;
 
 /**
@@ -65,6 +66,78 @@ class InvoiceSignatureService
         ])->save();
 
         return $invoice;
+    }
+
+    /**
+     * Re-sign an edited document and every later document whose chain link
+     * depends on it. The caller may already be inside a transaction.
+     *
+     * @return list<string> Obsolete PDF paths whose QR/code changed.
+     */
+    public function resignAfterEdit(Invoice $editedInvoice): array
+    {
+        if ($editedInvoice->invoice_number === null || $editedInvoice->status === 'draft') {
+            return [];
+        }
+
+        if ($editedInvoice->verification_hash === null) {
+            $this->signOnIssue($editedInvoice->fresh('items'));
+
+            return [];
+        }
+
+        return DB::transaction(function () use ($editedInvoice): array {
+            $signedInvoices = Invoice::query()
+                ->whereNotNull('verification_hash')
+                ->with('items')
+                ->orderBy('signed_at')
+                ->orderBy('id')
+                ->lockForUpdate()
+                ->get();
+
+            $previousHash = self::GENESIS;
+            $rebuild = false;
+            $obsoletePdfPaths = [];
+
+            foreach ($signedInvoices as $invoice) {
+                if ($invoice->is($editedInvoice)) {
+                    $rebuild = true;
+                    $invoice->signature_version = self::CANONICAL_VERSION;
+                }
+
+                if (! $rebuild) {
+                    $previousHash = (string) $invoice->verification_hash;
+
+                    continue;
+                }
+
+                $hash = $this->computeHash($invoice, $previousHash);
+                $signatureChanged = $invoice->verification_hash !== $hash
+                    || ($invoice->previous_hash ?? self::GENESIS) !== $previousHash;
+
+                $signatureData = [
+                    'previous_hash' => $previousHash,
+                    'verification_hash' => $hash,
+                    'verification_code' => $this->codeFromHash($hash),
+                    'signature_version' => $invoice->signature_version,
+                ];
+
+                if ($signatureChanged) {
+                    if ($invoice->pdf_path) {
+                        $obsoletePdfPaths[] = $invoice->pdf_path;
+                    }
+
+                    $signatureData['pdf_path'] = null;
+                    $signatureData['pdf_sha256'] = null;
+                }
+
+                DB::table('invoices')->where('id', $invoice->getKey())->update($signatureData);
+
+                $previousHash = $hash;
+            }
+
+            return array_values(array_unique($obsoletePdfPaths));
+        });
     }
 
     /**
