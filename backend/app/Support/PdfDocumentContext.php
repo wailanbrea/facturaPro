@@ -28,6 +28,7 @@ class PdfDocumentContext
         public readonly ?string $watermark,
         public readonly array $pages,
         public readonly int $totalPages,
+        public readonly bool $hasDedicatedBottomSheet,
         public readonly string $taxLabel,
     ) {}
 
@@ -45,6 +46,7 @@ class PdfDocumentContext
         $qrSrc = $isSigned ? $qr->svgDataUri($signature->verificationUrl($invoice)) : null;
 
         $pages = self::paginate($invoice->items, $firstPageRows, $nextPageRows);
+        $hasDedicatedBottomSheet = !$invoice->isQuotation() && $invoice->items->count() > 12;
 
         return new self(
             invoice: $invoice,
@@ -62,7 +64,8 @@ class PdfDocumentContext
             watermark: self::watermarkFor($invoice),
             // The legal conditions always occupy one extra, final sheet.
             pages: $pages,
-            totalPages: count($pages) + 1,
+            totalPages: count($pages) + 1 + ($hasDedicatedBottomSheet ? 1 : 0),
+            hasDedicatedBottomSheet: $hasDedicatedBottomSheet,
             taxLabel: self::taxLabelFor($invoice),
         );
     }
@@ -116,7 +119,7 @@ class PdfDocumentContext
         $budget = $firstPageRows;
 
         foreach ($items as $item) {
-            $cost = min(2, 1 + intdiv(mb_strlen((string) $item->description), 78));
+            $cost = max(1, (int) ceil(mb_strlen((string) $item->description) / 78));
 
             if ($current !== [] && $used + $cost > $budget) {
                 $pages[] = collect($current);

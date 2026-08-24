@@ -288,6 +288,11 @@
         vertical-align: top;
     }
 
+    .items tbody tr {
+        break-inside: avoid;
+        page-break-inside: avoid;
+    }
+
     .items tbody tr:nth-child(even) td { background: var(--zebra); }
 
     .items .c-idx { width: 8mm; text-align: center; color: var(--muted); }
@@ -297,9 +302,7 @@
 
     .items .desc {
         overflow-wrap: anywhere;
-        display: -webkit-box;
-        -webkit-line-clamp: 2;
-        -webkit-box-orient: vertical;
+        display: block;
         overflow: hidden;
     }
 
@@ -332,6 +335,22 @@
     .note-text { color: var(--ink); line-height: 1.3; white-space: pre-line; overflow: hidden; }
     .note-text.muted { color: var(--muted); }
 
+    .bottom-row .note-box {
+        padding: 1.4mm 2mm;
+    }
+
+    .bottom-row .note-title {
+        margin-bottom: .5mm;
+    }
+
+    .bottom-row .note-text {
+        line-height: 1.1;
+    }
+
+    .bottom-sheet .bottom-row {
+        margin-top: auto;
+    }
+
     .aside-box { border: 0.3mm solid var(--line); border-radius: 1.4mm; padding: 1.8mm 2.2mm; }
     .aside-box + .aside-box { margin-top: 2mm; }
     .aside-box .note-title { font-size: 5.8pt; margin-bottom: 0.8mm; }
@@ -342,6 +361,7 @@
     .check-list .ico { color: var(--ok); margin-top: .3mm; }
 
     .bottom-row { display: grid; gap: 3mm; }
+    .sheet > .bottom-row { margin-top: auto; }
     .bottom-row.cols-3 { grid-template-columns: repeat(3, 1fr); }
     .bottom-row.cols-4 { grid-template-columns: 1.35fr 1fr 1fr 1.1fr; }
 

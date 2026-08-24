@@ -84,12 +84,52 @@ class PdfTemplateTest extends TestCase
         $this->assertStringContainsString('GINA 1 DE 2', $html);
     }
 
+    public function test_eleven_intervention_lines_fit_before_the_legal_sheet(): void
+    {
+        $html = $this->previewHtml($this->makeInvoice(11));
+
+        $this->assertSame(2, substr_count($html, 'class="sheet"'));
+        $this->assertSame(1, substr_count($html, 'class="items"'));
+    }
+
+    public function test_twelve_intervention_lines_keep_bottom_boxes_on_the_items_sheet(): void
+    {
+        $html = $this->previewHtml($this->makeInvoice(12));
+
+        $this->assertSame(2, substr_count($html, 'class="sheet"'));
+        $this->assertSame(1, substr_count($html, 'class="bottom-row cols-3"'));
+    }
+
+    public function test_more_than_twelve_intervention_lines_move_bottom_boxes_to_next_sheet(): void
+    {
+        $html = $this->previewHtml($this->makeInvoice(13));
+
+        $this->assertSame(3, substr_count($html, 'class="sheet'));
+        $this->assertSame(1, substr_count($html, 'class="bottom-row cols-3"'));
+        $bottomRow = strpos($html, 'class="bottom-row cols-3"');
+        $lastItemsTable = strrpos(substr($html, 0, $bottomRow), 'class="items"');
+        $legalGrid = strpos($html, 'class="legal-grid"');
+
+        $this->assertNotFalse($lastItemsTable);
+        $this->assertNotFalse($legalGrid);
+        $this->assertGreaterThan($lastItemsTable, $bottomRow);
+        $this->assertGreaterThan($bottomRow, $legalGrid);
+    }
+
+    public function test_payment_lines_have_no_blank_lines_between_values(): void
+    {
+        $html = $this->previewHtml($this->makeInvoice(3));
+
+        $this->assertStringContainsString('Transferencia bancaria<br>SANTANDER<br>Titular: PAMELA MISHELL AVILA CELI', $html);
+    }
+
+
     public function test_a_long_invoice_spills_into_continuation_sheets_without_losing_lines(): void
     {
         $invoice = $this->makeInvoice(40);
         $html = $this->previewHtml($invoice);
 
-        $sheets = substr_count($html, 'class="sheet"');
+        $sheets = substr_count($html, 'class="sheet');
         $this->assertGreaterThan(2, $sheets, 'Cuarenta lineas no caben en dos hojas.');
         $this->assertStringContainsString("GINA 1 DE {$sheets}", $html);
 

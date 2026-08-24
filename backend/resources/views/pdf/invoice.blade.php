@@ -1,7 +1,7 @@
 @inject('money', 'App\Services\CurrencyFormatterService')
 @php
     /** @var \App\Models\Invoice $invoice */
-    $ctx = \App\Support\PdfDocumentContext::for($invoice, firstPageRows: 9, nextPageRows: 24);
+    $ctx = \App\Support\PdfDocumentContext::for($invoice, firstPageRows: 13, nextPageRows: 24);
     $currency = $ctx->currency;
     $intervention = $invoice->intervention;
 
@@ -181,7 +181,7 @@
             @endif
         </div>
 
-        @if($isLastItemsSheet)
+        @if($isLastItemsSheet && !$ctx->hasDedicatedBottomSheet)
             {{-- La garantia no se repite aqui: ya figura en las condiciones de la
                  ultima pagina. --}}
             <div class="bottom-row cols-3">
@@ -207,6 +207,30 @@
     </section>
 @endforeach
 
+@if($ctx->hasDedicatedBottomSheet)
+<section class="sheet bottom-sheet">
+    <div class="page-flag">PÁGINA {{ count($ctx->pages) + 1 }} DE {{ $ctx->totalPages }}</div>
+    <div class="bottom-row cols-3">
+        <div class="note-box">
+            <span class="note-ico"><x-pdf-icon name="pen-line" :size="12" /></span>
+            <div style="flex:1">
+                <div class="note-title">Aceptación de la intervención</div>
+                <div class="note-text muted">{{ $invoice->conformity_text ?: \App\Models\Invoice::DEFAULT_INTERVENTION_ACCEPTANCE }}</div>
+            </div>
+        </div>
+
+        @include('pdf.partials.bank-transfer', ['invoice' => $invoice])
+
+        <div class="note-box">
+            <span class="note-ico"><x-pdf-icon name="file-text" :size="12" /></span>
+            <div>
+                <div class="note-title">Condiciones</div>
+                <div class="note-text muted">La presente factura se complementa con las Condiciones Generales de Prestación del Servicio incluidas en la página {{ $ctx->totalPages }}, que forman parte integrante del presente documento.</div>
+            </div>
+        </div>
+    </div>
+</section>
+@endif
 {{-- Las condiciones se emiten fuera del bucle: siempre son la última hoja. --}}
 <section class="sheet">
     <div class="page-flag">PÁGINA {{ $ctx->totalPages }} DE {{ $ctx->totalPages }}</div>
