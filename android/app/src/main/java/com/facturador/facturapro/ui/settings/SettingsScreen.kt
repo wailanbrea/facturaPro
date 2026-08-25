@@ -267,14 +267,14 @@ private fun ServerSettingsCard(
                 onValueChange = onServerUrlChanged,
                 modifier = Modifier.fillMaxWidth(),
                 label = { Text("URL de API") },
-                placeholder = { Text("facturapro.bsolutions.dev") },
+                placeholder = { Text("facturacion.tutecnicoautorizado.com") },
                 singleLine = true,
                 enabled = !state.isSavingServerUrl,
                 keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Uri),
             )
 
             Text(
-                text = "Predeterminado: https://facturapro.bsolutions.dev/api/",
+                text = "Predeterminado: https://facturacion.tutecnicoautorizado.com/api/",
                 style = MaterialTheme.typography.labelMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )

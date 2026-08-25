@@ -91,7 +91,7 @@ private class FakeServerConfigStore(
     }
 
     private companion object {
-        const val DEFAULT_URL = "https://facturapro.bsolutions.dev/api/"
+        const val DEFAULT_URL = "https://facturacion.tutecnicoautorizado.com/api/"
     }
 }
 

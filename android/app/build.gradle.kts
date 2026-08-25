@@ -7,7 +7,7 @@ fun apiBaseUrl(
     .orElse(defaultValue)
     .get()
 
-val defaultProductionApiBaseUrl = "https://facturapro.bsolutions.dev/api/"
+val defaultProductionApiBaseUrl = "https://facturacion.tutecnicoautorizado.com/api/"
 
 plugins {
     alias(libs.plugins.android.application)

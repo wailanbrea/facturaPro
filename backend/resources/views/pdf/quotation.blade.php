@@ -1,7 +1,7 @@
 @inject('money', 'App\Services\CurrencyFormatterService')
 @php
     /** @var \App\Models\Invoice $invoice */
-    $ctx = \App\Support\PdfDocumentContext::for($invoice, firstPageRows: 11, nextPageRows: 24);
+    $ctx = \App\Support\PdfDocumentContext::for($invoice, firstPageRows: 12, nextPageRows: 24);
     $currency = $ctx->currency;
     $intervention = $invoice->intervention;
 

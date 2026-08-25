@@ -284,7 +284,7 @@ private fun ServerLoginSettings(
             LoginField(
                 value = serverUrlInput,
                 onChange = onServerUrlChanged,
-                placeholder = "facturapro.bsolutions.dev",
+                placeholder = "facturacion.tutecnicoautorizado.com",
                 leadingIcon = Icons.Outlined.Cloud,
                 keyboardOptions = KeyboardOptions(
                     keyboardType = KeyboardType.Uri,

@@ -159,6 +159,28 @@ class PdfTemplateTest extends TestCase
         $this->assertStringNotContainsString('Actuaciones', $html);
     }
 
+    public function test_twelve_quotation_lines_fit_before_the_legal_sheet(): void
+    {
+        $html = $this->previewHtml($this->makeInvoice(12, 'quotation'));
+
+        $this->assertSame(2, substr_count($html, 'class="sheet"'));
+        $this->assertSame(1, substr_count($html, 'class="items"'));
+        $this->assertStringContainsString('LINEA-011 concepto facturable', $html);
+    }
+
+    public function test_thirteen_quotation_lines_start_a_continuation_sheet_without_losing_lines(): void
+    {
+        $invoice = $this->makeInvoice(13, 'quotation');
+        $html = $this->previewHtml($invoice);
+
+        $this->assertSame(3, substr_count($html, 'class="sheet"'));
+        $this->assertStringContainsString('PÁGINA 2 DE 3', $html);
+
+        foreach ($invoice->items as $item) {
+            $this->assertStringContainsString($item->description, $html);
+        }
+    }
+
     public function test_payment_method_is_blank_until_a_payment_is_registered(): void
     {
         $invoice = $this->makeInvoice(3);

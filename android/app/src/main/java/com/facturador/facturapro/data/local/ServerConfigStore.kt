@@ -29,14 +29,14 @@ class ServerConfigStore(context: Context) : ServerConfigStoreContract {
     private val dataStore = context.serverConfigDataStore
 
     override val apiBaseUrl: Flow<String> = dataStore.data.map { preferences ->
-        preferences[Keys.apiBaseUrl]?.normalizeApiBaseUrlOrNull() ?: DEFAULT_API_BASE_URL
+        preferences[Keys.apiBaseUrl]?.normalizeApiBaseUrlOrNull()?.takeUnless { it.isLegacyApiBaseUrl() } ?: DEFAULT_API_BASE_URL
     }
 
     override suspend fun currentApiBaseUrl(): String = apiBaseUrl.first()
 
     override suspend fun saveApiBaseUrl(rawValue: String): Result<String> = runCatching {
         val normalized = rawValue.normalizeApiBaseUrlOrNull()
-            ?: error("URL invalida. Usa un dominio HTTPS, por ejemplo facturapro.bsolutions.dev")
+            ?: error("URL invalida. Usa un dominio HTTPS, por ejemplo facturacion.tutecnicoautorizado.com")
 
         val parsed = normalized.toHttpUrl()
 
@@ -67,7 +67,7 @@ class ServerConfigStore(context: Context) : ServerConfigStoreContract {
 
     companion object {
         val DEFAULT_API_BASE_URL: String = BuildConfig.API_BASE_URL.normalizeApiBaseUrlOrNull()
-            ?: "https://facturapro.bsolutions.dev/api/"
+            ?: "https://facturacion.tutecnicoautorizado.com/api/"
     }
 }
 
@@ -90,6 +90,8 @@ internal fun String.isLocalOrPrivateHost(): Boolean {
         else -> false
     }
 }
+
+private fun String.isLegacyApiBaseUrl(): Boolean = toHttpUrlOrNull()?.host == "facturapro.bsolutions.dev"
 
 private fun String.normalizeApiBaseUrlOrNull(): String? {
     val trimmed = trim()
