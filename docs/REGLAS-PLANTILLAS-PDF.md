@@ -1,0 +1,91 @@
+# Reglas y validacion de plantillas PDF
+
+Estado verificado: 25 de agosto de 2026.
+
+Este documento define el comportamiento probado de factura, presupuesto e
+informe. Las reglas aplican por igual al panel web y a Android porque ambos
+consumen los PDF generados por el backend Laravel.
+
+## Reglas comunes de factura y presupuesto
+
+- La cabecera completa, logo, distintivos y numero solo aparece en la primera
+  pagina de servicios.
+- Las continuaciones muestran unicamente el indicador `PAGINA X DE Y`.
+- Ninguna linea de servicio se elimina al paginar.
+- Una descripcion consume un bloque visual por cada 78 caracteres, con un
+  minimo de un bloque.
+- La primera pagina admite 13 bloques visuales.
+- Las continuaciones admiten hasta 24 bloques visuales antes de reservar el
+  espacio requerido por los elementos finales.
+- Los tres cuadros inferiores aparecen una sola vez y siempre despues de la
+  ultima tabla de servicios.
+- Las condiciones legales aparecen una sola vez, despues de los cuadros, y
+  constituyen el ultimo contenido del documento.
+- Una pagina legal separada solo se conserva cuando las condiciones no caben
+  en la pagina que contiene los servicios y cuadros finales.
+- El numero total mostrado debe coincidir con el numero real de paginas del
+  PDF.
+
+## Factura
+
+- Primera pagina: hasta 13 bloques visuales, cabecera, datos, diagnostico,
+  conclusiones y resumen economico.
+- Una continuacion final reserva espacio a partir de 22 bloques para los tres
+  cuadros y las condiciones.
+- Con lineas normales, 14, 20, 25 y 35 servicios quedan en dos paginas.
+- Con 36 servicios normales, la distribucion es `13 + 22 + 1` y el documento
+  queda en tres paginas.
+- Si una descripcion excepcional no permite compartir los cuadros, se crea
+  una hoja inferior dedicada antes de las condiciones.
+
+Matriz comprobada:
+
+| Servicios | Distribucion | Paginas |
+| ---: | --- | ---: |
+| 3 | `3 + legal` | 2 |
+| 14 | `13 + 1/cuadros/legal` | 2 |
+| 20 | `13 + 7/cuadros/legal` | 2 |
+| 25 | `13 + 12/cuadros/legal` | 2 |
+| 35 | `13 + 22/cuadros/legal` | 2 |
+| 36 | `13 + 22 + 1/cuadros/legal` | 3 |
+
+## Presupuesto
+
+- Primera pagina: hasta 13 bloques visuales, cabecera, datos, alcance y resumen.
+- Con 13 servicios, los servicios y cuadros quedan en la primera pagina y las
+  condiciones permanecen en la segunda.
+- Si existe continuacion, la ultima pagina comparte servicios, cuadros y
+  condiciones.
+- Una continuacion admite hasta 24 servicios normales con los cuadros y las
+  condiciones sin overflow.
+
+Matriz comprobada:
+
+| Servicios | Distribucion | Paginas |
+| ---: | --- | ---: |
+| 13 | `13/cuadros + legal` | 2 |
+| 14 | `13 + 1/cuadros/legal` | 2 |
+| 25 | `13 + 12/cuadros/legal` | 2 |
+| 37 | `13 + 24/cuadros/legal` | 2 |
+
+## Informe tecnico
+
+- Usa A4 vertical y flujo continuo del navegador.
+- El logo y la cabecera aparecen una sola vez.
+- Las secciones vacias no generan huecos ni paginas.
+- Los informes firmados incluyen QR, distintivo de documento original y codigo
+  de seguridad.
+- El contenido adicional genera paginas naturales solo cuando supera A4.
+
+## Evidencia ejecutada
+
+- PHPUnit: 29 pruebas aprobadas y 290 aserciones.
+- Android: `testDebugUnitTest` y `assembleDebug` completados correctamente.
+- Playwright contra produccion: factura 3/14/20/25/35/36, presupuesto
+  13/14/25/37 e informe tecnico sin overflow.
+- Visor Android contra produccion:
+  - `FAC-A-000003`: 14 servicios, 2 paginas.
+  - `PRE-A-000002`: 12 servicios, 2 paginas.
+  - `INF-A-000005`: 1 pagina.
+- Los archivos activos del backend Linux se compararon por SHA-256 con el
+  workspace antes del commit.

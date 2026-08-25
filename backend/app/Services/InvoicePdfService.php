@@ -82,9 +82,9 @@ class InvoicePdfService
 
     private function chromeExecutable(): string
     {
-        $configured = env('CHROME_PATH');
+        $configured = config('services.chrome.path');
 
-        if (is_string($configured) && $configured !== '' && is_file($configured)) {
+        if (is_string($configured) && $configured !== '' && @is_file($configured)) {
             return $configured;
         }
 
@@ -99,7 +99,7 @@ class InvoicePdfService
         ];
 
         foreach ($candidates as $candidate) {
-            if (is_file($candidate)) {
+            if (@is_file($candidate)) {
                 return $candidate;
             }
         }
@@ -109,6 +109,8 @@ class InvoicePdfService
 
     private function fileUrl(string $path): string
     {
-        return 'file:///'.str_replace('\\', '/', realpath($path) ?: $path);
+        $normalized = str_replace('\\', '/', realpath($path) ?: $path);
+
+        return 'file:///'.ltrim($normalized, '/');
     }
 }

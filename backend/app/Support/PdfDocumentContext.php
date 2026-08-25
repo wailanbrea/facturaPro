@@ -29,6 +29,7 @@ class PdfDocumentContext
         public readonly array $pages,
         public readonly int $totalPages,
         public readonly bool $hasDedicatedBottomSheet,
+        public readonly bool $hasDedicatedLegalSheet,
         public readonly string $taxLabel,
     ) {}
 
@@ -46,8 +47,16 @@ class PdfDocumentContext
         $qrSrc = $isSigned ? $qr->svgDataUri($signature->verificationUrl($invoice)) : null;
 
         $pages = self::paginate($invoice->items, $firstPageRows, $nextPageRows);
-        $hasDedicatedBottomSheet = !$invoice->isQuotation() && $invoice->items->count() > 12;
+        if (! $invoice->isQuotation()) {
+            $pages = self::reserveBottomBoxesOnLastPage($pages);
+        }
 
+        $lastPageCost = collect($pages)->last()?->sum(
+            static fn ($item): int => self::itemRowCost($item),
+        ) ?? 0;
+
+        $hasDedicatedBottomSheet = ! $invoice->isQuotation() && $lastPageCost > 22;
+        $hasDedicatedLegalSheet = count($pages) === 1 || $hasDedicatedBottomSheet;
         return new self(
             invoice: $invoice,
             currency: [
@@ -62,10 +71,10 @@ class PdfDocumentContext
             qrSrc: $qrSrc,
             verificationCode: $isSigned ? $invoice->verification_code : null,
             watermark: self::watermarkFor($invoice),
-            // The legal conditions always occupy one extra, final sheet.
             pages: $pages,
-            totalPages: count($pages) + 1 + ($hasDedicatedBottomSheet ? 1 : 0),
+            totalPages: count($pages) + ($hasDedicatedBottomSheet ? 1 : 0) + ($hasDedicatedLegalSheet ? 1 : 0),
             hasDedicatedBottomSheet: $hasDedicatedBottomSheet,
+            hasDedicatedLegalSheet: $hasDedicatedLegalSheet,
             taxLabel: self::taxLabelFor($invoice),
         );
     }
@@ -119,7 +128,7 @@ class PdfDocumentContext
         $budget = $firstPageRows;
 
         foreach ($items as $item) {
-            $cost = max(1, (int) ceil(mb_strlen((string) $item->description) / 78));
+            $cost = self::itemRowCost($item);
 
             if ($current !== [] && $used + $cost > $budget) {
                 $pages[] = collect($current);
@@ -138,6 +147,36 @@ class PdfDocumentContext
         return $pages;
     }
 
+    private static function itemRowCost(mixed $item): int
+    {
+        return max(1, (int) ceil(mb_strlen((string) $item->description) / 78));
+    }
+
+    /**
+     * Keep the three summary boxes on the final items sheet. When a full
+     * continuation sheet leaves no room, move its final item down with them.
+     *
+     * @param  array<int, Collection<int, mixed>>  $pages
+     * @return array<int, Collection<int, mixed>>
+     */
+    private static function reserveBottomBoxesOnLastPage(array $pages): array
+    {
+        $lastIndex = array_key_last($pages);
+        $lastPage = $pages[$lastIndex];
+        $lastPageCost = $lastPage->sum(
+            static fn ($item): int => self::itemRowCost($item),
+        );
+
+        if ($lastPageCost <= 22 || $lastPage->count() <= 1) {
+            return $pages;
+        }
+
+        $lastItem = $lastPage->pop();
+        $pages[$lastIndex] = $lastPage;
+        $pages[] = collect([$lastItem]);
+
+        return $pages;
+    }
     /**
      * The logo as a data URI. Remote URLs would make the PDF depend on the
      * network at render time, so the file is read from disk and inlined.

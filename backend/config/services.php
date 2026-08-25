@@ -40,4 +40,8 @@ return [
         'credentials_path' => env('FCM_CREDENTIALS_PATH', 'storage/app/firebase-credentials.json'),
     ],
 
+    'chrome' => [
+        'path' => env('CHROME_PATH'),
+    ],
+
 ];

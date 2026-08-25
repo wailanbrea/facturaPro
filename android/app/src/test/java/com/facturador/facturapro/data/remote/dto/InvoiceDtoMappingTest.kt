@@ -122,4 +122,46 @@ class InvoiceDtoMappingTest {
         assertEquals("Compresor bloqueado por suciedad en batería exterior", remote.intervention?.diagnosticSummary)
         assertEquals("Limpieza con hidro y comprobación de presiones operativas. Equipo OK.", remote.intervention?.technicalConclusions)
     }
+
+    @Test
+    fun quotation_with_thirteen_services_sends_every_item_to_the_backend() {
+        val draft = com.facturador.facturapro.domain.model.InvoiceDraft(
+            documentType = "quotation",
+            invoiceDate = "2026-08-25",
+            paymentTermId = 1L,
+            clientId = 10L,
+            clientName = "Cliente",
+            clientTaxId = null,
+            clientAddress = null,
+            clientCity = null,
+            clientPhone = null,
+            clientEmail = null,
+            currencyId = 1L,
+            fiscalProfileId = 1L,
+            logoPath = "logos/logo_tu_tecnico_autorizado.png",
+            bankAccountId = 1L,
+            warrantyId = 1L,
+            warrantyText = null,
+            legalText = null,
+            conformityText = null,
+            observations = null,
+            amountReceived = null,
+            preparedBy = null,
+            receivedBy = null,
+            items = (1..13).map { index ->
+                com.facturador.facturapro.domain.model.InvoiceDraftItem(
+                    description = "Servicio $index",
+                    quantity = "1",
+                    unitCost = "100.00",
+                    taxId = 1L,
+                )
+            },
+        )
+
+        val remote = draft.toRemote()
+
+        assertEquals("quotation", remote.documentType)
+        assertEquals(13, remote.items.size)
+        assertEquals((1..13).map { "Servicio $it" }, remote.items.map { it.description })
+    }
 }

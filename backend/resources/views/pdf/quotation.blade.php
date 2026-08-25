@@ -1,7 +1,7 @@
 @inject('money', 'App\Services\CurrencyFormatterService')
 @php
     /** @var \App\Models\Invoice $invoice */
-    $ctx = \App\Support\PdfDocumentContext::for($invoice, firstPageRows: 12, nextPageRows: 24);
+    $ctx = \App\Support\PdfDocumentContext::for($invoice, firstPageRows: 13, nextPageRows: 24);
     $currency = $ctx->currency;
     $intervention = $invoice->intervention;
 
@@ -40,6 +40,7 @@
     @endphp
     <section class="sheet">
         @include('pdf.partials.watermark', ['watermark' => $ctx->watermark])
+        @if($isFirst)
         @include('pdf.partials.doc-heading', [
             'logoSrc' => $ctx->logoSrc,
             'sellerInitial' => $ctx->sellerInitial,
@@ -52,6 +53,10 @@
             'pageNo' => $pageNo,
             'totalPages' => $ctx->totalPages,
         ])
+        @else
+            <div class="page-flag">P&Aacute;GINA {{ $pageNo }} DE {{ $ctx->totalPages }}</div>
+        @endif
+
 
         @if($isFirst)
             <div class="cards-row">
@@ -174,10 +179,14 @@
                     </div>
                 </div>
             </div>
+            @if(!$ctx->hasDedicatedLegalSheet)
+                @include('pdf.partials.quotation-legal-content', ['ctx' => $ctx, 'legalBlocks' => $legalBlocks])
+            @endif
         @endif
     </section>
 @endforeach
 
+@if($ctx->hasDedicatedLegalSheet)
 {{-- Las condiciones se emiten fuera del bucle: siempre son la ultima hoja. --}}
 <section class="sheet">
     <div class="page-flag">PÁGINA {{ $ctx->totalPages }} DE {{ $ctx->totalPages }}</div>
@@ -195,5 +204,6 @@
     @include('pdf.partials.eco-notice')
 </section>
 
+@endif
 </body>
 </html>

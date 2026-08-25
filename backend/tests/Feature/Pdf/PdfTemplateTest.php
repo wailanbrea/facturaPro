@@ -100,20 +100,28 @@ class PdfTemplateTest extends TestCase
         $this->assertSame(1, substr_count($html, 'class="bottom-row cols-3"'));
     }
 
-    public function test_more_than_twelve_intervention_lines_move_bottom_boxes_to_next_sheet(): void
+    public function test_continuation_lines_keep_bottom_boxes_on_the_last_items_sheet(): void
     {
-        $html = $this->previewHtml($this->makeInvoice(13));
+        foreach ([14, 20, 25] as $lineCount) {
+            $html = $this->previewHtml($this->makeInvoice($lineCount));
 
-        $this->assertSame(3, substr_count($html, 'class="sheet'));
-        $this->assertSame(1, substr_count($html, 'class="bottom-row cols-3"'));
-        $bottomRow = strpos($html, 'class="bottom-row cols-3"');
-        $lastItemsTable = strrpos(substr($html, 0, $bottomRow), 'class="items"');
-        $legalGrid = strpos($html, 'class="legal-grid"');
+            $this->assertSame(2, substr_count($html, 'class="sheet'));
+            $this->assertSame(2, substr_count($html, 'class="items"'));
+            $this->assertSame(1, substr_count($html, 'class="bottom-row cols-3"'));
+            $this->assertSame(1, substr_count($html, 'class="doc-head"'));
+            $this->assertStringContainsString('P&Aacute;GINA 2 DE 2', $html);
+            $this->assertStringContainsString(sprintf('LINEA-%03d concepto facturable', $lineCount - 1), $html);
 
-        $this->assertNotFalse($lastItemsTable);
-        $this->assertNotFalse($legalGrid);
-        $this->assertGreaterThan($lastItemsTable, $bottomRow);
-        $this->assertGreaterThan($bottomRow, $legalGrid);
+            $bottomRow = strpos($html, 'class="bottom-row cols-3"');
+            $lastItemsTable = strrpos($html, 'class="items"');
+            $legalGrid = strpos($html, 'class="legal-grid"');
+
+            $this->assertNotFalse($bottomRow);
+            $this->assertNotFalse($lastItemsTable);
+            $this->assertNotFalse($legalGrid);
+            $this->assertGreaterThan($lastItemsTable, $bottomRow);
+            $this->assertGreaterThan($bottomRow, $legalGrid);
+        }
     }
 
     public function test_payment_lines_have_no_blank_lines_between_values(): void
@@ -168,16 +176,45 @@ class PdfTemplateTest extends TestCase
         $this->assertStringContainsString('LINEA-011 concepto facturable', $html);
     }
 
-    public function test_thirteen_quotation_lines_start_a_continuation_sheet_without_losing_lines(): void
+    public function test_thirteen_quotation_lines_fit_before_the_legal_sheet_without_losing_lines(): void
     {
         $invoice = $this->makeInvoice(13, 'quotation');
         $html = $this->previewHtml($invoice);
 
-        $this->assertSame(3, substr_count($html, 'class="sheet"'));
-        $this->assertStringContainsString('PÁGINA 2 DE 3', $html);
+        $this->assertSame(2, substr_count($html, 'class="sheet"'));
+        $this->assertSame(1, substr_count($html, 'class="items"'));
+        $this->assertStringContainsString('PÁGINA 2 DE 2', $html);
 
         foreach ($invoice->items as $item) {
             $this->assertStringContainsString($item->description, $html);
+        }
+    }
+
+    public function test_quotation_continuations_use_one_heading_and_share_the_legal_sheet(): void
+    {
+        foreach ([14, 25, 37] as $lineCount) {
+            $html = $this->previewHtml($this->makeInvoice($lineCount, 'quotation'));
+
+            $this->assertSame(2, substr_count($html, 'class="sheet'));
+            $this->assertSame(2, substr_count($html, 'class="items"'));
+            $this->assertSame(1, substr_count($html, 'class="doc-head"'));
+            $this->assertSame(1, substr_count($html, 'class="bottom-row cols-3"'));
+            $this->assertSame(1, substr_count($html, 'class="legal-grid"'));
+            $this->assertStringContainsString('P&Aacute;GINA 2 DE 2', $html);
+
+            $bottomRow = strpos($html, 'class="bottom-row cols-3"');
+            $lastItemsTable = strrpos($html, 'class="items"');
+            $legalGrid = strpos($html, 'class="legal-grid"');
+
+            $this->assertNotFalse($bottomRow);
+            $this->assertNotFalse($lastItemsTable);
+            $this->assertNotFalse($legalGrid);
+            $this->assertGreaterThan($lastItemsTable, $bottomRow);
+            $this->assertGreaterThan($bottomRow, $legalGrid);
+            $this->assertStringContainsString(
+                sprintf('LINEA-%03d concepto facturable', $lineCount - 1),
+                $html,
+            );
         }
     }
 
