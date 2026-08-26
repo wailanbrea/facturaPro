@@ -47,7 +47,9 @@ class PdfDocumentContext
         $qrSrc = $isSigned ? $qr->svgDataUri($signature->verificationUrl($invoice)) : null;
 
         $pages = self::paginate($invoice->items, $firstPageRows, $nextPageRows);
-        if (! $invoice->isQuotation()) {
+        if ($invoice->isQuotation()) {
+            $pages = self::reserveQuotationEnding($pages);
+        } else {
             $pages = self::reserveBottomBoxesOnLastPage($pages);
         }
 
@@ -56,7 +58,8 @@ class PdfDocumentContext
         ) ?? 0;
 
         $hasDedicatedBottomSheet = ! $invoice->isQuotation() && $lastPageCost > 22;
-        $hasDedicatedLegalSheet = count($pages) === 1 || $hasDedicatedBottomSheet;
+        $hasDedicatedLegalSheet = count($pages) === 1 || $hasDedicatedBottomSheet
+            || ($invoice->isQuotation() && $lastPageCost > 9);
         return new self(
             invoice: $invoice,
             currency: [
@@ -168,6 +171,34 @@ class PdfDocumentContext
         );
 
         if ($lastPageCost <= 22 || $lastPage->count() <= 1) {
+            return $pages;
+        }
+
+        $lastItem = $lastPage->pop();
+        $pages[$lastIndex] = $lastPage;
+        $pages[] = collect([$lastItem]);
+
+        return $pages;
+    }
+
+    /**
+     * The enlarged acceptance block fits with ten row slots on the first
+     * sheet, or nine when the legal conditions share a continuation sheet.
+     * Move one final item instead of creating an empty summary sheet.
+     *
+     * @param  array<int, Collection<int, mixed>>  $pages
+     * @return array<int, Collection<int, mixed>>
+     */
+    private static function reserveQuotationEnding(array $pages): array
+    {
+        $lastIndex = array_key_last($pages);
+        $lastPage = $pages[$lastIndex];
+        $lastPageCost = $lastPage->sum(
+            static fn ($item): int => self::itemRowCost($item),
+        );
+        $limit = count($pages) === 1 ? 10 : 9;
+
+        if ($lastPageCost <= $limit || $lastPage->count() <= 1) {
             return $pages;
         }
 

@@ -610,7 +610,7 @@ class InvoiceApiTest extends TestCase
             ->assertSee('28/07/2026')
             ->assertSee('Detalle de los trabajos')
             ->assertSee('Resumen del presupuesto')
-            ->assertSee('confirme su aceptaci')
+            ->assertSee('La aceptaci&oacute;n del presente presupuesto', false)
             // El presupuesto no debe usar la plantilla de factura.
             ->assertDontSee('Actuaciones')
             ->assertDontSee('Resumen econ');

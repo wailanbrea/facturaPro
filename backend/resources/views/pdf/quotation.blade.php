@@ -160,7 +160,7 @@
         </div>
 
         @if($isLastItemsSheet)
-            <div class="bottom-row cols-3">
+            <div class="bottom-row quotation-bottom-row">
                 <div class="note-box">
                     <span class="note-ico"><x-pdf-icon name="file-text" :size="12" /></span>
                     <div>
@@ -171,11 +171,15 @@
 
                 @include('pdf.partials.bank-transfer', ['invoice' => $invoice])
 
-                <div class="note-box">
+                <div class="note-box quotation-acceptance">
                     <span class="note-ico"><x-pdf-icon name="pen-line" :size="12" /></span>
                     <div style="flex:1">
-                        <div class="note-title">Aceptación del presupuesto</div>
-                        <div class="note-text muted">Para aceptar el presente presupuesto, comuníquese con la persona que le proporcionó este documento y confirme su aceptación antes de la fecha de vencimiento indicada. La aceptación dentro de este plazo permitirá gestionar oportunamente la reserva y programación del servicio.</div>
+                        <div class="note-title">ACEPTACI&Oacute;N Y CONDICIONES DEL PRESUPUESTO</div>
+                        <div class="note-text muted">
+                            <p>La aceptaci&oacute;n del presente presupuesto implica la conformidad del cliente con los trabajos, importes y condiciones indicados en este documento.</p>
+                            <p>Para formalizar la aceptaci&oacute;n, el cliente deber&aacute; comunicar su conformidad antes de la fecha de vencimiento del presupuesto. Una vez aceptado, se proceder&aacute; a la programaci&oacute;n del servicio seg&uacute;n disponibilidad de agenda.</p>
+                            <p>La aceptaci&oacute;n supone asimismo la conformidad con las condiciones de prestaci&oacute;n del servicio, forma de pago, garant&iacute;as y dem&aacute;s t&eacute;rminos especificados en el presente presupuesto.</p>
+                        </div>
                     </div>
                 </div>
             </div>

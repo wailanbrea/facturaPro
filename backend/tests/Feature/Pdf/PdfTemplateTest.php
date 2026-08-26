@@ -165,25 +165,27 @@ class PdfTemplateTest extends TestCase
         $this->assertStringContainsString('PRESUPUESTO', $html);
         $this->assertStringContainsString('Detalle de los trabajos', $html);
         $this->assertStringNotContainsString('Actuaciones', $html);
+        $this->assertStringContainsString('.quotation-bottom-row .note-text { color: var(--muted); }', $html);
     }
 
-    public function test_twelve_quotation_lines_fit_before_the_legal_sheet(): void
+    public function test_twelve_quotation_lines_move_one_item_to_the_final_sheet(): void
     {
         $html = $this->previewHtml($this->makeInvoice(12, 'quotation'));
 
         $this->assertSame(2, substr_count($html, 'class="sheet"'));
-        $this->assertSame(1, substr_count($html, 'class="items"'));
+        $this->assertSame(2, substr_count($html, 'class="items"'));
+        $this->assertSame(1, substr_count($html, 'class="note-box quotation-acceptance"'));
         $this->assertStringContainsString('LINEA-011 concepto facturable', $html);
     }
 
-    public function test_thirteen_quotation_lines_fit_before_the_legal_sheet_without_losing_lines(): void
+    public function test_thirteen_quotation_lines_use_the_final_sheet_without_losing_lines(): void
     {
         $invoice = $this->makeInvoice(13, 'quotation');
         $html = $this->previewHtml($invoice);
 
         $this->assertSame(2, substr_count($html, 'class="sheet"'));
-        $this->assertSame(1, substr_count($html, 'class="items"'));
-        $this->assertStringContainsString('PÁGINA 2 DE 2', $html);
+        $this->assertSame(2, substr_count($html, 'class="items"'));
+        $this->assertStringContainsString('P&Aacute;GINA 2 DE 2', $html);
 
         foreach ($invoice->items as $item) {
             $this->assertStringContainsString($item->description, $html);
@@ -192,17 +194,24 @@ class PdfTemplateTest extends TestCase
 
     public function test_quotation_continuations_use_one_heading_and_share_the_legal_sheet(): void
     {
-        foreach ([14, 25, 37] as $lineCount) {
+        foreach ([14 => 2, 25 => 3, 37 => 3] as $lineCount => $expectedSheets) {
             $html = $this->previewHtml($this->makeInvoice($lineCount, 'quotation'));
 
-            $this->assertSame(2, substr_count($html, 'class="sheet'));
-            $this->assertSame(2, substr_count($html, 'class="items"'));
+            $this->assertSame($expectedSheets, substr_count($html, 'class="sheet'));
+            $this->assertSame($expectedSheets, substr_count($html, 'class="items"'));
             $this->assertSame(1, substr_count($html, 'class="doc-head"'));
-            $this->assertSame(1, substr_count($html, 'class="bottom-row cols-3"'));
+            $this->assertSame(1, substr_count($html, 'class="bottom-row quotation-bottom-row"'));
+            $this->assertSame(1, substr_count($html, 'class="note-box quotation-acceptance"'));
             $this->assertSame(1, substr_count($html, 'class="legal-grid"'));
-            $this->assertStringContainsString('P&Aacute;GINA 2 DE 2', $html);
+            $this->assertStringContainsString("P&Aacute;GINA {$expectedSheets} DE {$expectedSheets}", $html);
+            $this->assertStringContainsString('ACEPTACI&Oacute;N Y CONDICIONES DEL PRESUPUESTO', $html);
+            $this->assertStringContainsString('La aceptaci&oacute;n del presente presupuesto implica la conformidad del cliente', $html);
+            $this->assertSame(3, substr_count($html, '<p>'));
+            $this->assertStringContainsString('Para formalizar la aceptaci&oacute;n, el cliente deber&aacute; comunicar su conformidad', $html);
+            $this->assertStringContainsString('La aceptaci&oacute;n supone asimismo la conformidad con las condiciones de prestaci&oacute;n', $html);
+            $this->assertStringNotContainsString('Para aceptar el presente presupuesto', $html);
 
-            $bottomRow = strpos($html, 'class="bottom-row cols-3"');
+            $bottomRow = strpos($html, 'class="bottom-row quotation-bottom-row"');
             $lastItemsTable = strrpos($html, 'class="items"');
             $legalGrid = strpos($html, 'class="legal-grid"');
 

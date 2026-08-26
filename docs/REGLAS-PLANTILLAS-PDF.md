@@ -1,6 +1,6 @@
 # Reglas y validacion de plantillas PDF
 
-Estado verificado: 25 de agosto de 2026.
+Estado verificado: 26 de agosto de 2026.
 
 Este documento define el comportamiento probado de factura, presupuesto e
 informe. Las reglas aplican por igual al panel web y a Android porque ambos
@@ -51,22 +51,29 @@ Matriz comprobada:
 
 ## Presupuesto
 
-- Primera pagina: hasta 13 bloques visuales, cabecera, datos, alcance y resumen.
-- Con 13 servicios, los servicios y cuadros quedan en la primera pagina y las
-  condiciones permanecen en la segunda.
-- Si existe continuacion, la ultima pagina comparte servicios, cuadros y
-  condiciones.
-- Una continuacion admite hasta 24 servicios normales con los cuadros y las
-  condiciones sin overflow.
+- La primera pagina admite 13 bloques cuando no contiene los cuadros finales;
+  si el documento termina en ella, el limite seguro con los cuadros es 10.
+- La ultima continuacion admite 9 bloques junto con observaciones, pago,
+  aceptacion a ancho completo y condiciones legales.
+- Las continuaciones intermedias conservan una capacidad de 24 bloques.
+- Cuando el ultimo bloque supera su capacidad, se mueve al menos un servicio a
+  una pagina final util; nunca se crea una hoja vacia solo para los cuadros.
 
 Matriz comprobada:
 
 | Servicios | Distribucion | Paginas |
 | ---: | --- | ---: |
-| 13 | `13/cuadros + legal` | 2 |
+| 10 | `10/cuadros + legal` | 2 |
+| 11 | `10 + 1/cuadros/legal` | 2 |
+| 13 | `12 + 1/cuadros/legal` | 2 |
 | 14 | `13 + 1/cuadros/legal` | 2 |
-| 25 | `13 + 12/cuadros/legal` | 2 |
-| 37 | `13 + 24/cuadros/legal` | 2 |
+| 22 | `13 + 9/cuadros/legal` | 2 |
+| 23 | `13 + 9 + 1/cuadros/legal` | 3 |
+| 25 | `13 + 11 + 1/cuadros/legal` | 3 |
+| 37 | `13 + 23 + 1/cuadros/legal` | 3 |
+| 38 | `13 + 24 + 1/cuadros/legal` | 3 |
+| 46 | `13 + 24 + 9/cuadros/legal` | 3 |
+| 47 | `13 + 24 + 9 + 1/cuadros/legal` | 4 |
 
 ## Informe tecnico
 
@@ -79,10 +86,10 @@ Matriz comprobada:
 
 ## Evidencia ejecutada
 
-- PHPUnit: 29 pruebas aprobadas y 290 aserciones.
+- PHPUnit: 29 pruebas aprobadas y 313 aserciones.
 - Android: `testDebugUnitTest` y `assembleDebug` completados correctamente.
 - Playwright contra produccion: factura 3/14/20/25/35/36, presupuesto
-  13/14/25/37 e informe tecnico sin overflow.
+  10/11/12/13/14/22/23/25/37/38/46/47 e informe tecnico sin overflow.
 - Visor Android contra produccion:
   - `FAC-A-000003`: 14 servicios, 2 paginas.
   - `PRE-A-000002`: 12 servicios, 2 paginas.

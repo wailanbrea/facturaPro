@@ -364,6 +364,12 @@
     .sheet > .bottom-row { margin-top: auto; }
     .bottom-row.cols-3 { grid-template-columns: repeat(3, 1fr); }
     .bottom-row.cols-4 { grid-template-columns: 1.35fr 1fr 1fr 1.1fr; }
+    .quotation-bottom-row { grid-template-columns: repeat(2, 1fr); }
+    .quotation-bottom-row .quotation-acceptance { grid-column: 1 / -1; }
+    .quotation-acceptance .note-text p { margin: 0; }
+    .quotation-bottom-row .note-text { color: var(--muted); }
+    .quotation-acceptance .note-text p + p { margin-top: 1.3mm; }
+
 
     .iban { font-weight: 700; letter-spacing: .01em; }
 
