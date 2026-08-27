@@ -125,7 +125,7 @@
             </div>
         @endif
 
-        <div class="work-row {{ $isFirst ? 'with-two-asides' : 'full' }}">
+        <div class="work-row with-two-asides">
             @include('pdf.partials.items-table', [
                 'rows' => $rows,
                 'startIndex' => $ctx->startIndexFor($pageIndex),

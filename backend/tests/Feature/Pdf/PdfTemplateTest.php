@@ -168,6 +168,16 @@ class PdfTemplateTest extends TestCase
         $this->assertStringContainsString('.quotation-bottom-row .note-text { color: var(--muted); }', $html);
     }
 
+    public function test_item_tables_keep_their_first_page_width_on_continuation_sheets(): void
+    {
+        $quotationHtml = $this->previewHtml($this->makeInvoice(14, 'quotation'));
+        $invoiceHtml = $this->previewHtml($this->makeInvoice(14));
+
+        $this->assertSame(2, substr_count($quotationHtml, 'class="work-row with-aside"'));
+        $this->assertSame(2, substr_count($invoiceHtml, 'class="work-row with-two-asides"'));
+        $this->assertStringContainsString('.quotation-acceptance .note-text p + p { margin-top: .5mm; }', $quotationHtml);
+    }
+
     public function test_twelve_quotation_lines_move_one_item_to_the_final_sheet(): void
     {
         $html = $this->previewHtml($this->makeInvoice(12, 'quotation'));

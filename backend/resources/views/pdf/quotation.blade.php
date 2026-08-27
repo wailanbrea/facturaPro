@@ -118,7 +118,7 @@
             </div>
         @endif
 
-        <div class="work-row {{ $isFirst ? 'with-aside' : 'full' }}">
+        <div class="work-row with-aside">
             @include('pdf.partials.items-table', [
                 'rows' => $rows,
                 'startIndex' => $ctx->startIndexFor($pageIndex),

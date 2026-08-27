@@ -368,7 +368,7 @@
     .quotation-bottom-row .quotation-acceptance { grid-column: 1 / -1; }
     .quotation-acceptance .note-text p { margin: 0; }
     .quotation-bottom-row .note-text { color: var(--muted); }
-    .quotation-acceptance .note-text p + p { margin-top: 1.3mm; }
+    .quotation-acceptance .note-text p + p { margin-top: .5mm; }
 
 
     .iban { font-weight: 700; letter-spacing: .01em; }
