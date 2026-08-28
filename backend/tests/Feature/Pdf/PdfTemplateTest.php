@@ -175,7 +175,7 @@ class PdfTemplateTest extends TestCase
 
         $this->assertSame(2, substr_count($quotationHtml, 'class="work-row with-aside"'));
         $this->assertSame(2, substr_count($invoiceHtml, 'class="work-row with-two-asides"'));
-        $this->assertStringContainsString('.quotation-acceptance .note-text p + p { margin-top: .5mm; }', $quotationHtml);
+        $this->assertStringNotContainsString('.quotation-acceptance .note-text p + p', $quotationHtml);
     }
 
     public function test_twelve_quotation_lines_move_one_item_to_the_final_sheet(): void
