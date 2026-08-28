@@ -367,6 +367,7 @@
     .quotation-bottom-row { grid-template-columns: repeat(2, 1fr); }
     .quotation-bottom-row .quotation-acceptance { grid-column: 1 / -1; }
     .quotation-acceptance .note-text p { margin: 0; }
+    .quotation-acceptance .note-text { white-space: normal; }
     .quotation-bottom-row .note-text { color: var(--muted); }
 
 
