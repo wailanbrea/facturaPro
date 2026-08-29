@@ -100,6 +100,14 @@ class PdfTemplateTest extends TestCase
         $this->assertSame(1, substr_count($html, 'class="bottom-row cols-3"'));
     }
 
+    public function test_thirteen_intervention_lines_move_the_ending_to_a_continuation_sheet(): void
+    {
+        $html = $this->previewHtml($this->makeInvoice(13));
+
+        $this->assertSame(2, substr_count($html, 'class="items"'));
+        $this->assertStringContainsString('LINEA-012 concepto facturable', $html);
+    }
+
     public function test_continuation_lines_keep_bottom_boxes_on_the_last_items_sheet(): void
     {
         foreach ([14, 20, 25] as $lineCount) {
@@ -187,6 +195,15 @@ class PdfTemplateTest extends TestCase
         $this->assertSame(2, substr_count($html, 'class="items"'));
         $this->assertSame(1, substr_count($html, 'class="note-box quotation-acceptance"'));
         $this->assertStringContainsString('LINEA-011 concepto facturable', $html);
+    }
+
+    public function test_ten_quotation_lines_move_the_ending_to_a_continuation_sheet(): void
+    {
+        $html = $this->previewHtml($this->makeInvoice(10, 'quotation'));
+
+        $this->assertSame(2, substr_count($html, 'class="sheet"'));
+        $this->assertSame(2, substr_count($html, 'class="items"'));
+        $this->assertStringContainsString('LINEA-009 concepto facturable', $html);
     }
 
     public function test_thirteen_quotation_lines_use_the_final_sheet_without_losing_lines(): void

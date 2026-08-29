@@ -170,7 +170,11 @@ class PdfDocumentContext
             static fn ($item): int => self::itemRowCost($item),
         );
 
-        if ($lastPageCost <= 22 || $lastPage->count() <= 1) {
+        // The first sheet also contains the document cards and side panels, so
+        // its ending must move sooner than a continuation sheet.
+        $limit = count($pages) === 1 ? 12 : 22;
+
+        if ($lastPageCost <= $limit || $lastPage->count() <= 1) {
             return $pages;
         }
 
@@ -182,9 +186,8 @@ class PdfDocumentContext
     }
 
     /**
-     * The enlarged acceptance block fits with ten row slots on the first
-     * sheet, or nine when the legal conditions share a continuation sheet.
-     * Move one final item instead of creating an empty summary sheet.
+     * The enlarged acceptance block has room for nine row slots. Reserve the
+     * tenth line for a continuation so it never crowds the final boxes.
      *
      * @param  array<int, Collection<int, mixed>>  $pages
      * @return array<int, Collection<int, mixed>>
@@ -196,7 +199,7 @@ class PdfDocumentContext
         $lastPageCost = $lastPage->sum(
             static fn ($item): int => self::itemRowCost($item),
         );
-        $limit = count($pages) === 1 ? 10 : 9;
+        $limit = 9;
 
         if ($lastPageCost <= $limit || $lastPage->count() <= 1) {
             return $pages;

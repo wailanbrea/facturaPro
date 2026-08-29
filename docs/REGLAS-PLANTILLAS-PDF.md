@@ -43,6 +43,7 @@ Matriz comprobada:
 | Servicios | Distribucion | Paginas |
 | ---: | --- | ---: |
 | 3 | `3 + legal` | 2 |
+| 13 | `12 + 1/cuadros/legal` | 2 |
 | 14 | `13 + 1/cuadros/legal` | 2 |
 | 20 | `13 + 7/cuadros/legal` | 2 |
 | 25 | `13 + 12/cuadros/legal` | 2 |
@@ -52,7 +53,7 @@ Matriz comprobada:
 ## Presupuesto
 
 - La primera pagina admite 13 bloques cuando no contiene los cuadros finales;
-  si el documento termina en ella, el limite seguro con los cuadros es 10.
+  si el documento termina en ella, el limite seguro con los cuadros es 9.
 - La ultima continuacion admite 9 bloques junto con observaciones, pago,
   aceptacion a ancho completo y condiciones legales.
 - Las continuaciones intermedias conservan una capacidad de 24 bloques.
@@ -63,7 +64,7 @@ Matriz comprobada:
 
 | Servicios | Distribucion | Paginas |
 | ---: | --- | ---: |
-| 10 | `10/cuadros + legal` | 2 |
+| 10 | `9 + 1/cuadros/legal` | 2 |
 | 11 | `10 + 1/cuadros/legal` | 2 |
 | 13 | `12 + 1/cuadros/legal` | 2 |
 | 14 | `13 + 1/cuadros/legal` | 2 |
