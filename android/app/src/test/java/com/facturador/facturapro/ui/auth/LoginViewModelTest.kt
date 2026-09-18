@@ -69,6 +69,28 @@ class LoginViewModelTest {
         assertEquals("Correo y password son obligatorios.", viewModel.uiState.value.errorMessage)
         assertEquals(0, authRepository.loginCalls)
     }
+
+    @Test
+    fun logout_returns_to_login_without_resetting_session_loading_state() = runTest {
+        val authRepository = FakeAuthRepository()
+        val viewModel = LoginViewModel(
+            authRepository = authRepository,
+            settingsRepository = FakeSettingsRepository(Result.success(sampleBootstrap())),
+            serverConfigStore = FakeServerConfigStore(),
+        )
+
+        viewModel.onEmailChanged("facturador@facturapro.com")
+        viewModel.onPasswordChanged("facturador1234")
+        viewModel.login()
+        advanceUntilIdle()
+
+        viewModel.logout()
+        advanceUntilIdle()
+
+        assertFalse(viewModel.uiState.value.isAuthenticated)
+        assertTrue(viewModel.uiState.value.isSessionLoaded)
+        assertFalse(viewModel.uiState.value.isBootstrapLoading)
+    }
 }
 
 private class FakeServerConfigStore(

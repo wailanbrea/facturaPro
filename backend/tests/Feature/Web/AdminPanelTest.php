@@ -5,6 +5,7 @@ namespace Tests\Feature\Web;
 use App\Models\BankAccount;
 use App\Models\Client;
 use App\Models\Currency;
+use App\Models\ActivityLog;
 use App\Models\FiscalProfile;
 use App\Models\Invoice;
 use App\Models\InvoiceNumberSetting;
@@ -38,7 +39,13 @@ class AdminPanelTest extends TestCase
             'password' => 'FacturaPro123!',
         ])->assertRedirect('/');
 
-        $this->get('/')->assertOk()->assertSee('Dashboard');
+        $this->get('/')
+            ->assertOk()
+            ->assertSee('Dashboard')
+            ->assertSee('id="mobile-nav-toggle"', false)
+            ->assertSee('id="mobile-nav"', false)
+            ->assertSee('aria-controls="mobile-nav"', false)
+            ->assertSee('Cerrar sesión');
     }
 
     public function test_login_form_uses_relative_post_action(): void
@@ -933,6 +940,65 @@ class AdminPanelTest extends TestCase
 
         $user = User::query()->where('email', 'facturador@example.com')->firstOrFail();
         $this->assertTrue($user->roles()->whereKey($role->id)->exists());
+    }
+
+    public function test_admin_can_permanently_delete_user_without_history(): void
+    {
+        $this->seed();
+        $admin = User::query()->where('email', 'admin@facturapro.local')->firstOrFail();
+        $user = User::factory()->create();
+        $this->actingAs($admin);
+
+        $this->get(route('web.users.index'))
+            ->assertOk()
+            ->assertSee('Eliminar definitivamente');
+
+        $this->delete(route('web.users.destroy', $user))
+            ->assertRedirect(route('web.users.index'));
+
+        $this->assertDatabaseMissing('users', ['id' => $user->id]);
+    }
+
+    public function test_user_with_history_requires_confirmation_before_permanent_deletion(): void
+    {
+        $this->seed();
+        $admin = User::query()->where('email', 'admin@facturapro.local')->firstOrFail();
+        $user = User::factory()->create();
+        ActivityLog::query()->create([
+            'user_id' => $user->id,
+            'action' => 'test.history',
+        ]);
+        $this->actingAs($admin);
+
+        $this->get(route('web.users.index'))
+            ->assertOk()
+            ->assertSee('Este usuario tiene historial', false);
+
+        $this->delete(route('web.users.destroy', $user))
+            ->assertSessionHasErrors();
+        $this->assertDatabaseHas('users', ['id' => $user->id]);
+
+        $this->delete(route('web.users.destroy', $user), [
+            'confirm_history_deletion' => '1',
+        ])->assertRedirect(route('web.users.index'));
+
+        $this->assertDatabaseMissing('users', ['id' => $user->id]);
+        $this->assertDatabaseHas('activity_logs', [
+            'action' => 'test.history',
+            'user_id' => null,
+        ]);
+    }
+
+    public function test_admin_cannot_permanently_delete_own_user(): void
+    {
+        $this->seed();
+        $admin = User::query()->where('email', 'admin@facturapro.local')->firstOrFail();
+        $this->actingAs($admin);
+
+        $this->delete(route('web.users.destroy', $admin))
+            ->assertSessionHasErrors();
+
+        $this->assertDatabaseHas('users', ['id' => $admin->id]);
     }
 
     public function test_reports_page_renders_currency_grouped_totals_for_mixed_currencies(): void

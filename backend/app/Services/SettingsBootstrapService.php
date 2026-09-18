@@ -30,7 +30,8 @@ class SettingsBootstrapService
         $fiscalProfiles = $fiscalProfiles->load('logos');
         $invoiceNumberPreviews = $this->invoiceNumberPreviews($fiscalProfiles, auth()->id());
         $lockedSetting = Setting::query()->where('key', 'invoice.locked_fields')->value('value');
-        $lockedInvoiceFields = auth()->user()?->hasPermission('configurar_sistema')
+        $canEditInvoiceFields = auth()->user()?->hasAnyPermission(['crear_factura', 'editar_factura']) ?? false;
+        $lockedInvoiceFields = $canEditInvoiceFields
             ? []
             : array_values((array) ($lockedSetting['fields'] ?? ['conformity_text', 'legal_text']));
 

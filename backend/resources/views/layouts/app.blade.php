@@ -167,9 +167,11 @@
     {{-- Main --}}
     <div class="flex-1 min-w-0 flex flex-col">
         {{-- Topbar --}}
-        <header class="sticky top-0 z-20 bg-surface/90 backdrop-blur border-b border-outline-variant/60">
+        <header class="sticky top-0 z-20 bg-surface border-b border-outline-variant/60">
             <div class="flex items-center gap-4 px-4 sm:px-8 h-[68px]">
-                <button class="lg:hidden p-2 rounded-lg hover:bg-surface-low" onclick="document.getElementById('mobile-nav').classList.toggle('hidden')">
+                <button id="mobile-nav-toggle" type="button"
+                        class="lg:hidden min-w-11 min-h-11 inline-flex items-center justify-center rounded-lg hover:bg-surface-low"
+                        aria-label="Abrir menú principal" aria-controls="mobile-nav" aria-expanded="false">
                     <i data-lucide="menu" class="w-5 h-5"></i>
                 </button>
 
@@ -184,13 +186,13 @@
                 </div>
 
                 <div class="flex items-center gap-2 ml-auto">
-                    <button class="p-2 rounded-lg hover:bg-surface-low text-on-surface-variant relative">
+                    <button type="button" class="hidden sm:inline-flex p-2 rounded-lg hover:bg-surface-low text-on-surface-variant relative" aria-label="Notificaciones">
                         <i data-lucide="bell" class="w-5 h-5"></i>
                         @if(($overdueCount ?? 0) > 0)
                             <span class="absolute top-1.5 right-1.5 w-2 h-2 bg-danger rounded-full"></span>
                         @endif
                     </button>
-                    <button class="p-2 rounded-lg hover:bg-surface-low text-on-surface-variant">
+                    <button type="button" class="hidden sm:inline-flex p-2 rounded-lg hover:bg-surface-low text-on-surface-variant" aria-label="Ayuda">
                         <i data-lucide="help-circle" class="w-5 h-5"></i>
                     </button>
                     <div class="flex items-center gap-2 pl-3 ml-1 border-l border-outline-variant/60">
@@ -205,23 +207,54 @@
                 </div>
             </div>
 
-            {{-- Mobile drawer --}}
-            <div id="mobile-nav" class="hidden lg:hidden border-t border-outline-variant/60 bg-white px-4 py-3 space-y-1">
-                @foreach($nav as $item)
-                    @php
-                        $match = $item['match'] ?? $item['route'];
-                        $active = request()->routeIs($match);
-                        $requiredPerm = $item['permission'] ?? null;
-                        if ($requiredPerm && !auth()->user()?->hasPermission($requiredPerm)) continue;
-                    @endphp
-                    <a href="{{ route($item['route']) }}"
-                       class="flex items-center gap-3 px-3 py-2.5 rounded-lg text-[14px] font-medium
-                              {{ $active ? 'bg-primary-soft-2 text-primary' : 'text-on-surface-variant hover:bg-surface-low' }}">
-                        <i data-lucide="{{ $item['icon'] }}" class="w-[18px] h-[18px]"></i>
-                        {{ $item['label'] }}
-                    </a>
-                @endforeach
-            </div>
+            {{-- Mobile drawer: ocupa el alto disponible y conserva siempre las acciones de cuenta. --}}
+            <div id="mobile-nav-backdrop" class="hidden lg:hidden fixed inset-0 top-[68px] z-30 bg-slate-950/35 backdrop-blur-[1px]" aria-hidden="true"></div>
+            <aside id="mobile-nav"
+                   class="hidden lg:hidden fixed inset-x-0 top-[68px] bottom-0 z-40 bg-white border-t border-outline-variant/60 shadow-xl flex-col"
+                   aria-label="Menú principal móvil" aria-hidden="true">
+                <div class="flex items-center gap-3 px-4 py-4 border-b border-outline-variant/60">
+                    <div class="w-10 h-10 shrink-0 rounded-full bg-primary-soft text-primary font-semibold text-[13px] flex items-center justify-center">
+                        {{ strtoupper(substr(auth()->user()->name ?? 'U', 0, 2)) }}
+                    </div>
+                    <div class="min-w-0 flex-1">
+                        <p class="text-[13px] font-semibold truncate">{{ auth()->user()->name }}</p>
+                        <p class="text-[11px] text-on-surface-variant truncate">{{ auth()->user()->email }}</p>
+                    </div>
+                    <button id="mobile-nav-close" type="button"
+                            class="min-w-11 min-h-11 inline-flex items-center justify-center rounded-lg hover:bg-surface-low"
+                            aria-label="Cerrar menú">
+                        <i data-lucide="x" class="w-5 h-5"></i>
+                    </button>
+                </div>
+
+                <nav class="flex-1 overflow-y-auto overscroll-contain px-3 py-3 space-y-1">
+                    @foreach($nav as $item)
+                        @php
+                            $match = $item['match'] ?? $item['route'];
+                            $active = request()->routeIs($match);
+                            $requiredPerm = $item['permission'] ?? null;
+                            if ($requiredPerm && !auth()->user()?->hasPermission($requiredPerm)) continue;
+                        @endphp
+                        <a href="{{ route($item['route']) }}"
+                           class="mobile-nav-link min-h-11 flex items-center gap-3 px-3 py-3 rounded-lg text-[14px] font-medium
+                                  {{ $active ? 'bg-primary-soft-2 text-primary' : 'text-on-surface-variant hover:bg-surface-low' }}">
+                            <i data-lucide="{{ $item['icon'] }}" class="w-[18px] h-[18px] shrink-0"></i>
+                            {{ $item['label'] }}
+                        </a>
+                    @endforeach
+                </nav>
+
+                <div class="shrink-0 border-t border-outline-variant/60 px-3 py-3 pb-[max(.75rem,env(safe-area-inset-bottom))] bg-white">
+                    <form method="POST" action="{{ route('web.logout') }}">
+                        @csrf
+                        <button type="submit"
+                                class="w-full min-h-11 inline-flex items-center justify-center gap-3 px-3 py-3 rounded-lg text-[14px] font-semibold text-danger bg-danger-soft hover:bg-red-100 transition-colors">
+                            <i data-lucide="log-out" class="w-[18px] h-[18px]"></i>
+                            Cerrar sesión
+                        </button>
+                    </form>
+                </div>
+            </aside>
         </header>
 
         {{-- Page header --}}
@@ -263,6 +296,35 @@
 <script>
     document.addEventListener('DOMContentLoaded', () => {
         if (window.lucide) window.lucide.createIcons();
+
+        const toggle = document.getElementById('mobile-nav-toggle');
+        const closeButton = document.getElementById('mobile-nav-close');
+        const drawer = document.getElementById('mobile-nav');
+        const backdrop = document.getElementById('mobile-nav-backdrop');
+
+        const setMobileNavOpen = (open) => {
+            if (!toggle || !drawer || !backdrop) return;
+            drawer.classList.toggle('hidden', !open);
+            drawer.classList.toggle('flex', open);
+            backdrop.classList.toggle('hidden', !open);
+            drawer.setAttribute('aria-hidden', open ? 'false' : 'true');
+            toggle.setAttribute('aria-expanded', open ? 'true' : 'false');
+            toggle.setAttribute('aria-label', open ? 'Cerrar menú principal' : 'Abrir menú principal');
+            document.body.classList.toggle('overflow-hidden', open);
+            if (open) closeButton?.focus();
+            else toggle.focus();
+        };
+
+        toggle?.addEventListener('click', () => setMobileNavOpen(toggle.getAttribute('aria-expanded') !== 'true'));
+        closeButton?.addEventListener('click', () => setMobileNavOpen(false));
+        backdrop?.addEventListener('click', () => setMobileNavOpen(false));
+        drawer?.querySelectorAll('.mobile-nav-link').forEach(link => link.addEventListener('click', () => setMobileNavOpen(false)));
+        document.addEventListener('keydown', event => {
+            if (event.key === 'Escape' && toggle?.getAttribute('aria-expanded') === 'true') setMobileNavOpen(false);
+        });
+        window.addEventListener('resize', () => {
+            if (window.innerWidth >= 1024 && toggle?.getAttribute('aria-expanded') === 'true') setMobileNavOpen(false);
+        });
     });
 </script>
 @yield('scripts')

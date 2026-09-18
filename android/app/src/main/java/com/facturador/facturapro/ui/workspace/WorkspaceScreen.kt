@@ -160,12 +160,14 @@ fun WorkspaceScreen(
                     )
                 },
                 actions = {
-                    IconButton(onClick = { section = WorkspaceSection.Verify }) {
-                        Icon(
-                            imageVector = Icons.Outlined.QrCodeScanner,
-                            contentDescription = "Verificar documento",
-                            tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                        )
+                    if (WorkspaceSection.Verify.isAllowed(permissions)) {
+                        IconButton(onClick = { section = WorkspaceSection.Verify }) {
+                            Icon(
+                                imageVector = Icons.Outlined.QrCodeScanner,
+                                contentDescription = "Verificar documento",
+                                tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                            )
+                        }
                     }
                     IconButton(onClick = onLogout) {
                         Icon(
@@ -346,17 +348,11 @@ fun WorkspaceScreen(
 
     if (showMoreMenu) {
         ModalBottomSheet(onDismissRequest = { showMoreMenu = false }) {
-            MoreDestinationRow("Reportes", Icons.Outlined.BarChart) {
-                section = WorkspaceSection.Reports
-                showMoreMenu = false
-            }
-            MoreDestinationRow("Calendario", Icons.Outlined.CalendarMonth) {
-                section = WorkspaceSection.Calendar
-                showMoreMenu = false
-            }
-            MoreDestinationRow("Ajustes", Icons.Outlined.Settings) {
-                section = WorkspaceSection.Settings
-                showMoreMenu = false
+            moreItems.filter { it.section.isAllowed(permissions) }.forEach { item ->
+                MoreDestinationRow(item.label, item.icon) {
+                    section = item.section
+                    showMoreMenu = false
+                }
             }
         }
     }
@@ -381,7 +377,7 @@ private fun FacturaProBottomBar(
         containerColor = MaterialTheme.colorScheme.surfaceContainerLowest,
         tonalElevation = 0.dp,
     ) {
-        bottomNavItems.filter { it.section.isAllowed(permissions) }.forEach { item ->
+        visibleBottomItems(permissions).forEach { item ->
             val selected = current == item.section ||
                 (item.section == WorkspaceSection.More && current in moreSections)
             NavigationBarItem(
@@ -426,7 +422,13 @@ enum class WorkspaceSection {
     More,
 }
 
-private data class BottomItem(
+internal data class BottomItem(
+    val section: WorkspaceSection,
+    val label: String,
+    val icon: ImageVector,
+)
+
+private data class MoreItem(
     val section: WorkspaceSection,
     val label: String,
     val icon: ImageVector,
@@ -440,18 +442,26 @@ private val bottomNavItems = listOf(
     BottomItem(WorkspaceSection.More, "Más", Icons.Outlined.MoreHoriz),
 )
 
-private val moreSections = setOf(
-    WorkspaceSection.Reports,
-    WorkspaceSection.Calendar,
-    WorkspaceSection.Settings,
+private val moreItems = listOf(
+    MoreItem(WorkspaceSection.Reports, "Reportes", Icons.Outlined.BarChart),
+    MoreItem(WorkspaceSection.Calendar, "Calendario", Icons.Outlined.CalendarMonth),
+    MoreItem(WorkspaceSection.Settings, "Ajustes", Icons.Outlined.Settings),
 )
 
-private fun WorkspaceSection.isAllowed(permissions: Set<String>): Boolean = when (this) {
+private val moreSections = moreItems.map { it.section }.toSet()
+
+internal fun visibleBottomItems(permissions: Set<String>): List<BottomItem> =
+    bottomNavItems.filter { it.section.isAllowed(permissions) }
+
+internal fun visibleMoreSections(permissions: Set<String>): List<WorkspaceSection> =
+    moreItems.filter { it.section.isAllowed(permissions) }.map { it.section }
+
+internal fun WorkspaceSection.isAllowed(permissions: Set<String>): Boolean = when (this) {
     WorkspaceSection.Home, WorkspaceSection.Invoices, WorkspaceSection.Verify -> "ver_factura" in permissions
     WorkspaceSection.Clients -> "gestionar_clientes" in permissions
     WorkspaceSection.Calendar -> "ver_calendario" in permissions
     WorkspaceSection.TechnicalReports -> "ver_informes" in permissions
     WorkspaceSection.Reports -> "ver_reportes" in permissions
-    WorkspaceSection.Settings -> true
+    WorkspaceSection.Settings -> "configurar_sistema" in permissions
     WorkspaceSection.More -> moreSections.any { it.isAllowed(permissions) }
 }

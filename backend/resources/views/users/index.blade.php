@@ -30,6 +30,18 @@
                         ->map(fn ($p) => mb_strtoupper(mb_substr($p, 0, 1)))
                         ->implode('');
                     $editUrl = route('web.users.edit', $user);
+                    $hasHistory = collect([
+                        $user->created_invoices_count,
+                        $user->updated_invoices_count,
+                        $user->created_technical_reports_count,
+                        $user->updated_technical_reports_count,
+                        $user->invoice_payments_count,
+                        $user->created_appointments_count,
+                        $user->activity_logs_count,
+                    ])->contains(fn ($count) => (int) $count > 0);
+                    $deleteWarning = $hasHistory
+                        ? 'Este usuario tiene historial. Al eliminarlo definitivamente se borraran sus citas asociadas y se perdera su autoria en los registros conservados. Esta accion no se puede deshacer. ¿Deseas continuar?'
+                        : '¿Deseas eliminar definitivamente este usuario? Esta accion no se puede deshacer.';
                 @endphp
                 <tr class="hover:bg-surface-low/70 cursor-pointer transition-colors"
                     onclick="window.location='{{ $editUrl }}'">
@@ -60,6 +72,20 @@
                             <i data-lucide="pencil" class="w-3.5 h-3.5"></i>
                             Editar
                         </a>
+                        @if($user->id !== auth()->id())
+                            <form method="POST" action="{{ route('web.users.destroy', $user) }}" class="inline"
+                                  onsubmit="return confirm(@js($deleteWarning))">
+                                @csrf
+                                @method('DELETE')
+                                @if($hasHistory)
+                                    <input type="hidden" name="confirm_history_deletion" value="1">
+                                @endif
+                                <button class="inline-flex items-center gap-1 text-[12.5px] font-semibold text-danger hover:underline" type="submit">
+                                    <i data-lucide="trash-2" class="w-3.5 h-3.5"></i>
+                                    Eliminar definitivamente
+                                </button>
+                            </form>
+                        @endif
                     </td>
                 </tr>
             @empty

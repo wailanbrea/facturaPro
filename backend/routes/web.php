@@ -99,7 +99,7 @@ Route::middleware('auth')->group(function (): void {
     });
 
     Route::resource('users', UserController::class)
-        ->except(['show', 'destroy'])
+        ->except(['show'])
         ->middleware('permission:gestionar_usuarios')
         ->names('web.users');
 

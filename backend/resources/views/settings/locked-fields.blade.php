@@ -14,8 +14,8 @@
     <section class="card">
         <h3>Casillas editables del documento</h3>
         <p class="muted" style="margin-bottom:16px">
-            Las casillas marcadas quedan bloqueadas (solo lectura) al crear o editar facturas y presupuestos
-            para los usuarios sin permiso de configuración. Los administradores siempre pueden editarlas.
+            Las casillas marcadas quedan bloqueadas (solo lectura) para usuarios sin permisos de creación o edición.
+            Los usuarios que pueden crear o editar facturas y presupuestos siempre pueden modificarlas.
         </p>
         <div class="space-y-3">
             @foreach($lockableFields as $field => $label)

@@ -167,6 +167,11 @@ class User extends Authenticatable
         return $this->hasMany(TechnicalReport::class, 'updated_by');
     }
 
+    public function createdAppointments(): HasMany
+    {
+        return $this->hasMany(Appointment::class, 'created_by');
+    }
+
     public function invoicePayments(): HasMany
     {
         return $this->hasMany(InvoicePayment::class, 'created_by');
@@ -175,5 +180,16 @@ class User extends Authenticatable
     public function activityLogs(): HasMany
     {
         return $this->hasMany(ActivityLog::class);
+    }
+
+    public function hasHistory(): bool
+    {
+        return $this->createdInvoices()->exists()
+            || $this->updatedInvoices()->exists()
+            || $this->createdTechnicalReports()->exists()
+            || $this->updatedTechnicalReports()->exists()
+            || $this->invoicePayments()->exists()
+            || $this->createdAppointments()->exists()
+            || $this->activityLogs()->exists();
     }
 }

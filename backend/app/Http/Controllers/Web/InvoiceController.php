@@ -782,14 +782,14 @@ class InvoiceController extends Controller
     }
 
     /**
-     * Campos bloqueados para el usuario autenticado (los administradores con
-     * permiso de configuracion pueden editarlos siempre).
+     * Campos bloqueados para usuarios que solo tienen acceso de lectura.
+     * Quien puede crear o editar documentos puede editar todos sus campos.
      *
      * @return array<int, string>
      */
     private function lockedFieldsForUser(): array
     {
-        if (auth()->user()?->hasPermission('configurar_sistema')) {
+        if (auth()->user()?->hasAnyPermission(['crear_factura', 'editar_factura'])) {
             return [];
         }
 

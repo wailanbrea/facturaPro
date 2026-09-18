@@ -47,7 +47,7 @@ class SettingsController extends Controller
             [
                 'group' => 'invoices',
                 'value' => ['fields' => array_values($data['fields'] ?? [])],
-                'description' => 'Campos del formulario de factura bloqueados para usuarios sin permiso de configuracion.',
+                'description' => 'Campos del formulario de factura bloqueados para usuarios sin permisos de creacion o edicion.',
             ],
         );
 

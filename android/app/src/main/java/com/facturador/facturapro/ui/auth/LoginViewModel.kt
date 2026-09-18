@@ -77,10 +77,18 @@ class LoginViewModel(
                 onSuccess = { normalized ->
                     authRepository.logout()
                     _uiState.update {
-                        LoginUiState(
-                            email = it.email,
+                        it.copy(
+                            password = "",
                             currentApiBaseUrl = normalized,
                             serverUrlInput = normalized,
+                            isAuthenticated = false,
+                            isSessionLoaded = true,
+                            isLoading = false,
+                            isBootstrapLoading = false,
+                            userName = null,
+                            permissions = emptySet(),
+                            bootstrap = null,
+                            errorMessage = null,
                             serverMessage = "Servidor guardado. Intenta iniciar sesion nuevamente.",
                         )
                     }
@@ -102,10 +110,18 @@ class LoginViewModel(
             val defaultUrl = serverConfigStore.resetApiBaseUrl()
             authRepository.logout()
             _uiState.update {
-                LoginUiState(
-                    email = it.email,
+                it.copy(
+                    password = "",
                     currentApiBaseUrl = defaultUrl,
                     serverUrlInput = defaultUrl,
+                    isAuthenticated = false,
+                    isSessionLoaded = true,
+                    isLoading = false,
+                    isBootstrapLoading = false,
+                    userName = null,
+                    permissions = emptySet(),
+                    bootstrap = null,
+                    errorMessage = null,
                     serverMessage = "Servidor restaurado al predeterminado.",
                 )
             }
@@ -153,7 +169,18 @@ class LoginViewModel(
         viewModelScope.launch {
             authRepository.logout()
             _uiState.update {
-                LoginUiState(email = it.email)
+                it.copy(
+                    password = "",
+                    isAuthenticated = false,
+                    isSessionLoaded = true,
+                    isLoading = false,
+                    isBootstrapLoading = false,
+                    userName = null,
+                    permissions = emptySet(),
+                    bootstrap = null,
+                    errorMessage = null,
+                    serverMessage = null,
+                )
             }
         }
     }

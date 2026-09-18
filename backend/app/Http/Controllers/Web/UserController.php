@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Models\FiscalProfile;
 use App\Models\Role;
 use App\Models\User;
+use App\Services\ActivityLogService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Validation\Rule;
@@ -13,10 +14,24 @@ use Illuminate\View\View;
 
 class UserController extends Controller
 {
+    public function __construct(
+        private readonly ActivityLogService $activityLog,
+    ) {
+    }
+
     public function index(): View
     {
         $users = User::query()
             ->with('roles')
+            ->withCount([
+                'createdInvoices',
+                'updatedInvoices',
+                'createdTechnicalReports',
+                'updatedTechnicalReports',
+                'invoicePayments',
+                'createdAppointments',
+                'activityLogs',
+            ])
             ->orderBy('name')
             ->paginate(15);
 
@@ -75,6 +90,29 @@ class UserController extends Controller
         $user->fiscalProfiles()->sync($fiscalProfiles);
 
         return redirect()->route('web.users.index')->with('status', 'Usuario actualizado.');
+    }
+
+    public function destroy(Request $request, User $user): RedirectResponse
+    {
+        if ($request->user()?->is($user)) {
+            return back()->withErrors('No puedes eliminar tu propio usuario.');
+        }
+
+        if ($user->hasHistory() && ! $request->boolean('confirm_history_deletion')) {
+            return back()->withErrors('Debes confirmar la eliminacion de un usuario con historial.');
+        }
+
+        $this->activityLog->record(
+            'user.deleted',
+            $user,
+            ['name' => $user->name, 'email' => $user->email],
+            $request->user(),
+            $request,
+        );
+
+        $user->delete();
+
+        return redirect()->route('web.users.index')->with('status', 'Usuario eliminado definitivamente.');
     }
 
     /**
