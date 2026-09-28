@@ -16,6 +16,7 @@ import androidx.compose.material.icons.filled.ChevronLeft
 import androidx.compose.material.icons.filled.ChevronRight
 import androidx.compose.material.icons.outlined.LocationOn
 import androidx.compose.material.icons.outlined.Navigation
+import androidx.compose.material.icons.outlined.Refresh
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -29,6 +30,9 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.LifecycleEventObserver
+import androidx.lifecycle.compose.LocalLifecycleOwner
 import com.facturador.facturapro.domain.model.Appointment
 import com.facturador.facturapro.domain.model.AppointmentStatus
 import java.net.URLEncoder
@@ -37,12 +41,29 @@ import java.time.LocalDate
 import java.time.YearMonth
 import java.time.format.TextStyle
 import java.util.Locale
+import kotlinx.coroutines.delay
 
 @Composable
 fun CalendarScreen(viewModel: CalendarViewModel) {
     val state by viewModel.state.collectAsStateWithLifecycle()
     var showForm by remember { mutableStateOf(false) }
     var selectedAppointment by remember { mutableStateOf<Appointment?>(null) }
+    val lifecycleOwner = LocalLifecycleOwner.current
+
+    DisposableEffect(lifecycleOwner) {
+        val observer = LifecycleEventObserver { _, event ->
+            if (event == Lifecycle.Event.ON_RESUME) viewModel.refreshCurrentMonth()
+        }
+        lifecycleOwner.lifecycle.addObserver(observer)
+        onDispose { lifecycleOwner.lifecycle.removeObserver(observer) }
+    }
+
+    LaunchedEffect(viewModel) {
+        while (true) {
+            delay(15_000)
+            viewModel.refreshCurrentMonth()
+        }
+    }
 
     Column(modifier = Modifier.fillMaxSize().padding(16.dp)) {
         Row(verticalAlignment = Alignment.CenterVertically) {
@@ -51,6 +72,7 @@ fun CalendarScreen(viewModel: CalendarViewModel) {
                     yearMonth = state.yearMonth,
                     onPrev = viewModel::previousMonth,
                     onNext = viewModel::nextMonth,
+                    onRefresh = viewModel::refreshCurrentMonth,
                 )
             }
             FloatingActionButton(
@@ -113,6 +135,7 @@ private fun CalendarHeader(
     yearMonth: YearMonth,
     onPrev: () -> Unit,
     onNext: () -> Unit,
+    onRefresh: () -> Unit,
 ) {
     val monthName = yearMonth.month.getDisplayName(TextStyle.FULL_STANDALONE, Locale("es"))
         .replaceFirstChar { it.uppercase() }
@@ -130,6 +153,9 @@ private fun CalendarHeader(
         )
         IconButton(onClick = onNext) {
             Icon(Icons.Default.ChevronRight, contentDescription = "Mes siguiente")
+        }
+        IconButton(onClick = onRefresh) {
+            Icon(Icons.Outlined.Refresh, contentDescription = "Actualizar citas")
         }
     }
 }

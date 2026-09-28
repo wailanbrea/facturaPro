@@ -14,8 +14,15 @@ class AuthRepository(
     private val sessionStore: SessionStoreContract,
 ) : AuthRepositoryContract {
     override val session: Flow<AuthSession?> = sessionStore.session
+    override val rememberSession: Flow<Boolean> = sessionStore.rememberSession
+    override val biometricEnabled: Flow<Boolean> = sessionStore.biometricEnabled
 
-    override suspend fun login(email: String, password: String): Result<AuthSession> = runCatching {
+    override suspend fun login(
+        email: String,
+        password: String,
+        rememberSession: Boolean,
+        biometricEnabled: Boolean,
+    ): Result<AuthSession> = runCatching {
         api.login(
             LoginRequestDto(
                 email = email.trim(),
@@ -25,7 +32,7 @@ class AuthRepository(
         ).toDomain()
     }.fold(
         onSuccess = { session ->
-            sessionStore.save(session)
+            sessionStore.save(session, rememberSession, biometricEnabled)
             Result.success(session)
         },
         onFailure = { error ->

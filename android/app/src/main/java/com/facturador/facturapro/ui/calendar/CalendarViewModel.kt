@@ -21,16 +21,26 @@ class CalendarViewModel(private val repository: CalendarRepository) : ViewModel(
         loadMonth(_state.value.yearMonth)
     }
 
-    fun loadMonth(yearMonth: YearMonth) {
-        _state.update { it.copy(yearMonth = yearMonth, isLoading = true, error = null) }
+    fun loadMonth(yearMonth: YearMonth, showLoading: Boolean = true) {
+        _state.update { it.copy(yearMonth = yearMonth, isLoading = showLoading, error = null) }
         viewModelScope.launch {
             try {
                 val appointments = repository.getAppointments(yearMonth.year, yearMonth.monthValue)
-                _state.update { it.copy(appointments = appointments, isLoading = false) }
+                _state.update {
+                    if (it.yearMonth == yearMonth) {
+                        it.copy(appointments = appointments, isLoading = false)
+                    } else {
+                        it
+                    }
+                }
             } catch (e: Exception) {
                 _state.update { it.copy(error = e.message, isLoading = false) }
             }
         }
+    }
+
+    fun refreshCurrentMonth() {
+        loadMonth(_state.value.yearMonth, showLoading = false)
     }
 
     fun previousMonth() {

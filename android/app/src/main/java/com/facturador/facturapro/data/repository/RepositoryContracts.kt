@@ -20,16 +20,25 @@ import kotlinx.coroutines.flow.Flow
 
 interface SessionStoreContract {
     val session: Flow<AuthSession?>
+    val rememberSession: Flow<Boolean>
+    val biometricEnabled: Flow<Boolean>
 
-    suspend fun save(session: AuthSession)
+    suspend fun save(session: AuthSession, rememberSession: Boolean, biometricEnabled: Boolean)
 
     suspend fun clear()
 }
 
 interface AuthRepositoryContract {
     val session: Flow<AuthSession?>
+    val rememberSession: Flow<Boolean>
+    val biometricEnabled: Flow<Boolean>
 
-    suspend fun login(email: String, password: String): Result<AuthSession>
+    suspend fun login(
+        email: String,
+        password: String,
+        rememberSession: Boolean = true,
+        biometricEnabled: Boolean = false,
+    ): Result<AuthSession>
 
     suspend fun logout()
 }

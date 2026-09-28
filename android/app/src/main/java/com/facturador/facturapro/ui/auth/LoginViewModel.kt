@@ -10,6 +10,7 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.collectLatest
+import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 
@@ -20,6 +21,8 @@ class LoginViewModel(
 ) : ViewModel() {
     private val _uiState = MutableStateFlow(LoginUiState())
     val uiState: StateFlow<LoginUiState> = _uiState.asStateFlow()
+    private var sessionUnlocked = false
+    private var inactivityLockRequested = false
 
     init {
         viewModelScope.launch {
@@ -34,11 +37,26 @@ class LoginViewModel(
         }
 
         viewModelScope.launch {
-            authRepository.session.collectLatest { session ->
+            combine(
+                authRepository.session,
+                authRepository.rememberSession,
+                authRepository.biometricEnabled,
+            ) { session, rememberSession, biometricEnabled ->
+                Triple(session, rememberSession, biometricEnabled)
+            }.collectLatest { (session, rememberSession, biometricEnabled) ->
+                val requiresBiometric = session != null &&
+                    (biometricEnabled || inactivityLockRequested) &&
+                    !sessionUnlocked
+                val authenticated = session != null && !requiresBiometric
                 _uiState.update {
                     it.copy(
-                        isAuthenticated = session != null,
+                        isAuthenticated = authenticated,
                         isSessionLoaded = true,
+                        rememberSession = rememberSession,
+                        biometricEnabled = biometricEnabled,
+                        requiresBiometricUnlock = requiresBiometric,
+                        hasSavedSession = session != null,
+                        email = if (it.email.isBlank()) session?.userEmail.orEmpty() else it.email,
                         userName = session?.userName,
                         permissions = session?.permissions.orEmpty(),
                         bootstrap = if (session == null) null else it.bootstrap,
@@ -47,7 +65,7 @@ class LoginViewModel(
                     )
                 }
 
-                if (session != null) {
+                if (authenticated) {
                     loadBootstrap()
                 }
             }
@@ -60,6 +78,55 @@ class LoginViewModel(
 
     fun onPasswordChanged(value: String) {
         _uiState.update { it.copy(password = value, errorMessage = null) }
+    }
+
+    fun onRememberSessionChanged(value: Boolean) {
+        _uiState.update {
+            it.copy(
+                rememberSession = value,
+                biometricEnabled = if (value) it.biometricEnabled else false,
+            )
+        }
+    }
+
+    fun onBiometricEnabledChanged(value: Boolean) {
+        _uiState.update { it.copy(biometricEnabled = value && it.rememberSession) }
+    }
+
+    fun unlockWithBiometrics() {
+        val state = _uiState.value
+        if (!state.hasSavedSession) return
+        sessionUnlocked = true
+        inactivityLockRequested = false
+        _uiState.update {
+            it.copy(
+                isAuthenticated = true,
+                requiresBiometricUnlock = false,
+                errorMessage = null,
+            )
+        }
+        loadBootstrap()
+    }
+
+    fun lockAfterInactivity() {
+        inactivityLockRequested = true
+        val state = _uiState.value
+        if (!state.isAuthenticated || !state.hasSavedSession) return
+
+        sessionUnlocked = false
+        _uiState.update {
+            it.copy(
+                isAuthenticated = false,
+                requiresBiometricUnlock = true,
+                password = "",
+                bootstrap = null,
+                errorMessage = "La sesión se bloqueó después de 10 minutos de inactividad.",
+            )
+        }
+    }
+
+    fun onBiometricError(message: String) {
+        _uiState.update { it.copy(errorMessage = message) }
     }
 
     fun onServerUrlChanged(value: String) {
@@ -137,7 +204,14 @@ class LoginViewModel(
 
         viewModelScope.launch {
             _uiState.update { it.copy(isLoading = true, errorMessage = null) }
-            val result = authRepository.login(state.email, state.password)
+            sessionUnlocked = true
+            inactivityLockRequested = false
+            val result = authRepository.login(
+                email = state.email,
+                password = state.password,
+                rememberSession = state.rememberSession,
+                biometricEnabled = state.biometricEnabled,
+            )
 
             result.fold(
                 onSuccess = {
@@ -150,6 +224,7 @@ class LoginViewModel(
                     }
                 },
                 onFailure = { error ->
+                    sessionUnlocked = false
                     _uiState.update {
                         it.copy(
                             isLoading = false,
@@ -167,6 +242,8 @@ class LoginViewModel(
 
     fun logout() {
         viewModelScope.launch {
+            sessionUnlocked = false
+            inactivityLockRequested = false
             authRepository.logout()
             _uiState.update {
                 it.copy(
@@ -178,6 +255,8 @@ class LoginViewModel(
                     userName = null,
                     permissions = emptySet(),
                     bootstrap = null,
+                    requiresBiometricUnlock = false,
+                    hasSavedSession = false,
                     errorMessage = null,
                     serverMessage = null,
                 )

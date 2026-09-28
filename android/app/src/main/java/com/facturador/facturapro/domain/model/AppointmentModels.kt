@@ -2,6 +2,12 @@ package com.facturador.facturapro.domain.model
 
 import com.facturador.facturapro.data.remote.dto.AppointmentDto
 import com.facturador.facturapro.data.remote.dto.ContactDto
+import java.time.OffsetDateTime
+import java.time.ZoneId
+import java.time.format.DateTimeFormatter
+
+private val appointmentTimeZone = ZoneId.of("America/Santo_Domingo")
+private val appointmentDisplayFormatter = DateTimeFormatter.ofPattern("yyyy-MM-dd'T'HH:mm")
 
 data class Appointment(
     val id: Int,
@@ -46,8 +52,8 @@ fun AppointmentDto.toDomain() = Appointment(
     clientId = clientId,
     clientName = clientName ?: client?.name,
     createdById = createdById,
-    startAt = startAt,
-    endAt = endAt,
+    startAt = normalizeAppointmentDateTime(startAt),
+    endAt = normalizeAppointmentDateTime(endAt),
     location = location,
     locationLat = locationLat,
     locationLng = locationLng,
@@ -59,3 +65,14 @@ fun AppointmentDto.toDomain() = Appointment(
 )
 
 fun ContactDto.toDomain() = AppointmentContact(name = name, phone = phone, email = email)
+
+internal fun normalizeAppointmentDateTime(value: String): String = runCatching {
+    val clean = value.replace(" ", "T")
+    if (clean.endsWith("Z") || clean.lastIndexOf('+') > 10 || clean.lastIndexOf('-') > 10) {
+        OffsetDateTime.parse(clean, DateTimeFormatter.ISO_OFFSET_DATE_TIME)
+            .atZoneSameInstant(appointmentTimeZone)
+            .format(appointmentDisplayFormatter)
+    } else {
+        clean.substring(0, 16)
+    }
+}.getOrDefault(value)

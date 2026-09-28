@@ -22,6 +22,7 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.outlined.ReceiptLong
 import androidx.compose.material.icons.outlined.Cloud
+import androidx.compose.material.icons.outlined.Fingerprint
 import androidx.compose.material.icons.outlined.Lock
 import androidx.compose.material.icons.outlined.MailOutline
 import androidx.compose.material.icons.outlined.Visibility
@@ -29,6 +30,7 @@ import androidx.compose.material.icons.outlined.VisibilityOff
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.Checkbox
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -64,6 +66,10 @@ fun LoginScreen(
     onServerUrlChanged: (String) -> Unit,
     onSaveServerUrl: () -> Unit,
     onResetServerUrl: () -> Unit,
+    onRememberSessionChanged: (Boolean) -> Unit,
+    onBiometricEnabledChanged: (Boolean) -> Unit,
+    biometricAvailable: Boolean,
+    onBiometricLogin: () -> Unit,
     onLogin: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
@@ -160,16 +166,37 @@ fun LoginScreen(
                     },
                 )
 
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.End,
-                ) {
+                Row(modifier = Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+                    Checkbox(
+                        checked = state.rememberSession,
+                        onCheckedChange = onRememberSessionChanged,
+                        enabled = !state.isLoading,
+                    )
+                    Text(
+                        text = "Recordar sesión",
+                        style = MaterialTheme.typography.bodyMedium,
+                        modifier = Modifier.weight(1f),
+                    )
                     Text(
                         text = "¿Olvidaste tu contraseña?",
                         style = MaterialTheme.typography.labelMedium,
                         color = MaterialTheme.colorScheme.primary,
                         fontWeight = FontWeight.SemiBold,
                     )
+                }
+
+                if (biometricAvailable) {
+                    Row(modifier = Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+                        Checkbox(
+                            checked = state.biometricEnabled,
+                            onCheckedChange = onBiometricEnabledChanged,
+                            enabled = state.rememberSession && !state.isLoading,
+                        )
+                        Text(
+                            text = "Proteger el acceso con huella",
+                            style = MaterialTheme.typography.bodyMedium,
+                        )
+                    }
                 }
 
                 ServerLoginSettings(
@@ -227,6 +254,20 @@ fun LoginScreen(
                             style = MaterialTheme.typography.titleMedium,
                             fontWeight = FontWeight.Bold,
                         )
+                    }
+                }
+
+                if (biometricAvailable && state.hasSavedSession &&
+                    (state.biometricEnabled || state.requiresBiometricUnlock)
+                ) {
+                    OutlinedButton(
+                        onClick = onBiometricLogin,
+                        modifier = Modifier.fillMaxWidth().height(52.dp),
+                        shape = RoundedCornerShape(14.dp),
+                    ) {
+                        Icon(Icons.Outlined.Fingerprint, contentDescription = null)
+                        Spacer(Modifier.widthIn(min = 10.dp))
+                        Text("Entrar con huella", fontWeight = FontWeight.SemiBold)
                     }
                 }
 

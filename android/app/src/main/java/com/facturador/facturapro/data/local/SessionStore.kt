@@ -5,12 +5,15 @@ import androidx.datastore.core.DataStore
 import androidx.datastore.preferences.core.Preferences
 import androidx.datastore.preferences.core.edit
 import androidx.datastore.preferences.core.longPreferencesKey
+import androidx.datastore.preferences.core.booleanPreferencesKey
 import androidx.datastore.preferences.core.stringPreferencesKey
 import androidx.datastore.preferences.core.stringSetPreferencesKey
 import androidx.datastore.preferences.preferencesDataStore
 import com.facturador.facturapro.data.repository.SessionStoreContract
 import com.facturador.facturapro.domain.model.AuthSession
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
 
@@ -18,8 +21,9 @@ private val Context.sessionDataStore: DataStore<Preferences> by preferencesDataS
 
 class SessionStore(context: Context) : SessionStoreContract {
     private val dataStore = context.sessionDataStore
+    private val volatileSession = MutableStateFlow<AuthSession?>(null)
 
-    override val session: Flow<AuthSession?> = dataStore.data.map { preferences ->
+    private val persistedSession: Flow<AuthSession?> = dataStore.data.map { preferences ->
         val accessToken = preferences[Keys.AccessToken].orEmpty()
         val userId = preferences[Keys.UserId] ?: return@map null
 
@@ -37,19 +41,52 @@ class SessionStore(context: Context) : SessionStoreContract {
         }
     }
 
-    override suspend fun save(session: AuthSession) {
+    override val session: Flow<AuthSession?> = combine(persistedSession, volatileSession) { persisted, current ->
+        current ?: persisted
+    }
+
+    override val rememberSession: Flow<Boolean> = dataStore.data.map { preferences ->
+        preferences[Keys.RememberSession] ?: true
+    }
+
+    override val biometricEnabled: Flow<Boolean> = dataStore.data.map { preferences ->
+        preferences[Keys.BiometricEnabled] ?: false
+    }
+
+    override suspend fun save(session: AuthSession, rememberSession: Boolean, biometricEnabled: Boolean) {
+        volatileSession.value = session
         dataStore.edit { preferences ->
-            preferences[Keys.TokenType] = session.tokenType
-            preferences[Keys.AccessToken] = session.accessToken
-            preferences[Keys.UserId] = session.userId
-            preferences[Keys.UserName] = session.userName
-            preferences[Keys.UserEmail] = session.userEmail
-            preferences[Keys.Permissions] = session.permissions
+            preferences[Keys.RememberSession] = rememberSession
+            preferences[Keys.BiometricEnabled] = rememberSession && biometricEnabled
+            if (rememberSession) {
+                preferences[Keys.TokenType] = session.tokenType
+                preferences[Keys.AccessToken] = session.accessToken
+                preferences[Keys.UserId] = session.userId
+                preferences[Keys.UserName] = session.userName
+                preferences[Keys.UserEmail] = session.userEmail
+                preferences[Keys.Permissions] = session.permissions
+            } else {
+                preferences.remove(Keys.TokenType)
+                preferences.remove(Keys.AccessToken)
+                preferences.remove(Keys.UserId)
+                preferences.remove(Keys.UserName)
+                preferences.remove(Keys.UserEmail)
+                preferences.remove(Keys.Permissions)
+            }
         }
     }
 
     override suspend fun clear() {
-        dataStore.edit { preferences -> preferences.clear() }
+        volatileSession.value = null
+        dataStore.edit { preferences ->
+            preferences.remove(Keys.TokenType)
+            preferences.remove(Keys.AccessToken)
+            preferences.remove(Keys.UserId)
+            preferences.remove(Keys.UserName)
+            preferences.remove(Keys.UserEmail)
+            preferences.remove(Keys.Permissions)
+            preferences[Keys.BiometricEnabled] = false
+        }
     }
 
     suspend fun currentAuthorizationHeader(): String? {
@@ -65,5 +102,7 @@ class SessionStore(context: Context) : SessionStoreContract {
         val UserName = stringPreferencesKey("user_name")
         val UserEmail = stringPreferencesKey("user_email")
         val Permissions = stringSetPreferencesKey("permissions")
+        val RememberSession = booleanPreferencesKey("remember_session")
+        val BiometricEnabled = booleanPreferencesKey("biometric_enabled")
     }
 }

@@ -44,12 +44,20 @@ import org.json.JSONArray
 import java.net.URL
 import java.net.URLEncoder
 import java.time.LocalDateTime
+import java.time.OffsetDateTime
+import java.time.ZoneId
 import java.time.format.DateTimeFormatter
 
 data class NominatimResult(
     val displayName: String,
     val lat: Double,
     val lon: Double,
+)
+
+private data class MapRenderState(
+    val pageLoaded: Boolean = false,
+    val lat: Double? = null,
+    val lng: Double? = null,
 )
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -70,11 +78,12 @@ fun CreateAppointmentScreen(
     var selectedLocation by remember { mutableStateOf<NominatimResult?>(null) }
     var showSuggestions by remember { mutableStateOf(false) }
     var isSearching by remember { mutableStateOf(false) }
+    var shouldSearchLocation by remember(existingAppointment?.id) { mutableStateOf(existingAppointment == null) }
     var status by remember { mutableStateOf(existingAppointment?.status ?: AppointmentStatus.PENDING) }
     
-    var startDate by remember { mutableStateOf(parseDateTime(existingAppointment?.startAt)) }
+    var startDate by remember { mutableStateOf(parseAppointmentDateTime(existingAppointment?.startAt)) }
     var endDate by remember {
-        mutableStateOf(normalizedAppointmentEnd(startDate, parseDateTime(existingAppointment?.endAt)))
+        mutableStateOf(normalizedAppointmentEnd(startDate, parseAppointmentDateTime(existingAppointment?.endAt)))
     }
     var observations by remember { mutableStateOf(existingAppointment?.observations ?: "") }
     var serviceDescription by remember { mutableStateOf(existingAppointment?.serviceDescription ?: "") }
@@ -90,7 +99,9 @@ fun CreateAppointmentScreen(
     val fmt = DateTimeFormatter.ofPattern("yyyy-MM-dd'T'HH:mm")
 
     // Debounced Nominatim search
-    LaunchedEffect(locationText) {
+    LaunchedEffect(locationText, shouldSearchLocation) {
+        if (!shouldSearchLocation) return@LaunchedEffect
+
         if (selectedLocation != null && locationText == selectedLocation?.displayName) {
             locationSuggestions = emptyList()
             showSuggestions = false
@@ -105,6 +116,8 @@ fun CreateAppointmentScreen(
             coroutineScope.launch {
                 val newAddr = reverseGeocode(parsedCoords.first, parsedCoords.second)
                 if (newAddr != null) {
+                    shouldSearchLocation = false
+                    selectedLocation = NominatimResult(newAddr, parsedCoords.first, parsedCoords.second)
                     locationText = newAddr
                 }
             }
@@ -127,6 +140,7 @@ fun CreateAppointmentScreen(
     ModalBottomSheet(
         onDismissRequest = onDismiss,
         sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true),
+        sheetGesturesEnabled = false,
     ) {
         Column(
             modifier = Modifier
@@ -189,6 +203,7 @@ fun CreateAppointmentScreen(
                         value = locationText,
                         onValueChange = { 
                             locationText = it
+                            shouldSearchLocation = true
                             if (parseGoogleMaps(it) == null) {
                                 locationLat = null
                                 locationLng = null
@@ -209,6 +224,7 @@ fun CreateAppointmentScreen(
                                             locationLat = result.lat
                                             locationLng = result.lon
                                             selectedLocation = result
+                                            shouldSearchLocation = false
                                             showSuggestions = false
                                         }
                                     isSearching = false
@@ -218,6 +234,7 @@ fun CreateAppointmentScreen(
                             }
                             else if (locationText.isNotEmpty()) IconButton(onClick = { 
                                 locationText = ""
+                                shouldSearchLocation = true
                                 locationLat = null
                                 locationLng = null
                                 selectedLocation = null
@@ -288,7 +305,7 @@ fun CreateAppointmentScreen(
                                             settings.domStorageEnabled = true
                                             settings.allowFileAccess = true
                                             settings.allowContentAccess = true
-                                            tag = false
+                                            tag = MapRenderState()
                                             webViewClient = object : android.webkit.WebViewClient() {
                                                 override fun shouldInterceptRequest(
                                                     view: android.webkit.WebView?,
@@ -299,9 +316,12 @@ fun CreateAppointmentScreen(
 
                                                 override fun onPageFinished(view: android.webkit.WebView?, url: String?) {
                                                     android.util.Log.d("WebViewConsole", "onPageFinished: $url")
-                                                    view?.tag = true
+                                                    val state = view?.tag as? MapRenderState ?: MapRenderState()
+                                                    val lat = state.lat ?: displayLat
+                                                    val lng = state.lng ?: displayLng
+                                                    view?.tag = state.copy(pageLoaded = true, lat = lat, lng = lng)
                                                     view?.evaluateJavascript(
-                                                        "window.setMapLocation($displayLat, $displayLng)",
+                                                        "window.setMapLocation($lat, $lng)",
                                                     ) { result ->
                                                         android.util.Log.d("WebViewConsole", "setMapLocation: $result")
                                                     }
@@ -330,6 +350,8 @@ fun CreateAppointmentScreen(
                                                         coroutineScope.launch {
                                                             val newAddr = reverseGeocode(lat, lng)
                                                             if (newAddr != null) {
+                                                                shouldSearchLocation = false
+                                                                selectedLocation = NominatimResult(newAddr, lat, lng)
                                                                 locationText = newAddr
                                                             }
                                                         }
@@ -341,12 +363,14 @@ fun CreateAppointmentScreen(
                                         }
                                     },
                                     update = { webView ->
-                                        if (webView.tag == true) {
+                                        val state = webView.tag as? MapRenderState ?: MapRenderState()
+                                        if (state.pageLoaded && (state.lat != displayLat || state.lng != displayLng)) {
                                             webView.evaluateJavascript(
                                                 "window.setMapLocation($displayLat, $displayLng)",
                                                 null,
                                             )
                                         }
+                                        webView.tag = state.copy(lat = displayLat, lng = displayLng)
                                     },
                                     modifier = Modifier.fillMaxSize()
                                 )
@@ -654,11 +678,19 @@ fun DateTimePickerField(
     }
 }
 
-private fun parseDateTime(dateStr: String?): LocalDateTime {
+private val appointmentTimeZone = ZoneId.of("America/Santo_Domingo")
+
+internal fun parseAppointmentDateTime(dateStr: String?): LocalDateTime {
     if (dateStr.isNullOrBlank()) return LocalDateTime.now().withMinute(0).plusHours(1)
     return runCatching {
         val clean = dateStr.replace(" ", "T")
-        LocalDateTime.parse(clean.substring(0, 16))
+        if (clean.endsWith("Z") || clean.lastIndexOf('+') > 10 || clean.lastIndexOf('-') > 10) {
+            OffsetDateTime.parse(clean, DateTimeFormatter.ISO_OFFSET_DATE_TIME)
+                .atZoneSameInstant(appointmentTimeZone)
+                .toLocalDateTime()
+        } else {
+            LocalDateTime.parse(clean.substring(0, 16))
+        }
     }.getOrElse {
         LocalDateTime.now().withMinute(0).plusHours(1)
     }

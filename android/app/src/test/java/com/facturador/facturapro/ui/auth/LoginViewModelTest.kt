@@ -91,6 +91,49 @@ class LoginViewModelTest {
         assertTrue(viewModel.uiState.value.isSessionLoaded)
         assertFalse(viewModel.uiState.value.isBootstrapLoading)
     }
+
+    @Test
+    fun remembered_biometric_session_waits_for_fingerprint_before_opening_workspace() = runTest {
+        val authRepository = FakeAuthRepository(
+            initialSession = testSession(),
+            initialBiometricEnabled = true,
+        )
+        val viewModel = LoginViewModel(
+            authRepository,
+            FakeSettingsRepository(Result.success(sampleBootstrap())),
+            FakeServerConfigStore(),
+        )
+        advanceUntilIdle()
+
+        assertFalse(viewModel.uiState.value.isAuthenticated)
+        assertTrue(viewModel.uiState.value.requiresBiometricUnlock)
+
+        viewModel.unlockWithBiometrics()
+        advanceUntilIdle()
+
+        assertTrue(viewModel.uiState.value.isAuthenticated)
+        assertFalse(viewModel.uiState.value.requiresBiometricUnlock)
+    }
+
+    @Test
+    fun inactivity_locks_an_open_session_without_deleting_it() = runTest {
+        val authRepository = FakeAuthRepository()
+        val viewModel = LoginViewModel(
+            authRepository,
+            FakeSettingsRepository(Result.success(sampleBootstrap())),
+            FakeServerConfigStore(),
+        )
+        viewModel.onEmailChanged("admin@facturapro.local")
+        viewModel.onPasswordChanged("FacturaPro123!")
+        viewModel.login()
+        advanceUntilIdle()
+
+        viewModel.lockAfterInactivity()
+
+        assertFalse(viewModel.uiState.value.isAuthenticated)
+        assertTrue(viewModel.uiState.value.hasSavedSession)
+        assertTrue(viewModel.uiState.value.requiresBiometricUnlock)
+    }
 }
 
 private class FakeServerConfigStore(
@@ -117,23 +160,31 @@ private class FakeServerConfigStore(
     }
 }
 
-private class FakeAuthRepository : AuthRepositoryContract {
-    private val sessionFlow = MutableStateFlow<AuthSession?>(null)
+private class FakeAuthRepository(
+    initialSession: AuthSession? = null,
+    initialBiometricEnabled: Boolean = false,
+) : AuthRepositoryContract {
+    private val sessionFlow = MutableStateFlow(initialSession)
+    private val rememberSessionFlow = MutableStateFlow(true)
+    private val biometricEnabledFlow = MutableStateFlow(initialBiometricEnabled)
 
     var loginCalls: Int = 0
         private set
 
     override val session: Flow<AuthSession?> = sessionFlow
+    override val rememberSession: Flow<Boolean> = rememberSessionFlow
+    override val biometricEnabled: Flow<Boolean> = biometricEnabledFlow
 
-    override suspend fun login(email: String, password: String): Result<AuthSession> {
+    override suspend fun login(
+        email: String,
+        password: String,
+        rememberSession: Boolean,
+        biometricEnabled: Boolean,
+    ): Result<AuthSession> {
         loginCalls++
-        val session = AuthSession(
-            tokenType = "Bearer",
-            accessToken = "token",
-            userId = 1L,
-            userName = "Admin FacturaPro",
-            userEmail = email,
-        )
+        rememberSessionFlow.value = rememberSession
+        biometricEnabledFlow.value = biometricEnabled
+        val session = testSession(email)
         sessionFlow.value = session
         return Result.success(session)
     }
@@ -142,6 +193,14 @@ private class FakeAuthRepository : AuthRepositoryContract {
         sessionFlow.value = null
     }
 }
+
+private fun testSession(email: String = "admin@facturapro.local") = AuthSession(
+    tokenType = "Bearer",
+    accessToken = "token",
+    userId = 1L,
+    userName = "Admin FacturaPro",
+    userEmail = email,
+)
 
 private class FakeSettingsRepository(
     private val bootstrapResult: Result<BootstrapCatalogs>,
