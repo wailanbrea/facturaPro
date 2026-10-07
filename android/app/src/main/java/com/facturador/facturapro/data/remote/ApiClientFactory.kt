@@ -3,6 +3,7 @@ package com.facturador.facturapro.data.remote
 import com.facturador.facturapro.BuildConfig
 import com.facturador.facturapro.data.local.ServerConfigStoreContract
 import com.facturador.facturapro.data.local.SessionStore
+import com.google.gson.GsonBuilder
 import okhttp3.HttpUrl.Companion.toHttpUrl
 import okhttp3.OkHttpClient
 import okhttp3.logging.HttpLoggingInterceptor
@@ -40,7 +41,9 @@ object ApiClientFactory {
         return Retrofit.Builder()
             .baseUrl(BuildConfig.API_BASE_URL)
             .client(client)
-            .addConverterFactory(GsonConverterFactory.create())
+            .addConverterFactory(
+                GsonConverterFactory.create(GsonBuilder().serializeNulls().create()),
+            )
             .build()
             .create(FacturaProApi::class.java)
     }

@@ -134,6 +134,113 @@ class LoginViewModelTest {
         assertTrue(viewModel.uiState.value.hasSavedSession)
         assertTrue(viewModel.uiState.value.requiresBiometricUnlock)
     }
+
+    @Test
+    fun logout_when_biometric_enabled_keeps_session_saved_for_fingerprint_unlock() = runTest {
+        val authRepository = FakeAuthRepository(
+            initialSession = testSession(),
+            initialBiometricEnabled = true,
+        )
+        val viewModel = LoginViewModel(
+            authRepository,
+            FakeSettingsRepository(Result.success(sampleBootstrap())),
+            FakeServerConfigStore(),
+        )
+        advanceUntilIdle()
+
+        assertTrue(viewModel.uiState.value.requiresBiometricUnlock)
+
+        viewModel.logout()
+        advanceUntilIdle()
+
+        assertFalse(viewModel.uiState.value.isAuthenticated)
+        assertFalse(viewModel.uiState.value.requiresBiometricUnlock)
+        assertTrue(viewModel.uiState.value.hasSavedSession)
+        assertTrue(viewModel.uiState.value.biometricEnabled)
+
+        // User can tap "Iniciar sesión con huella" to unlock
+        viewModel.unlockWithBiometrics()
+        advanceUntilIdle()
+
+        assertTrue(viewModel.uiState.value.isAuthenticated)
+    }
+
+    @Test
+    fun unlinkAccount_clears_session_completely() = runTest {
+        val authRepository = FakeAuthRepository(
+            initialSession = testSession(),
+            initialBiometricEnabled = true,
+        )
+        val viewModel = LoginViewModel(
+            authRepository,
+            FakeSettingsRepository(Result.success(sampleBootstrap())),
+            FakeServerConfigStore(),
+        )
+        advanceUntilIdle()
+
+        viewModel.unlinkAccount()
+        advanceUntilIdle()
+
+        assertFalse(viewModel.uiState.value.isAuthenticated)
+        assertFalse(viewModel.uiState.value.requiresBiometricUnlock)
+        assertFalse(viewModel.uiState.value.hasSavedSession)
+        assertFalse(viewModel.uiState.value.biometricEnabled)
+    }
+
+    @Test
+    fun savedEmail_prefills_login_field_when_no_session_is_active() = runTest {
+        val authRepository = FakeAuthRepository(
+            initialSession = null,
+            initialSavedEmail = "guardado@facturapro.com",
+        )
+        val viewModel = LoginViewModel(
+            authRepository,
+            FakeSettingsRepository(Result.success(sampleBootstrap())),
+            FakeServerConfigStore(),
+        )
+        advanceUntilIdle()
+
+        assertEquals("guardado@facturapro.com", viewModel.uiState.value.email)
+    }
+
+    @Test
+    fun lockSession_keeps_session_saved_and_requires_biometric_unlock() = runTest {
+        val authRepository = FakeAuthRepository()
+        val viewModel = LoginViewModel(
+            authRepository,
+            FakeSettingsRepository(Result.success(sampleBootstrap())),
+            FakeServerConfigStore(),
+        )
+        viewModel.onEmailChanged("admin@facturapro.local")
+        viewModel.onPasswordChanged("FacturaPro123!")
+        viewModel.onBiometricEnabledChanged(true)
+        viewModel.login()
+        advanceUntilIdle()
+
+        assertTrue(viewModel.uiState.value.isAuthenticated)
+
+        viewModel.lockSession()
+        advanceUntilIdle()
+
+        assertFalse(viewModel.uiState.value.isAuthenticated)
+        assertTrue(viewModel.uiState.value.hasSavedSession)
+        assertTrue(viewModel.uiState.value.requiresBiometricUnlock)
+    }
+
+    @Test
+    fun enabling_biometrics_automatically_enables_rememberSession() = runTest {
+        val viewModel = LoginViewModel(
+            FakeAuthRepository(),
+            FakeSettingsRepository(Result.success(sampleBootstrap())),
+            FakeServerConfigStore(),
+        )
+        viewModel.onRememberSessionChanged(false)
+        assertFalse(viewModel.uiState.value.rememberSession)
+
+        viewModel.onBiometricEnabledChanged(true)
+        assertTrue(viewModel.uiState.value.biometricEnabled)
+        assertTrue(viewModel.uiState.value.rememberSession)
+    }
 }
 
 private class FakeServerConfigStore(
@@ -163,10 +270,12 @@ private class FakeServerConfigStore(
 private class FakeAuthRepository(
     initialSession: AuthSession? = null,
     initialBiometricEnabled: Boolean = false,
+    initialSavedEmail: String = "",
 ) : AuthRepositoryContract {
     private val sessionFlow = MutableStateFlow(initialSession)
     private val rememberSessionFlow = MutableStateFlow(true)
     private val biometricEnabledFlow = MutableStateFlow(initialBiometricEnabled)
+    private val savedEmailFlow = MutableStateFlow(initialSavedEmail)
 
     var loginCalls: Int = 0
         private set
@@ -174,6 +283,7 @@ private class FakeAuthRepository(
     override val session: Flow<AuthSession?> = sessionFlow
     override val rememberSession: Flow<Boolean> = rememberSessionFlow
     override val biometricEnabled: Flow<Boolean> = biometricEnabledFlow
+    override val savedEmail: Flow<String> = savedEmailFlow
 
     override suspend fun login(
         email: String,
@@ -184,6 +294,7 @@ private class FakeAuthRepository(
         loginCalls++
         rememberSessionFlow.value = rememberSession
         biometricEnabledFlow.value = biometricEnabled
+        savedEmailFlow.value = email
         val session = testSession(email)
         sessionFlow.value = session
         return Result.success(session)
@@ -191,6 +302,7 @@ private class FakeAuthRepository(
 
     override suspend fun logout() {
         sessionFlow.value = null
+        biometricEnabledFlow.value = false
     }
 }
 

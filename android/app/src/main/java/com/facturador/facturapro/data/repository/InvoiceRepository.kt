@@ -189,6 +189,9 @@ class InvoiceRepository(
             }
 
         val target = File(directory, safeFileName)
+        if (target.exists()) {
+            target.delete()
+        }
 
         val copied: Long = body.use { responseBody ->
             responseBody.byteStream().use { input ->

@@ -155,12 +155,94 @@ class InvoicesViewModelTest {
         assertNull(state.errorMessage)
         assertTrue(!state.isSaving)
     }
+
+    @Test
+    fun update_issued_invoice_regenerates_pdf() = runTest {
+        val existing = sampleInvoiceSummary(
+            id = 1,
+            invoiceNumber = "FAC-000001",
+            invoiceDate = "2026-05-20",
+            clientName = "Cliente Inicial",
+            total = "100.0000",
+            balanceDue = "100.0000",
+            status = "issued",
+        )
+        val updated = sampleInvoiceDetail(
+            id = 1,
+            invoiceNumber = "FAC-000001",
+            invoiceDate = "2026-05-20",
+            clientName = "Cliente Actualizado",
+            total = "236.0000",
+            balanceDue = "236.0000",
+            status = "issued",
+        )
+        val repository = FakeInvoiceRepository(
+            listResult = Result.success(listOf(existing)),
+            updateResult = Result.success(updated),
+            generatePdfResult = Result.success("invoices/FAC-000001.pdf"),
+        )
+        val viewModel = InvoicesViewModel(repository)
+
+        advanceUntilIdle()
+        viewModel.updateInvoice(updated.id, sampleDraft())
+        advanceUntilIdle()
+
+        val state = viewModel.uiState.value
+        assertEquals(1, repository.updateCalls)
+        assertEquals(1, repository.generatePdfCalls)
+        assertEquals("invoices/FAC-000001.pdf", state.selectedInvoice?.pdfPath)
+        assertEquals(1L, state.pdfGeneratedInvoiceId)
+        assertEquals("Cliente Actualizado", state.selectedInvoice?.clientName)
+        assertNull(state.errorMessage)
+        assertTrue(!state.isSaving)
+    }
+
+    @Test
+    fun update_uses_pdf_returned_by_backend_without_generating_it_twice() = runTest {
+        val existing = sampleInvoiceSummary(
+            id = 3,
+            invoiceNumber = "PRE-000003",
+            invoiceDate = "2026-05-20",
+            clientName = "Cliente",
+            total = "100.0000",
+            balanceDue = "100.0000",
+            status = "issued",
+        )
+        val updated = sampleInvoiceDetail(
+            id = 3,
+            invoiceNumber = "PRE-000003",
+            invoiceDate = "2026-05-20",
+            clientName = "Cliente",
+            total = "100.0000",
+            balanceDue = "100.0000",
+            status = "issued",
+        ).copy(documentType = "quotation", pdfPath = "invoices/PRE-000003.pdf")
+        val repository = FakeInvoiceRepository(
+            listResult = Result.success(listOf(existing)),
+            updateResult = Result.success(updated),
+            generatePdfResult = Result.success("invoices/PRE-000003-second.pdf"),
+        )
+        val viewModel = InvoicesViewModel(repository)
+
+        advanceUntilIdle()
+        viewModel.updateInvoice(updated.id, sampleDraft().copy(documentType = "quotation"))
+        advanceUntilIdle()
+
+        val state = viewModel.uiState.value
+        assertEquals(1, repository.updateCalls)
+        assertEquals(0, repository.generatePdfCalls)
+        assertEquals("invoices/PRE-000003.pdf", state.selectedInvoice?.pdfPath)
+        assertEquals(3L, state.pdfGeneratedInvoiceId)
+        assertNull(state.errorMessage)
+        assertTrue(!state.isSaving)
+    }
 }
 
 private class FakeInvoiceRepository(
     private val listResult: Result<List<InvoiceSummary>> = Result.success(emptyList()),
     private val detailResult: Result<InvoiceDetail> = Result.failure(IllegalStateException("Not configured")),
     private val createResult: Result<InvoiceDetail> = Result.failure(IllegalStateException("Not configured")),
+    private val updateResult: Result<InvoiceDetail> = Result.failure(IllegalStateException("Not configured")),
     private val issueResult: Result<InvoiceDetail> = Result.failure(IllegalStateException("Not configured")),
     private val generatePdfResult: Result<String> = Result.failure(IllegalStateException("Not configured")),
     private val downloadPdfResult: Result<File> = Result.failure(IllegalStateException("Not configured")),
@@ -168,6 +250,9 @@ private class FakeInvoiceRepository(
     private val previewDraftResult: Result<String> = Result.failure(IllegalStateException("Not configured")),
 ) : InvoiceRepositoryContract {
     var createCalls: Int = 0
+        private set
+
+    var updateCalls: Int = 0
         private set
 
     var previewDraftCalls: Int = 0
@@ -214,7 +299,10 @@ private class FakeInvoiceRepository(
         return createResult
     }
 
-    override suspend fun update(invoiceId: Long, draft: InvoiceDraft): Result<InvoiceDetail> = Result.failure(UnsupportedOperationException())
+    override suspend fun update(invoiceId: Long, draft: InvoiceDraft): Result<InvoiceDetail> {
+        updateCalls++
+        return updateResult
+    }
 
     override suspend fun issue(invoiceId: Long): Result<InvoiceDetail> {
         issueCalls++

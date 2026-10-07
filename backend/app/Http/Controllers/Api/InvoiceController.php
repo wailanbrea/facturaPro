@@ -198,7 +198,19 @@ class InvoiceController extends Controller
             Storage::disk('public')->delete($path);
         }
 
-        return new InvoiceResource($invoice);
+        if ($invoice->invoice_number !== null) {
+            try {
+                $newPdfPath = $this->pdfService->generate($invoice->fresh(Invoice::PDF_RELATIONS));
+                $invoice->update([
+                    'pdf_path' => $newPdfPath,
+                    'pdf_sha256' => $this->pdfChecksum($newPdfPath),
+                ]);
+            } catch (\Throwable $e) {
+                \Illuminate\Support\Facades\Log::error("No se pudo regenerar el PDF tras actualizar la factura {$invoice->id}: " . $e->getMessage());
+            }
+        }
+
+        return new InvoiceResource($invoice->fresh('items'));
     }
 
     public function destroy(Invoice $invoice): Response|JsonResponse
@@ -837,7 +849,9 @@ class InvoiceController extends Controller
                 : (array_key_exists('fiscal_profile_id', $data)
                     ? FiscalProfile::query()->find($data['fiscal_profile_id'])?->logo_path
                     : $invoice->logo_path),
-            'bank_account_id' => $data['bank_account_id'] ?? $invoice->bank_account_id,
+            'bank_account_id' => array_key_exists('bank_account_id', $data)
+                ? $data['bank_account_id']
+                : $invoice->bank_account_id,
             'warranty_id' => $data['warranty_id'] ?? $invoice->warranty_id,
             'warranty_text' => array_key_exists('warranty_text', $data) ? $data['warranty_text'] : $invoice->warranty_text,
             'legal_text' => array_key_exists('legal_text', $data) ? $data['legal_text'] : $invoice->legal_text,

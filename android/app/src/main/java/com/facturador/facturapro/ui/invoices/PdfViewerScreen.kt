@@ -159,7 +159,7 @@ private fun PdfRendererContent(
         }
     }
 
-    LaunchedEffect(file.absolutePath) {
+    LaunchedEffect(file.absolutePath, file.lastModified()) {
         isLoading = true
         renderError = null
         pages.clear()

@@ -6,6 +6,7 @@ import androidx.lifecycle.viewModelScope
 import com.facturador.facturapro.data.local.ServerConfigStoreContract
 import com.facturador.facturapro.data.repository.AuthRepositoryContract
 import com.facturador.facturapro.data.repository.SettingsRepositoryContract
+import com.facturador.facturapro.domain.model.AuthSession
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -23,6 +24,7 @@ class LoginViewModel(
     val uiState: StateFlow<LoginUiState> = _uiState.asStateFlow()
     private var sessionUnlocked = false
     private var inactivityLockRequested = false
+    private var isLoggingOut = false
 
     init {
         viewModelScope.launch {
@@ -41,26 +43,30 @@ class LoginViewModel(
                 authRepository.session,
                 authRepository.rememberSession,
                 authRepository.biometricEnabled,
-            ) { session, rememberSession, biometricEnabled ->
-                Triple(session, rememberSession, biometricEnabled)
-            }.collectLatest { (session, rememberSession, biometricEnabled) ->
-                val requiresBiometric = session != null &&
-                    (biometricEnabled || inactivityLockRequested) &&
+                authRepository.savedEmail,
+            ) { session, rememberSession, biometricEnabled, savedEmail ->
+                SessionFlowData(session, rememberSession, biometricEnabled, savedEmail)
+            }.collectLatest { data ->
+                if (isLoggingOut) return@collectLatest
+                val requiresBiometric = data.session != null &&
+                    (data.biometricEnabled || inactivityLockRequested) &&
                     !sessionUnlocked
-                val authenticated = session != null && !requiresBiometric
+                val authenticated = data.session != null && !requiresBiometric
                 _uiState.update {
                     it.copy(
                         isAuthenticated = authenticated,
                         isSessionLoaded = true,
-                        rememberSession = rememberSession,
-                        biometricEnabled = biometricEnabled,
+                        rememberSession = data.rememberSession,
+                        biometricEnabled = data.biometricEnabled,
                         requiresBiometricUnlock = requiresBiometric,
-                        hasSavedSession = session != null,
-                        email = if (it.email.isBlank()) session?.userEmail.orEmpty() else it.email,
-                        userName = session?.userName,
-                        permissions = session?.permissions.orEmpty(),
-                        bootstrap = if (session == null) null else it.bootstrap,
-                        isBootstrapLoading = if (session == null) false else it.isBootstrapLoading,
+                        hasSavedSession = data.session != null,
+                        email = if (it.email.isBlank()) {
+                            data.session?.userEmail.orEmpty().ifBlank { data.savedEmail }
+                        } else it.email,
+                        userName = data.session?.userName,
+                        permissions = data.session?.permissions.orEmpty(),
+                        bootstrap = if (data.session == null) null else it.bootstrap,
+                        isBootstrapLoading = if (data.session == null) false else it.isBootstrapLoading,
                         errorMessage = null,
                     )
                 }
@@ -90,10 +96,16 @@ class LoginViewModel(
     }
 
     fun onBiometricEnabledChanged(value: Boolean) {
-        _uiState.update { it.copy(biometricEnabled = value && it.rememberSession) }
+        _uiState.update {
+            it.copy(
+                biometricEnabled = value,
+                rememberSession = if (value) true else it.rememberSession,
+            )
+        }
     }
 
     fun unlockWithBiometrics() {
+        if (isLoggingOut) return
         val state = _uiState.value
         if (!state.hasSavedSession) return
         sessionUnlocked = true
@@ -106,6 +118,23 @@ class LoginViewModel(
             )
         }
         loadBootstrap()
+    }
+
+    fun lockSession() {
+        val state = _uiState.value
+        if (!state.isAuthenticated || !state.hasSavedSession) return
+
+        sessionUnlocked = false
+        inactivityLockRequested = false
+        _uiState.update {
+            it.copy(
+                isAuthenticated = false,
+                requiresBiometricUnlock = it.biometricEnabled,
+                password = "",
+                bootstrap = null,
+                errorMessage = null,
+            )
+        }
     }
 
     fun lockAfterInactivity() {
@@ -241,10 +270,28 @@ class LoginViewModel(
     }
 
     fun logout() {
-        viewModelScope.launch {
+        if (_uiState.value.biometricEnabled && _uiState.value.hasSavedSession) {
             sessionUnlocked = false
             inactivityLockRequested = false
-            authRepository.logout()
+            _uiState.update {
+                it.copy(
+                    password = "",
+                    isAuthenticated = false,
+                    isSessionLoaded = true,
+                    isLoading = false,
+                    isBootstrapLoading = false,
+                    requiresBiometricUnlock = false,
+                    errorMessage = null,
+                    serverMessage = null,
+                )
+            }
+            return
+        }
+
+        viewModelScope.launch {
+            isLoggingOut = true
+            sessionUnlocked = false
+            inactivityLockRequested = false
             _uiState.update {
                 it.copy(
                     password = "",
@@ -260,6 +307,41 @@ class LoginViewModel(
                     errorMessage = null,
                     serverMessage = null,
                 )
+            }
+            try {
+                authRepository.logout()
+            } finally {
+                isLoggingOut = false
+            }
+        }
+    }
+
+    fun unlinkAccount() {
+        viewModelScope.launch {
+            isLoggingOut = true
+            sessionUnlocked = false
+            inactivityLockRequested = false
+            _uiState.update {
+                it.copy(
+                    password = "",
+                    isAuthenticated = false,
+                    isSessionLoaded = true,
+                    isLoading = false,
+                    isBootstrapLoading = false,
+                    userName = null,
+                    permissions = emptySet(),
+                    bootstrap = null,
+                    requiresBiometricUnlock = false,
+                    hasSavedSession = false,
+                    biometricEnabled = false,
+                    errorMessage = null,
+                    serverMessage = null,
+                )
+            }
+            try {
+                authRepository.logout()
+            } finally {
+                isLoggingOut = false
             }
         }
     }
@@ -317,3 +399,10 @@ class LoginViewModel(
         }
     }
 }
+
+private data class SessionFlowData(
+    val session: AuthSession?,
+    val rememberSession: Boolean,
+    val biometricEnabled: Boolean,
+    val savedEmail: String,
+)

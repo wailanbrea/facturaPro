@@ -461,7 +461,29 @@ class InvoiceApiTest extends TestCase
 
         $this->putJson("/api/invoices/{$invoiceId}", [
             'observations' => 'Cambio no autorizado',
-        ])->assertForbidden();
+            ])->assertForbidden();
+    }
+
+    public function test_invoice_update_can_clear_bank_account(): void
+    {
+        $invoiceId = $this->createInvoice()->json('data.id');
+        Invoice::query()->findOrFail($invoiceId)->update([
+            'pdf_path' => 'invoices/stale-before-edit.pdf',
+            'pdf_sha256' => str_repeat('a', 64),
+        ]);
+
+        $this->putJson("/api/invoices/{$invoiceId}", [
+            'bank_account_id' => null,
+        ])->assertOk()
+            ->assertJsonPath('data.bank_account_id', null)
+            ->assertJsonPath('data.pdf_path', null);
+
+        $this->assertDatabaseHas('invoices', [
+            'id' => $invoiceId,
+            'bank_account_id' => null,
+            'pdf_path' => null,
+            'pdf_sha256' => null,
+        ]);
     }
 
     public function test_paid_invoice_can_update_monetary_fields(): void
@@ -524,6 +546,38 @@ class InvoiceApiTest extends TestCase
         ]);
 
         Storage::disk('public')->delete($path);
+    }
+
+    public function test_updating_an_issued_quotation_regenerates_its_pdf(): void
+    {
+        $quotationId = $this->createInvoice(['document_type' => 'quotation'])->json('data.id');
+
+        if (! $this->chromeAvailable()) {
+            $this->markTestSkipped('Chrome/Chromium is required to render quotation PDFs.');
+        }
+
+        $this->postJson("/api/invoices/{$quotationId}/issue")->assertOk();
+
+        $oldPdf = $this->postJson("/api/invoices/{$quotationId}/generate-pdf")
+            ->assertOk()
+            ->json('pdf_path');
+        $this->assertTrue(Storage::disk('public')->exists($oldPdf));
+
+        $updated = $this->putJson("/api/invoices/{$quotationId}", [
+            'observations' => 'Presupuesto actualizado antes de regenerar el PDF.',
+        ])->assertOk()
+            ->assertJsonPath('data.observations', 'Presupuesto actualizado antes de regenerar el PDF.')
+            ->assertJsonPath('data.pdf_path', $oldPdf);
+
+        $this->assertTrue(Storage::disk('public')->exists($updated->json('data.pdf_path')));
+        $this->assertDatabaseHas('invoices', [
+            'id' => $quotationId,
+            'observations' => 'Presupuesto actualizado antes de regenerar el PDF.',
+            'pdf_path' => $oldPdf,
+            'pdf_sha256' => hash('sha256', Storage::disk('public')->get($oldPdf)),
+        ]);
+
+        Storage::disk('public')->delete($oldPdf);
     }
 
     public function test_api_accepts_and_returns_the_commercial_and_intervention_fields(): void

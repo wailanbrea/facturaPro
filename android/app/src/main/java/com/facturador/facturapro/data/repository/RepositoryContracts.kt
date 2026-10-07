@@ -22,6 +22,7 @@ interface SessionStoreContract {
     val session: Flow<AuthSession?>
     val rememberSession: Flow<Boolean>
     val biometricEnabled: Flow<Boolean>
+    val savedEmail: Flow<String>
 
     suspend fun save(session: AuthSession, rememberSession: Boolean, biometricEnabled: Boolean)
 
@@ -32,6 +33,7 @@ interface AuthRepositoryContract {
     val session: Flow<AuthSession?>
     val rememberSession: Flow<Boolean>
     val biometricEnabled: Flow<Boolean>
+    val savedEmail: Flow<String>
 
     suspend fun login(
         email: String,

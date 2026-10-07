@@ -53,11 +53,16 @@ class SessionStore(context: Context) : SessionStoreContract {
         preferences[Keys.BiometricEnabled] ?: false
     }
 
+    override val savedEmail: Flow<String> = dataStore.data.map { preferences ->
+        preferences[Keys.SavedEmail].orEmpty().ifBlank { preferences[Keys.UserEmail].orEmpty() }
+    }
+
     override suspend fun save(session: AuthSession, rememberSession: Boolean, biometricEnabled: Boolean) {
         volatileSession.value = session
         dataStore.edit { preferences ->
             preferences[Keys.RememberSession] = rememberSession
             preferences[Keys.BiometricEnabled] = rememberSession && biometricEnabled
+            preferences[Keys.SavedEmail] = session.userEmail
             if (rememberSession) {
                 preferences[Keys.TokenType] = session.tokenType
                 preferences[Keys.AccessToken] = session.accessToken
@@ -104,5 +109,6 @@ class SessionStore(context: Context) : SessionStoreContract {
         val Permissions = stringSetPreferencesKey("permissions")
         val RememberSession = booleanPreferencesKey("remember_session")
         val BiometricEnabled = booleanPreferencesKey("biometric_enabled")
+        val SavedEmail = stringPreferencesKey("saved_email")
     }
 }

@@ -81,10 +81,13 @@ internal fun LazyListScope.commercialFields(
         item {
             OutlinedTextField(
                 value = serviceLocation,
-                onValueChange = onServiceLocation,
+                onValueChange = { raw ->
+                    val clean = raw.replace("\r\n", " ").replace("\n", " ").replace("\r", " ")
+                    onServiceLocation(clean)
+                },
                 modifier = Modifier.fillMaxWidth(),
                 label = { Text("Lugar de intervención") },
-                singleLine = true,
+                maxLines = 3,
             )
         }
     }
@@ -222,10 +225,13 @@ internal fun LazyListScope.interventionFields(
     item {
         OutlinedTextField(
             value = intervention.equipmentLocation.orEmpty(),
-            onValueChange = { onChange(intervention.copy(equipmentLocation = it)) },
+            onValueChange = { raw ->
+                val clean = raw.replace("\r\n", " ").replace("\n", " ").replace("\r", " ")
+                onChange(intervention.copy(equipmentLocation = clean))
+            },
             modifier = Modifier.fillMaxWidth(),
             label = { Text("Ubicación del equipo") },
-            singleLine = true,
+            maxLines = 3,
         )
     }
     item {

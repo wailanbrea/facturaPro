@@ -123,7 +123,12 @@ fun FacturaProApp(container: AppContainer) {
     val activity = androidx.compose.ui.platform.LocalContext.current as FragmentActivity
     val mainActivity = activity as MainActivity
     val biometricAuthenticators = BiometricManager.Authenticators.BIOMETRIC_STRONG or
-        BiometricManager.Authenticators.BIOMETRIC_WEAK
+        BiometricManager.Authenticators.DEVICE_CREDENTIAL
+    val hasBiometricEnrolled = remember(activity) {
+        val manager = BiometricManager.from(activity)
+        manager.canAuthenticate(BiometricManager.Authenticators.BIOMETRIC_STRONG) == BiometricManager.BIOMETRIC_SUCCESS ||
+            manager.canAuthenticate(BiometricManager.Authenticators.BIOMETRIC_WEAK) == BiometricManager.BIOMETRIC_SUCCESS
+    }
     val biometricAvailable = remember(activity) {
         BiometricManager.from(activity).canAuthenticate(biometricAuthenticators) ==
             BiometricManager.BIOMETRIC_SUCCESS
@@ -148,20 +153,29 @@ fun FacturaProApp(container: AppContainer) {
                 }
 
                 override fun onAuthenticationFailed() {
-                    viewModel.onBiometricError("No se reconoció la huella. Inténtalo nuevamente.")
+                    viewModel.onBiometricError(
+                        if (hasBiometricEnrolled) "No se reconoció la huella. Inténtalo nuevamente."
+                        else "Credencial no reconocida. Inténtalo nuevamente."
+                    )
                 }
             },
         )
     }
     val requestBiometricUnlock = {
-        biometricPrompt.authenticate(
-            BiometricPrompt.PromptInfo.Builder()
-                .setTitle("Entrar a FacturaPro")
-                .setSubtitle("Confirma tu huella para abrir la sesión guardada")
-                .setNegativeButtonText("Usar contraseña")
-                .setAllowedAuthenticators(biometricAuthenticators)
-                .build(),
-        )
+        try {
+            biometricPrompt.authenticate(
+                BiometricPrompt.PromptInfo.Builder()
+                    .setTitle("Entrar a FacturaPro")
+                    .setSubtitle(
+                        if (hasBiometricEnrolled) "Confirma tu huella o PIN para abrir la sesión guardada"
+                        else "Introduce tu PIN o credencial para abrir la sesión guardada"
+                    )
+                    .setAllowedAuthenticators(biometricAuthenticators)
+                    .build(),
+            )
+        } catch (_: Exception) {
+            // Avoid crash if prompt is already showing or cancellation is in progress
+        }
     }
 
 
@@ -202,6 +216,11 @@ fun FacturaProApp(container: AppContainer) {
     LaunchedEffect(state.requiresBiometricUnlock, biometricAvailable) {
         if (state.requiresBiometricUnlock && biometricAvailable) {
             requestBiometricUnlock()
+        } else {
+            try {
+                biometricPrompt.cancelAuthentication()
+            } catch (_: Exception) {
+            }
         }
     }
 
@@ -220,8 +239,10 @@ fun FacturaProApp(container: AppContainer) {
                 onRememberSessionChanged = viewModel::onRememberSessionChanged,
                 onBiometricEnabledChanged = viewModel::onBiometricEnabledChanged,
                 biometricAvailable = biometricAvailable,
+                hasBiometricEnrolled = hasBiometricEnrolled,
                 onBiometricLogin = requestBiometricUnlock,
                 onLogin = viewModel::login,
+                onClearSavedSession = viewModel::unlinkAccount,
             )
         }
         composable(Routes.Home) {

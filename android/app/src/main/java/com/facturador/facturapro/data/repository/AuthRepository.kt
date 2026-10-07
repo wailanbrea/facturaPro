@@ -16,6 +16,7 @@ class AuthRepository(
     override val session: Flow<AuthSession?> = sessionStore.session
     override val rememberSession: Flow<Boolean> = sessionStore.rememberSession
     override val biometricEnabled: Flow<Boolean> = sessionStore.biometricEnabled
+    override val savedEmail: Flow<String> = sessionStore.savedEmail
 
     override suspend fun login(
         email: String,

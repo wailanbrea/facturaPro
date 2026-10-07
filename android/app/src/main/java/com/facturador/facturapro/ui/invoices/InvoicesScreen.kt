@@ -223,6 +223,12 @@ fun InvoicesScreen(
         }
     }
 
+    LaunchedEffect(state.pdfGeneratedInvoiceId) {
+        if (state.pdfGeneratedInvoiceId != null) {
+            Toast.makeText(context, "PDF Generado", Toast.LENGTH_SHORT).show()
+        }
+    }
+
     LaunchedEffect(state.internalPdfPath) {
         if (state.internalPdfPath != null) {
             pane = InvoicePane.PdfViewer
@@ -343,8 +349,9 @@ fun InvoicesScreen(
                     modifier = modifier,
                 )
             } else {
+                val editTitle = if (state.selectedInvoice?.documentType == "quotation") "Editar presupuesto" else "Editar factura"
                 InvoiceFormPane(
-                    title = "Editar factura",
+                    title = editTitle,
                     clients = clients,
                     bootstrap = bootstrap,
                     existingInvoice = state.selectedInvoice,
@@ -2538,14 +2545,21 @@ private fun ActionLabel(
     isBusy: Boolean,
     label: String,
 ) {
-    if (isBusy) {
-        CircularProgressIndicator(
-            modifier = Modifier.height(18.dp),
-            strokeWidth = 2.dp,
-            color = MaterialTheme.colorScheme.onPrimary,
+    Row(
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(8.dp),
+    ) {
+        if (isBusy) {
+            CircularProgressIndicator(
+                modifier = Modifier.size(16.dp),
+                strokeWidth = 2.dp,
+                color = MaterialTheme.colorScheme.onPrimary,
+            )
+        }
+        Text(
+            text = if (isBusy) "Guardando..." else label,
+            fontWeight = FontWeight.SemiBold,
         )
-    } else {
-        Text(label, fontWeight = FontWeight.SemiBold)
     }
 }
 

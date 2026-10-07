@@ -16,6 +16,7 @@ data class InvoicesUiState(
     val previewHtml: String? = null,
     val errorMessage: String? = null,
     val savedInvoiceId: Long? = null,
+    val pdfGeneratedInvoiceId: Long? = null,
     val pendingPdfAction: PendingInvoicePdfAction? = null,
     val internalPdfPath: String? = null,
 )

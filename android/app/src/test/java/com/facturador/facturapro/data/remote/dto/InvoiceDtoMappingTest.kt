@@ -1,7 +1,9 @@
 package com.facturador.facturapro.data.remote.dto
 
 import com.google.gson.Gson
+import com.google.gson.GsonBuilder
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertTrue
 import org.junit.Test
 
 class InvoiceDtoMappingTest {
@@ -163,5 +165,20 @@ class InvoiceDtoMappingTest {
         assertEquals("quotation", remote.documentType)
         assertEquals(13, remote.items.size)
         assertEquals((1..13).map { "Servicio $it" }, remote.items.map { it.description })
+    }
+
+    @Test
+    fun invoice_upsert_serialization_keeps_null_bank_account_for_updates() {
+        val remote = InvoiceUpsertDto(
+            documentType = "invoice",
+            invoiceDate = "2026-08-25",
+            paymentTermId = 1L,
+            currencyId = 1L,
+            items = emptyList(),
+        )
+
+        val json = GsonBuilder().serializeNulls().create().toJson(remote)
+
+        assertTrue(json.contains("\"bank_account_id\":null"))
     }
 }

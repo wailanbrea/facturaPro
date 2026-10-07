@@ -244,6 +244,18 @@ class InvoiceController extends Controller
             Storage::disk('public')->delete($path);
         }
 
+        if ($invoice->invoice_number !== null) {
+            try {
+                $newPdfPath = $this->pdfService->generate($invoice->fresh(Invoice::PDF_RELATIONS));
+                $invoice->update([
+                    'pdf_path' => $newPdfPath,
+                    'pdf_sha256' => $this->pdfChecksum($newPdfPath),
+                ]);
+            } catch (\Throwable $e) {
+                \Illuminate\Support\Facades\Log::error("No se pudo regenerar el PDF tras actualizar la factura {$invoice->id}: " . $e->getMessage());
+            }
+        }
+
         return redirect()->route('web.invoices.show', $invoice)->with('status', 'Documento actualizado correctamente.');
     }
 
@@ -889,5 +901,14 @@ class InvoiceController extends Controller
             ->orderByDesc('is_default')
             ->orderBy('label')
             ->get(['fiscal_profile_id', 'path', 'label', 'is_default']);
+    }
+
+    private function pdfChecksum(string $relativePath): ?string
+    {
+        if (! Storage::disk('public')->exists($relativePath)) {
+            return null;
+        }
+
+        return hash('sha256', Storage::disk('public')->get($relativePath));
     }
 }

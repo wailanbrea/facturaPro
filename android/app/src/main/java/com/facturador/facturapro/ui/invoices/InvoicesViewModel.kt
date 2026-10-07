@@ -127,10 +127,11 @@ class InvoicesViewModel(
                     }
                 },
                 onFailure = { error ->
+                    val docName = if (draft.documentType == "quotation") "el presupuesto" else "la factura"
                     _uiState.update {
                         it.copy(
                             isSaving = false,
-                            errorMessage = error.message ?: "No se pudo crear la factura.",
+                            errorMessage = error.message ?: "No se pudo crear $docName.",
                         )
                     }
                 },
@@ -144,6 +145,7 @@ class InvoicesViewModel(
                 it.copy(
                     isSaving = true,
                     errorMessage = null,
+                    pdfGeneratedInvoiceId = null,
                     internalPdfPath = null,
                     pendingPdfAction = null,
                 )
@@ -151,20 +153,30 @@ class InvoicesViewModel(
 
             repository.update(invoiceId, draft).fold(
                 onSuccess = { invoice ->
-                    _uiState.update {
-                        it.copy(
-                            isSaving = false,
-                            selectedInvoice = invoice,
-                            invoices = (it.invoices.filterNot { summary -> summary.id == invoice.id } + invoice.toSummary())
-                                .sortedByDateAndId(),
+                    val docName = if (invoice.documentType == "quotation") "presupuesto" else "factura"
+                    if (invoice.pdfPath != null || invoice.invoiceNumber == null) {
+                        publishUpdatedInvoice(invoice)
+                    } else {
+                        repository.generatePdf(invoiceId).fold(
+                            onSuccess = { pdfPath ->
+                                publishUpdatedInvoice(invoice.copy(pdfPath = pdfPath))
+                            },
+                            onFailure = { error ->
+                                publishUpdatedInvoice(
+                                    invoice,
+                                    "${docName.replaceFirstChar { it.uppercase() }} actualizado/a, pero no se pudo regenerar el PDF. " +
+                                        (error.message ?: "Inténtalo nuevamente."),
+                                )
+                            },
                         )
                     }
                 },
                 onFailure = { error ->
+                    val docName = if (draft.documentType == "quotation") "el presupuesto" else "la factura"
                     _uiState.update {
                         it.copy(
                             isSaving = false,
-                            errorMessage = error.message ?: "No se pudo actualizar la factura.",
+                            errorMessage = error.message ?: "No se pudo actualizar $docName.",
                         )
                     }
                 },
@@ -172,8 +184,24 @@ class InvoicesViewModel(
         }
     }
 
+    private fun publishUpdatedInvoice(invoice: InvoiceDetail, errorMessage: String? = null) {
+        _uiState.update {
+            it.copy(
+                isSaving = false,
+                errorMessage = errorMessage,
+                savedInvoiceId = if (errorMessage == null) invoice.id else null,
+                pdfGeneratedInvoiceId = if (errorMessage == null && invoice.pdfPath != null) invoice.id else null,
+                selectedInvoice = invoice,
+                invoices = (it.invoices.filterNot { summary -> summary.id == invoice.id } + invoice.toSummary())
+                    .sortedByDateAndId(),
+            )
+        }
+    }
+
     fun issueSelectedInvoice() {
-        val invoiceId = _uiState.value.selectedInvoice?.id ?: return
+        val invoice = _uiState.value.selectedInvoice ?: return
+        val invoiceId = invoice.id
+        val docName = if (invoice.documentType == "quotation") "el presupuesto" else "la factura"
 
         viewModelScope.launch {
             _uiState.update {
@@ -186,12 +214,12 @@ class InvoicesViewModel(
             }
 
             repository.issue(invoiceId).fold(
-                onSuccess = { invoice ->
+                onSuccess = { updated ->
                     _uiState.update {
                         it.copy(
                             isSaving = false,
-                            selectedInvoice = invoice,
-                            invoices = (it.invoices.filterNot { summary -> summary.id == invoice.id } + invoice.toSummary())
+                            selectedInvoice = updated,
+                            invoices = (it.invoices.filterNot { summary -> summary.id == updated.id } + updated.toSummary())
                                 .sortedByDateAndId(),
                         )
                     }
@@ -200,7 +228,7 @@ class InvoicesViewModel(
                     _uiState.update {
                         it.copy(
                             isSaving = false,
-                            errorMessage = error.message ?: "No se pudo emitir la factura.",
+                            errorMessage = error.message ?: "No se pudo emitir $docName.",
                         )
                     }
                 },
@@ -488,7 +516,8 @@ class InvoicesViewModel(
                 }
 
                 if (readyInvoice.invoiceNumber == null) {
-                    error("La factura debe estar emitida antes de generar el PDF.")
+                    val docName = if (readyInvoice.documentType == "quotation") "El presupuesto" else "La factura"
+                    error("$docName debe estar emitido/a antes de generar el PDF.")
                 }
 
                 val generatedPdfPath = repository.generatePdf(readyInvoice.id).getOrThrow()
