@@ -11,8 +11,19 @@ class ClientRepository(
     private val api: FacturaProApi,
 ) {
     suspend fun list(search: String? = null): Result<List<ClientRecord>> = runCatching {
-        api.clients(search = search?.trim().takeUnless { it.isNullOrEmpty() }).data
-            .map { it.toDomain() }
+        val normalizedSearch = search?.trim().takeUnless { it.isNullOrEmpty() }
+        val allClients = mutableListOf<ClientRecord>()
+        var page = 1
+        var lastPage = 1
+
+        while (page <= lastPage && page <= 20) {
+            val response = api.clients(search = normalizedSearch, perPage = 500, page = page)
+            allClients.addAll(response.data.map { it.toDomain() })
+            lastPage = response.meta?.lastPage ?: 1
+            page++
+        }
+
+        allClients.distinctBy { it.id }
     }.fold(
         onSuccess = { Result.success(it) },
         onFailure = { error ->

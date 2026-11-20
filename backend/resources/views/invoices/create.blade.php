@@ -445,6 +445,17 @@ syncDocumentTypeFields();
     }
 
     select.addEventListener('change', () => syncClientFields(true));
+    fields.name.addEventListener('input', () => {
+        const option = select.selectedOptions[0];
+        if (!option || option.value === '') {
+            return;
+        }
+        const selectedName = (option.dataset.name || '').trim().toLowerCase();
+        if (fields.name.value.trim().toLowerCase() !== selectedName) {
+            select.value = '';
+            fields.name.required = true;
+        }
+    });
     syncClientFields(false);
 })();
 

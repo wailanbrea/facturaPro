@@ -1513,7 +1513,13 @@ private fun InvoiceFormPane(
         item {
                 OutlinedTextField(
                     value = clientName,
-                    onValueChange = { clientName = it },
+                    onValueChange = { newName ->
+                        clientName = newName
+                        val linkedClient = clients.firstOrNull { it.id == selectedClientId }
+                        if (linkedClient != null && !linkedClient.name.equals(newName.trim(), ignoreCase = true)) {
+                            selectedClientId = null
+                        }
+                    },
                     modifier = Modifier.fillMaxWidth(),
                     label = { Text("Cliente") },
                     singleLine = true,

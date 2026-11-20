@@ -91,7 +91,8 @@ interface FacturaProApi {
     @GET("clients")
     suspend fun clients(
         @Query("search") search: String? = null,
-        @Query("per_page") perPage: Int = 50,
+        @Query("per_page") perPage: Int = 500,
+        @Query("page") page: Int = 1,
     ): PaginatedResponseDto<ClientDto>
 
     @POST("clients")

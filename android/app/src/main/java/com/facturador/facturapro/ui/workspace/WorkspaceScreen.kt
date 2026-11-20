@@ -135,19 +135,29 @@ fun WorkspaceScreen(
         if (section == WorkspaceSection.Home) {
             dashboardViewModel.refresh()
         }
-        if (section == WorkspaceSection.TechnicalReports || section == WorkspaceSection.Clients) {
+        if (section == WorkspaceSection.Clients) {
             clientsViewModel.refresh()
+        }
+        if (section == WorkspaceSection.Invoices || section == WorkspaceSection.TechnicalReports) {
+            clientsViewModel.refreshCatalog()
+        }
+    }
+
+    LaunchedEffect(newInvoiceRequest) {
+        if (newInvoiceRequest > 0) {
+            clientsViewModel.refreshCatalog()
         }
     }
 
     LaunchedEffect(newTechnicalReportRequest) {
         if (newTechnicalReportRequest > 0) {
-            clientsViewModel.refresh()
+            clientsViewModel.refreshCatalog()
         }
     }
 
     LaunchedEffect(invoicesState.savedInvoiceId) {
         if (invoicesState.savedInvoiceId != null) {
+            clientsViewModel.refreshCatalog()
             clientsViewModel.refresh()
             dashboardViewModel.refresh()
         }
@@ -245,7 +255,7 @@ fun WorkspaceScreen(
 
                 WorkspaceSection.Invoices -> InvoicesScreen(
                     state = invoicesState,
-                    clients = clientsState.clients,
+                    clients = clientsState.catalogClients.ifEmpty { clientsState.clients },
                     bootstrap = loginState.bootstrap,
                     permissions = permissions,
                     openCreateRequest = newInvoiceRequest,
@@ -301,13 +311,13 @@ fun WorkspaceScreen(
 
                 WorkspaceSection.TechnicalReports -> TechnicalReportsScreen(
                     state = technicalReportsState,
-                    clients = clientsState.clients,
+                    clients = clientsState.catalogClients.ifEmpty { clientsState.clients },
                     bootstrap = loginState.bootstrap,
                     openCreateRequest = newTechnicalReportRequest,
                     onSearchChanged = technicalReportsViewModel::onSearchChanged,
                     onRefresh = {
                         technicalReportsViewModel.refresh()
-                        clientsViewModel.refresh()
+                        clientsViewModel.refreshCatalog()
                     },
                     onSelectReport = technicalReportsViewModel::loadDetail,
                     onClearSelection = technicalReportsViewModel::clearSelection,

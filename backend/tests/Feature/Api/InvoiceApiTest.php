@@ -9,6 +9,8 @@ use App\Models\FiscalProfile;
 use App\Models\Invoice;
 use App\Models\InvoiceNumberSetting;
 use App\Models\PaymentTerm;
+use App\Models\Permission;
+use App\Models\Role;
 use App\Models\Tax;
 use App\Models\User;
 use App\Models\Warranty;
@@ -738,6 +740,70 @@ class InvoiceApiTest extends TestCase
         ])->assertOk()
             ->assertJsonPath('data.status', 'converted')
             ->assertJsonPath('data.observations', 'Presupuesto convertido corregido');
+    }
+
+    public function test_new_client_created_from_invoice_or_quotation_is_persisted_and_listed_for_invoicing_users(): void
+    {
+        $role = Role::query()->create([
+            'name' => 'Solo Facturacion',
+            'slug' => 'solo_facturacion',
+            'is_active' => true,
+        ]);
+        $permissionIds = Permission::query()
+            ->whereIn('slug', ['crear_factura', 'ver_factura'])
+            ->pluck('id');
+        $role->permissions()->sync($permissionIds);
+
+        $invoicer = User::factory()->create();
+        $invoicer->roles()->sync([$role->id]);
+        $invoicer->fiscalProfiles()->sync(FiscalProfile::query()->pluck('id'));
+
+        Sanctum::actingAs($invoicer);
+
+        // 1. Crear factura con cliente nuevo (sin client_id)
+        $invoicePayload = $this->invoicePayload();
+        unset($invoicePayload['client_id']);
+        $invoicePayload['client_name'] = 'Cliente Nuevo Factura';
+        $invoicePayload['client_tax_id'] = '001-7777777-7';
+        $invoicePayload['client_email'] = 'nuevo-factura@example.com';
+
+        $invoiceResponse = $this->postJson('/api/invoices', $invoicePayload)->assertCreated();
+        $invoiceClientId = $invoiceResponse->json('data.client_id');
+
+        $this->assertNotNull($invoiceClientId);
+        $this->assertDatabaseHas('clients', [
+            'id' => $invoiceClientId,
+            'name' => 'Cliente Nuevo Factura',
+            'tax_id' => '001-7777777-7',
+            'email' => 'nuevo-factura@example.com',
+        ]);
+
+        // 2. Crear presupuesto con cliente nuevo (sin client_id)
+        $quotationPayload = $this->invoicePayload(['document_type' => 'quotation']);
+        unset($quotationPayload['client_id']);
+        $quotationPayload['client_name'] = 'Cliente Nuevo Presupuesto';
+        $quotationPayload['client_tax_id'] = '001-6666666-6';
+        $quotationPayload['client_email'] = 'nuevo-presupuesto@example.com';
+
+        $quotationResponse = $this->postJson('/api/invoices', $quotationPayload)->assertCreated();
+        $quotationClientId = $quotationResponse->json('data.client_id');
+
+        $this->assertNotNull($quotationClientId);
+        $this->assertDatabaseHas('clients', [
+            'id' => $quotationClientId,
+            'name' => 'Cliente Nuevo Presupuesto',
+            'tax_id' => '001-6666666-6',
+            'email' => 'nuevo-presupuesto@example.com',
+        ]);
+
+        // 3. El usuario facturador (sin gestionar_clientes) puede ver ambos en GET /api/clients
+        $clientsResponse = $this->getJson('/api/clients?per_page=500')->assertOk();
+        $clientIds = collect($clientsResponse->json('data'))->pluck('id')->all();
+        $this->assertContains($invoiceClientId, $clientIds);
+        $this->assertContains($quotationClientId, $clientIds);
+
+        // 4. Pero sigue sin poder crear clientes directamente en POST /api/clients
+        $this->postJson('/api/clients', ['name' => 'No Autorizado'])->assertForbidden();
     }
 
     /**

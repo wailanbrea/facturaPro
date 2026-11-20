@@ -45,7 +45,14 @@ Route::middleware('auth:sanctum')->group(function (): void {
     Route::post('/technical-reports/{technicalReport}/generate-pdf', [TechnicalReportPdfController::class, 'generate'])->middleware('permission:descargar_informes');
     Route::get('/technical-reports/{technicalReport}/download-pdf', [TechnicalReportPdfController::class, 'download'])->middleware('permission:descargar_informes');
 
-    Route::apiResource('clients', ClientController::class)->middleware('permission:gestionar_clientes');
+    Route::get('/clients', [ClientController::class, 'index'])
+        ->middleware('permission:gestionar_clientes,ver_factura,crear_factura,editar_factura,ver_informes,crear_informes,editar_informes');
+    Route::get('/clients/{client}', [ClientController::class, 'show'])
+        ->middleware('permission:gestionar_clientes,ver_factura,crear_factura,editar_factura,ver_informes,crear_informes,editar_informes');
+    Route::post('/clients', [ClientController::class, 'store'])->middleware('permission:gestionar_clientes');
+    Route::put('/clients/{client}', [ClientController::class, 'update'])->middleware('permission:gestionar_clientes');
+    Route::patch('/clients/{client}', [ClientController::class, 'update'])->middleware('permission:gestionar_clientes');
+    Route::delete('/clients/{client}', [ClientController::class, 'destroy'])->middleware('permission:gestionar_clientes');
 
     Route::post('/device-tokens', [AppointmentController::class, 'registerDeviceToken']);
 

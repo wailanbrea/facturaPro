@@ -28,12 +28,14 @@ class ClientsViewModel(
 
     fun refresh() {
         viewModelScope.launch {
+            val query = _uiState.value.searchQuery
             _uiState.update { it.copy(isLoading = true, errorMessage = null) }
-            repository.list(_uiState.value.searchQuery).fold(
+            repository.list(query).fold(
                 onSuccess = { clients ->
                     _uiState.update {
                         it.copy(
                             clients = clients,
+                            catalogClients = if (query.isBlank()) clients else it.catalogClients,
                             isLoading = false,
                         )
                     }
@@ -47,6 +49,19 @@ class ClientsViewModel(
                     }
                 },
             )
+        }
+    }
+
+    fun refreshCatalog() {
+        viewModelScope.launch {
+            repository.list(search = null).onSuccess { allClients ->
+                _uiState.update { current ->
+                    current.copy(
+                        catalogClients = allClients,
+                        clients = if (current.searchQuery.isBlank()) allClients else current.clients,
+                    )
+                }
+            }
         }
     }
 
@@ -67,7 +82,8 @@ class ClientsViewModel(
                         it.copy(
                             isSaving = false,
                             savedClientId = client.id,
-                            clients = (it.clients + client).sortedBy { record -> record.name.lowercase() },
+                            clients = (it.clients + client).distinctBy { r -> r.id }.sortedBy { record -> record.name.lowercase() },
+                            catalogClients = (it.catalogClients + client).distinctBy { r -> r.id }.sortedBy { record -> record.name.lowercase() },
                         )
                     }
                 },
@@ -94,6 +110,9 @@ class ClientsViewModel(
                             savedClientId = client.id,
                             editingClient = null,
                             clients = current.clients
+                                .map { existing -> if (existing.id == client.id) client else existing }
+                                .sortedBy { record -> record.name.lowercase() },
+                            catalogClients = current.catalogClients
                                 .map { existing -> if (existing.id == client.id) client else existing }
                                 .sortedBy { record -> record.name.lowercase() },
                         )
