@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Controllers\Api\AppointmentController;
+use App\Http\Controllers\Api\AppReleaseController;
 use App\Http\Controllers\Api\AuthController;
 use App\Http\Controllers\Api\ClientController;
 use App\Http\Controllers\Api\DashboardController;
@@ -10,6 +11,7 @@ use App\Http\Controllers\Api\ReportSettingController;
 use App\Http\Controllers\Api\SettingsController;
 use App\Http\Controllers\Api\TechnicalReportController;
 use App\Http\Controllers\Api\TechnicalReportPdfController;
+use App\Http\Controllers\Api\UserConfigurationController;
 use Illuminate\Support\Facades\Route;
 
 Route::get('/health', static fn (): array => [
@@ -18,11 +20,15 @@ Route::get('/health', static fn (): array => [
     'environment' => app()->environment(),
 ]);
 
+Route::get('/app-version', [AppReleaseController::class, 'show']);
+Route::get('/app-version/download', [AppReleaseController::class, 'download']);
+
 Route::post('/login', [AuthController::class, 'login'])->middleware('throttle:login');
 
 Route::middleware('auth:sanctum')->group(function (): void {
     Route::post('/logout', [AuthController::class, 'logout']);
     Route::get('/me', [AuthController::class, 'me']);
+    Route::get('/user-configurations', UserConfigurationController::class);
 
     Route::get('/dashboard', DashboardController::class)->middleware('permission:ver_factura');
 

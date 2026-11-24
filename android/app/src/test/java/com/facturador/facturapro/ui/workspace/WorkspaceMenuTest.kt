@@ -37,9 +37,14 @@ class WorkspaceMenuTest {
             visibleBottomItems(permissions).map { it.section },
         )
         assertEquals(
-            listOf(WorkspaceSection.Reports, WorkspaceSection.Calendar),
+            listOf(
+                WorkspaceSection.Reports,
+                WorkspaceSection.Calendar,
+                WorkspaceSection.UserAccount,
+            ),
             visibleMoreSections(permissions),
         )
+        assertTrue(WorkspaceSection.UserAccount.isAllowed(permissions))
         assertFalse(WorkspaceSection.Settings.isAllowed(permissions))
     }
 
@@ -53,12 +58,26 @@ class WorkspaceMenuTest {
         )
 
         assertTrue(WorkspaceSection.Settings.isAllowed(permissions))
+        assertTrue(WorkspaceSection.UserAccount.isAllowed(permissions))
         assertEquals(
             listOf(
                 WorkspaceSection.Reports,
                 WorkspaceSection.Calendar,
+                WorkspaceSection.UserAccount,
                 WorkspaceSection.Settings,
             ),
+            visibleMoreSections(permissions),
+        )
+    }
+
+    @Test
+    fun calendar_only_user_still_sees_user_account_menu() {
+        val permissions = setOf("ver_calendario", "gestionar_citas")
+
+        assertTrue(WorkspaceSection.UserAccount.isAllowed(permissions))
+        assertFalse(WorkspaceSection.Settings.isAllowed(permissions))
+        assertEquals(
+            listOf(WorkspaceSection.Calendar, WorkspaceSection.UserAccount),
             visibleMoreSections(permissions),
         )
     }

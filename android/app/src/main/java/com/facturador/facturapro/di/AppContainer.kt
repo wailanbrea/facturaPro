@@ -5,6 +5,7 @@ import com.facturador.facturapro.data.local.PrinterSettingsStore
 import com.facturador.facturapro.data.local.ServerConfigStore
 import com.facturador.facturapro.data.local.SessionStore
 import com.facturador.facturapro.data.remote.ApiClientFactory
+import com.facturador.facturapro.data.repository.AppUpdateRepository
 import com.facturador.facturapro.data.repository.AuthRepository
 import com.facturador.facturapro.data.repository.BluetoothPrinterRepository
 import com.facturador.facturapro.data.repository.CalendarRepository
@@ -14,6 +15,7 @@ import com.facturador.facturapro.data.repository.InvoiceRepository
 import com.facturador.facturapro.data.repository.ReportRepository
 import com.facturador.facturapro.data.repository.SettingsRepository
 import com.facturador.facturapro.data.repository.TechnicalReportRepository
+import com.facturador.facturapro.data.repository.UserConfigurationRepository
 
 class AppContainer(context: Context) {
     private val appContext = context.applicationContext
@@ -34,4 +36,6 @@ class AppContainer(context: Context) {
     val dashboardRepository = DashboardRepository(api)
     val printerRepository = BluetoothPrinterRepository(appContext, printerSettingsStore)
     val calendarRepository = CalendarRepository(api)
+    val appUpdateRepository = AppUpdateRepository(api, appContext)
+    val userConfigurationRepository = UserConfigurationRepository(api)
 }

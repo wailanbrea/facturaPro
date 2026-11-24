@@ -41,6 +41,13 @@ class AuthRepository(
         },
     )
 
+    override suspend fun updateSecurityPreferences(rememberSession: Boolean, biometricEnabled: Boolean) {
+        sessionStore.updateSecurityPreferences(
+            rememberSession = rememberSession,
+            biometricEnabled = biometricEnabled,
+        )
+    }
+
     override suspend fun logout() {
         val currentSession = sessionStore.session.first()
         val authorization = currentSession?.let { "${it.tokenType} ${it.accessToken}" }

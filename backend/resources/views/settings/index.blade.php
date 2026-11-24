@@ -16,6 +16,7 @@
         'invoice-number' => ['title' => 'Numeracion', 'summary' => 'Secuencia de facturas'],
         'reports' => ['title' => 'Informes', 'summary' => 'Titulos y numeracion tecnica', 'href' => route('web.settings.reports.edit')],
         'locked-fields' => ['title' => 'Campos bloqueados', 'summary' => 'Bloquea casillas del formulario de factura', 'href' => route('web.settings.locked-fields.edit')],
+        'app-release' => ['title' => 'App Android (APK)', 'summary' => 'Versión publicada y actualización móvil', 'href' => route('web.settings.app-release.edit')],
     ];
 @endphp
 

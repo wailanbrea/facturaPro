@@ -81,6 +81,15 @@ class SessionStore(context: Context) : SessionStoreContract {
         }
     }
 
+    override suspend fun updateSecurityPreferences(rememberSession: Boolean, biometricEnabled: Boolean) {
+        val currentSession = session.first() ?: return
+        save(
+            session = currentSession,
+            rememberSession = rememberSession,
+            biometricEnabled = rememberSession && biometricEnabled,
+        )
+    }
+
     override suspend fun clear() {
         volatileSession.value = null
         dataStore.edit { preferences ->

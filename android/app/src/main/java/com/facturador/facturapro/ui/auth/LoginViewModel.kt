@@ -104,6 +104,22 @@ class LoginViewModel(
         }
     }
 
+    fun updateSessionSecurityPreferences(rememberSession: Boolean, biometricEnabled: Boolean) {
+        val effectiveBiometric = rememberSession && biometricEnabled
+        viewModelScope.launch {
+            authRepository.updateSecurityPreferences(
+                rememberSession = rememberSession,
+                biometricEnabled = effectiveBiometric,
+            )
+            _uiState.update {
+                it.copy(
+                    rememberSession = rememberSession,
+                    biometricEnabled = effectiveBiometric,
+                )
+            }
+        }
+    }
+
     fun unlockWithBiometrics() {
         if (isLoggingOut) return
         val state = _uiState.value

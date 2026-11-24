@@ -51,6 +51,8 @@ import com.facturador.facturapro.domain.model.BootstrapCatalogs
 import com.facturador.facturapro.domain.model.PrinterDevice
 import com.facturador.facturapro.ui.auth.LoginUiState
 import com.facturador.facturapro.ui.theme.OutlineVariant
+import com.facturador.facturapro.ui.useraccount.AppUpdateCard
+import com.facturador.facturapro.ui.useraccount.UserAccountUiState
 
 @Composable
 fun SettingsScreen(
@@ -65,6 +67,10 @@ fun SettingsScreen(
     onSaveServerUrl: () -> Unit = {},
     onResetServerUrl: () -> Unit = {},
     onBluetoothPermissionsDenied: () -> Unit = {},
+    userAccountState: UserAccountUiState? = null,
+    onCheckUpdate: () -> Unit = {},
+    onDownloadAndInstallUpdate: (android.content.Context) -> Unit = {},
+    onInstallDownloadedApk: (android.content.Context) -> Unit = {},
     onLogout: () -> Unit = {},
     modifier: Modifier = Modifier,
 ) {
@@ -126,6 +132,17 @@ fun SettingsScreen(
                 subtitle = "Métricas y análisis del período",
                 onClick = onOpenReports,
             )
+        }
+
+        if (userAccountState != null) {
+            item {
+                AppUpdateCard(
+                    state = userAccountState,
+                    onCheckUpdate = onCheckUpdate,
+                    onDownloadAndInstall = { onDownloadAndInstallUpdate(context) },
+                    onInstallDownloaded = { onInstallDownloadedApk(context) },
+                )
+            }
         }
 
         item {

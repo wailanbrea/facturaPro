@@ -90,6 +90,8 @@ Route::middleware('auth')->group(function (): void {
         Route::put('/settings/reports', [ReportSettingController::class, 'update'])->name('web.settings.reports.update');
         Route::get('/settings/locked-fields', [SettingsController::class, 'editLockedFields'])->name('web.settings.locked-fields.edit');
         Route::put('/settings/locked-fields', [SettingsController::class, 'updateLockedFields'])->name('web.settings.locked-fields.update');
+        Route::get('/settings/app-release', [SettingsController::class, 'editAppRelease'])->name('web.settings.app-release.edit');
+        Route::post('/settings/app-release', [SettingsController::class, 'updateAppRelease'])->name('web.settings.app-release.update');
         Route::get('/settings/{catalog}', [SettingsCatalogController::class, 'index'])->name('web.settings.catalog.index');
         Route::get('/settings/{catalog}/create', [SettingsCatalogController::class, 'create'])->name('web.settings.catalog.create');
         Route::post('/settings/{catalog}', [SettingsCatalogController::class, 'store'])->name('web.settings.catalog.store');

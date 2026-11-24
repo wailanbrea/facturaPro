@@ -250,6 +250,7 @@ fun FacturaProApp(container: AppContainer) {
                 loginState = state,
                 container = container,
                 onRetryBootstrap = viewModel::retryBootstrap,
+                onUpdateSecurityPreferences = viewModel::updateSessionSecurityPreferences,
                 onLogout = viewModel::logout,
             )
         }

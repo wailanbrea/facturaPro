@@ -2,11 +2,13 @@
 
 namespace App\Http\Controllers\Web;
 
+use App\Http\Controllers\Api\AppReleaseController;
 use App\Http\Controllers\Controller;
 use App\Models\Setting;
 use App\Services\SettingsBootstrapService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Storage;
 use Illuminate\View\View;
 
 class SettingsController extends Controller
@@ -54,5 +56,49 @@ class SettingsController extends Controller
         return redirect()
             ->route('web.settings.locked-fields.edit')
             ->with('status', 'Campos bloqueados actualizados.');
+    }
+
+    public function editAppRelease(AppReleaseController $releaseController): View
+    {
+        return view('settings.app-release', [
+            'release' => $releaseController->resolveReleaseMetadata(),
+        ]);
+    }
+
+    public function updateAppRelease(Request $request): RedirectResponse
+    {
+        $data = $request->validate([
+            'version_code' => ['required', 'integer', 'min:1'],
+            'version_name' => ['required', 'string', 'max:50'],
+            'release_notes' => ['nullable', 'string', 'max:1000'],
+            'apk_file' => ['required', 'file', 'max:102400'],
+        ]);
+
+        $previous = Setting::query()->where('key', 'android.app_release')->value('value');
+        if (is_array($previous) && ! empty($previous['apk_path'])) {
+            Storage::disk('public')->delete((string) $previous['apk_path']);
+        }
+
+        $fileName = 'FacturaPro-v'.preg_replace('/[^A-Za-z0-9._-]/', '_', $data['version_name']).'-'.(int) $data['version_code'].'.apk';
+        $apkPath = $request->file('apk_file')->storeAs('apk', $fileName, 'public');
+
+        Setting::query()->updateOrCreate(
+            ['key' => 'android.app_release'],
+            [
+                'group' => 'mobile',
+                'value' => [
+                    'version_code' => (int) $data['version_code'],
+                    'version_name' => trim($data['version_name']),
+                    'apk_path' => $apkPath,
+                    'release_notes' => trim((string) ($data['release_notes'] ?? '')),
+                    'published_at' => now()->toDateString(),
+                ],
+                'description' => 'Paquete APK de FacturaPro publicado desde el panel web.',
+            ],
+        );
+
+        return redirect()
+            ->route('web.settings.app-release.edit')
+            ->with('status', 'Nueva versión de la APK publicada correctamente.');
     }
 }

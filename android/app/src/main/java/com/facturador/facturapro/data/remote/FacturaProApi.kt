@@ -2,6 +2,7 @@ package com.facturador.facturapro.data.remote
 
 import com.facturador.facturapro.data.remote.dto.AppointmentListResponse
 import com.facturador.facturapro.data.remote.dto.AppointmentResponse
+import com.facturador.facturapro.data.remote.dto.AppReleaseDto
 import com.facturador.facturapro.data.remote.dto.BootstrapResponseDto
 import com.facturador.facturapro.data.remote.dto.CreateAppointmentRequest
 import com.facturador.facturapro.data.remote.dto.ClientDto
@@ -19,6 +20,7 @@ import com.facturador.facturapro.data.remote.dto.SingleDataResponseDto
 import com.facturador.facturapro.data.remote.dto.TechnicalReportDto
 import com.facturador.facturapro.data.remote.dto.TechnicalReportSettingDto
 import com.facturador.facturapro.data.remote.dto.TechnicalReportUpsertDto
+import com.facturador.facturapro.data.remote.dto.UserConfigurationOverviewDto
 import okhttp3.ResponseBody
 import retrofit2.Response
 import retrofit2.http.Body
@@ -40,6 +42,12 @@ interface FacturaProApi {
 
     @GET("settings/bootstrap")
     suspend fun bootstrap(): BootstrapResponseDto
+
+    @GET("app-version")
+    suspend fun appVersion(): SingleDataResponseDto<AppReleaseDto>
+
+    @GET("user-configurations")
+    suspend fun userConfigurations(): SingleDataResponseDto<UserConfigurationOverviewDto>
 
     @GET("dashboard")
     suspend fun dashboard(): DashboardResponseDto

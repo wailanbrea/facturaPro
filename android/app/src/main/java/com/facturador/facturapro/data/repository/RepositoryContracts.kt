@@ -26,6 +26,8 @@ interface SessionStoreContract {
 
     suspend fun save(session: AuthSession, rememberSession: Boolean, biometricEnabled: Boolean)
 
+    suspend fun updateSecurityPreferences(rememberSession: Boolean, biometricEnabled: Boolean) {}
+
     suspend fun clear()
 }
 
@@ -41,6 +43,8 @@ interface AuthRepositoryContract {
         rememberSession: Boolean = true,
         biometricEnabled: Boolean = false,
     ): Result<AuthSession>
+
+    suspend fun updateSecurityPreferences(rememberSession: Boolean, biometricEnabled: Boolean) {}
 
     suspend fun logout()
 }

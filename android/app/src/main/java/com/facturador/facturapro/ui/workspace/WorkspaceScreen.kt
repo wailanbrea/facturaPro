@@ -17,6 +17,7 @@ import androidx.compose.material.icons.outlined.Description
 import androidx.compose.material.icons.outlined.Fingerprint
 import androidx.compose.material.icons.outlined.Home
 import androidx.compose.material.icons.outlined.Lock
+import androidx.compose.material.icons.outlined.ManageAccounts
 import androidx.compose.material.icons.outlined.People
 import androidx.compose.material.icons.outlined.BarChart
 import androidx.compose.material.icons.outlined.QrCodeScanner
@@ -67,6 +68,8 @@ import com.facturador.facturapro.ui.settings.SettingsScreen
 import com.facturador.facturapro.ui.settings.SettingsViewModel
 import com.facturador.facturapro.ui.technicalreports.TechnicalReportsScreen
 import com.facturador.facturapro.ui.technicalreports.TechnicalReportsViewModel
+import com.facturador.facturapro.ui.useraccount.UserAccountScreen
+import com.facturador.facturapro.ui.useraccount.UserAccountViewModel
 import com.facturador.facturapro.ui.verification.VerificationScreen
 import com.facturador.facturapro.ui.verification.VerificationViewModel
 
@@ -76,6 +79,7 @@ fun WorkspaceScreen(
     loginState: LoginUiState,
     container: AppContainer,
     onRetryBootstrap: () -> Unit,
+    onUpdateSecurityPreferences: (rememberSession: Boolean, biometricEnabled: Boolean) -> Unit = { _, _ -> },
     onLogout: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
@@ -113,6 +117,12 @@ fun WorkspaceScreen(
     val dashboardViewModel: DashboardViewModel = viewModel(
         factory = DashboardViewModel.factory(container.dashboardRepository),
     )
+    val userAccountViewModel: UserAccountViewModel = viewModel(
+        factory = UserAccountViewModel.factory(
+            userConfigRepository = container.userConfigurationRepository,
+            appUpdateRepository = container.appUpdateRepository,
+        ),
+    )
     val clientsState by clientsViewModel.uiState.collectAsStateWithLifecycle()
     val invoicesState by invoicesViewModel.uiState.collectAsStateWithLifecycle()
     val reportsState by reportsViewModel.uiState.collectAsStateWithLifecycle()
@@ -120,12 +130,20 @@ fun WorkspaceScreen(
     val settingsState by settingsViewModel.uiState.collectAsStateWithLifecycle()
     val verificationState by verificationViewModel.uiState.collectAsStateWithLifecycle()
     val dashboardState by dashboardViewModel.uiState.collectAsStateWithLifecycle()
+    val userAccountState by userAccountViewModel.uiState.collectAsStateWithLifecycle()
     val permissions = loginState.permissions
+
+    LaunchedEffect(Unit) {
+        userAccountViewModel.checkForAppUpdate(silentIfUpToDate = true)
+    }
 
     LaunchedEffect(permissions) {
         if (!section.isAllowed(permissions)) {
-            section = bottomNavItems.firstOrNull { it.section.isAllowed(permissions) }?.section
-                ?: WorkspaceSection.Settings
+            section = bottomNavItems
+                .firstOrNull { it.section != WorkspaceSection.More && it.section.isAllowed(permissions) }
+                ?.section
+                ?: moreItems.firstOrNull { it.section.isAllowed(permissions) }?.section
+                ?: WorkspaceSection.UserAccount
         }
     }
 
@@ -140,6 +158,12 @@ fun WorkspaceScreen(
         }
         if (section == WorkspaceSection.Invoices || section == WorkspaceSection.TechnicalReports) {
             clientsViewModel.refreshCatalog()
+        }
+        if (section == WorkspaceSection.UserAccount) {
+            userAccountViewModel.refreshAll()
+        }
+        if (section == WorkspaceSection.Settings) {
+            userAccountViewModel.checkForAppUpdate(silentIfUpToDate = true)
         }
     }
 
@@ -343,6 +367,23 @@ fun WorkspaceScreen(
                     onScanFailed = verificationViewModel::onScanFailed,
                 )
 
+                WorkspaceSection.UserAccount -> UserAccountScreen(
+                    loginState = loginState,
+                    settingsState = settingsState,
+                    userAccountState = userAccountState,
+                    onRefresh = userAccountViewModel::refreshAll,
+                    onCheckUpdate = { userAccountViewModel.checkForAppUpdate(silentIfUpToDate = false) },
+                    onDownloadAndInstallUpdate = userAccountViewModel::downloadAndInstallUpdate,
+                    onInstallDownloadedApk = userAccountViewModel::installDownloadedApk,
+                    onUpdateSecurityPreferences = onUpdateSecurityPreferences,
+                    onOpenSystemSettings = if (WorkspaceSection.Settings.isAllowed(permissions)) {
+                        { section = WorkspaceSection.Settings }
+                    } else {
+                        null
+                    },
+                    onLogout = onLogout,
+                )
+
                 WorkspaceSection.Settings -> SettingsScreen(
                     state = loginState,
                     settingsState = settingsState,
@@ -355,6 +396,10 @@ fun WorkspaceScreen(
                     onSaveServerUrl = settingsViewModel::saveServerUrl,
                     onResetServerUrl = settingsViewModel::resetServerUrl,
                     onBluetoothPermissionsDenied = settingsViewModel::onBluetoothPermissionsDenied,
+                    userAccountState = userAccountState,
+                    onCheckUpdate = { userAccountViewModel.checkForAppUpdate(silentIfUpToDate = false) },
+                    onDownloadAndInstallUpdate = userAccountViewModel::downloadAndInstallUpdate,
+                    onInstallDownloadedApk = userAccountViewModel::installDownloadedApk,
                     onLogout = onLogout,
                 )
 
@@ -366,7 +411,12 @@ fun WorkspaceScreen(
     if (showMoreMenu) {
         ModalBottomSheet(onDismissRequest = { showMoreMenu = false }) {
             moreItems.filter { it.section.isAllowed(permissions) }.forEach { item ->
-                MoreDestinationRow(item.label, item.icon) {
+                val supporting = if (item.section == WorkspaceSection.UserAccount && userAccountState.hasUpdateAvailable) {
+                    "Actualización disponible: v${userAccountState.latestRelease?.versionName.orEmpty()}"
+                } else {
+                    null
+                }
+                MoreDestinationRow(item.label, item.icon, supporting) {
                     section = item.section
                     showMoreMenu = false
                 }
@@ -376,9 +426,23 @@ fun WorkspaceScreen(
 }
 
 @Composable
-private fun MoreDestinationRow(label: String, icon: ImageVector, onClick: () -> Unit) {
+private fun MoreDestinationRow(
+    label: String,
+    icon: ImageVector,
+    supportingText: String? = null,
+    onClick: () -> Unit,
+) {
     ListItem(
         headlineContent = { Text(label, fontWeight = FontWeight.SemiBold) },
+        supportingContent = supportingText?.let {
+            {
+                Text(
+                    text = it,
+                    color = MaterialTheme.colorScheme.primary,
+                    style = MaterialTheme.typography.labelMedium,
+                )
+            }
+        },
         leadingContent = { Icon(icon, contentDescription = null) },
         modifier = Modifier.clickable(onClick = onClick),
     )
@@ -435,6 +499,7 @@ enum class WorkspaceSection {
     TechnicalReports,
     Reports,
     Verify,
+    UserAccount,
     Settings,
     More,
 }
@@ -462,7 +527,8 @@ private val bottomNavItems = listOf(
 private val moreItems = listOf(
     MoreItem(WorkspaceSection.Reports, "Reportes", Icons.Outlined.BarChart),
     MoreItem(WorkspaceSection.Calendar, "Calendario", Icons.Outlined.CalendarMonth),
-    MoreItem(WorkspaceSection.Settings, "Ajustes", Icons.Outlined.Settings),
+    MoreItem(WorkspaceSection.UserAccount, "Usuario y configuraciones", Icons.Outlined.ManageAccounts),
+    MoreItem(WorkspaceSection.Settings, "Ajustes del sistema", Icons.Outlined.Settings),
 )
 
 private val moreSections = moreItems.map { it.section }.toSet()
@@ -479,6 +545,7 @@ internal fun WorkspaceSection.isAllowed(permissions: Set<String>): Boolean = whe
     WorkspaceSection.Calendar -> "ver_calendario" in permissions
     WorkspaceSection.TechnicalReports -> "ver_informes" in permissions
     WorkspaceSection.Reports -> "ver_reportes" in permissions
+    WorkspaceSection.UserAccount -> true
     WorkspaceSection.Settings -> "configurar_sistema" in permissions
     WorkspaceSection.More -> moreSections.any { it.isAllowed(permissions) }
 }
