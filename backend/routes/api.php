@@ -16,6 +16,7 @@ Route::get('/health', static fn (): array => [
     'status' => 'ok',
     'app' => config('app.name'),
     'environment' => app()->environment(),
+    'git_deploy_check' => '2026-11-24',
 ]);
 
 Route::post('/login', [AuthController::class, 'login'])->middleware('throttle:login');
