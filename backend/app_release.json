@@ -1,7 +1,7 @@
 {
-    "version_code": 2,
-    "version_name": "1.1.0",
-    "download_url": "https://github.com/wailanbrea/facturaPro/releases/download/v1.1.0/FacturaPro-v1.1.0.apk",
-    "release_notes": "Actualización directa desde la app, nuevo menú de Usuario con todas las configuraciones según el rol, y sincronización completa de clientes.",
+    "version_code": 3,
+    "version_name": "1.2.0",
+    "download_url": "https://github.com/wailanbrea/facturaPro/releases/download/v1.2.0/FacturaPro-v1.2.0.apk",
+    "release_notes": "Al tocar tu nombre en Inicio ahora puedes ver tu nombre, correo y rol, con acceso directo a Usuario y configuraciones.",
     "published_at": "2026-11-24"
 }

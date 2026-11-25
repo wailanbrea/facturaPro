@@ -134,7 +134,7 @@ fun WorkspaceScreen(
     val permissions = loginState.permissions
 
     LaunchedEffect(Unit) {
-        userAccountViewModel.checkForAppUpdate(silentIfUpToDate = true)
+        userAccountViewModel.refreshAll()
     }
 
     LaunchedEffect(permissions) {
@@ -262,7 +262,9 @@ fun WorkspaceScreen(
         Box(modifier = Modifier.padding(padding)) {
             when (section) {
                 WorkspaceSection.Home -> DashboardScreen(
-                    userName = loginState.userName,
+                    userName = userAccountState.config?.currentUser?.name?.ifBlank { loginState.userName } ?: loginState.userName,
+                    userEmail = userAccountState.config?.currentUser?.email?.ifBlank { loginState.email } ?: loginState.email,
+                    userRoles = userAccountState.config?.currentUser?.roles?.map { it.name }.orEmpty(),
                     state = dashboardState,
                     onNewInvoice = {
                         section = WorkspaceSection.Invoices
@@ -274,6 +276,7 @@ fun WorkspaceScreen(
                         openInvoiceId = invoiceId
                         openInvoiceRequest++
                     },
+                    onOpenUserAccount = { section = WorkspaceSection.UserAccount },
                     onRefresh = dashboardViewModel::refresh,
                 )
 
